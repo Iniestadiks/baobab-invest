@@ -1,0 +1,114 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+// Routes accessibles par rôle
+const ROLE_ROUTES: Record<string, string[]> = {
+  INVESTOR: [
+    '/dashboard', '/projects', '/investments', '/wallet',
+    '/savings', '/referral', '/notifications', '/messages',
+    '/profile', '/kyc', '/transparence', '/academy', '/suppliers',
+    '/auth', '/'
+  ],
+  ENTREPRENEUR: [
+    '/entrepreneur', '/projects', '/messages', '/notifications',
+    '/profile', '/kyc', '/transparence',
+    '/auth', '/'
+  ],
+  MENTOR: [
+    '/mentor', '/projects', '/messages', '/notifications',
+    '/profile', '/wallet', '/transparence',
+    '/auth', '/'
+  ],
+  SUPPLIER: [
+    '/supplier', '/auth', '/'
+  ],
+  ADMIN: [
+    '/' // Admin a accès à tout
+  ],
+}
+
+// Dashboard par rôle
+const ROLE_DASHBOARD: Record<string, string> = {
+  INVESTOR: '/dashboard',
+  ENTREPRENEUR: '/entrepreneur',
+  MENTOR: '/mentor',
+  SUPPLIER: '/supplier/dashboard',
+  ADMIN: '/admin',
+}
+
+// Pages publiques — pas besoin d'être connecté
+const PUBLIC_PATHS = [
+  '/auth/login',
+  '/auth/register',
+  '/transparence',
+  '/',
+  '/projects',
+]
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Laisser passer les ressources statiques et API
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/favicon') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next()
+  }
+
+  // Récupérer le token et le rôle depuis les cookies ou headers
+  const token = request.cookies.get('accessToken')?.value
+  const userCookie = request.cookies.get('user')?.value
+
+  // Page auth — toujours laisser passer
+  if (pathname.startsWith('/auth')) {
+    return NextResponse.next()
+  }
+
+  // Page publique — laisser passer
+  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    return NextResponse.next()
+  }
+
+  // Pas connecté → login
+  if (!token && !userCookie) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Récupérer le rôle
+  let role = 'INVESTOR'
+  if (userCookie) {
+    try {
+      const user = JSON.parse(decodeURIComponent(userCookie))
+      role = user.role || 'INVESTOR'
+    } catch {}
+  }
+
+  // ADMIN — accès total
+  if (role === 'ADMIN') return NextResponse.next()
+
+  // Vérifier si la route est autorisée pour ce rôle
+  const allowedPrefixes = ROLE_ROUTES[role] || []
+  const isAllowed = allowedPrefixes.some(prefix =>
+    pathname === prefix || pathname.startsWith(prefix + '/')
+  )
+
+  if (!isAllowed) {
+    // Rediriger vers le bon dashboard
+    const url = request.nextUrl.clone()
+    url.pathname = ROLE_DASHBOARD[role] || '/auth/login'
+    return NextResponse.redirect(url)
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+}
