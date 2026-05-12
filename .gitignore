@@ -1,0 +1,26 @@
+# Dependencies
+baobab-api/node_modules/
+baobab-web/node_modules/
+baobab-web/.next/
+
+# Environment files (SENSIBLE — ne jamais commiter)
+baobab-api/.env
+baobab-web/.env.local
+baobab-web/.env
+
+# Uploads (fichiers KYC — données personnelles)
+baobab-api/uploads/
+
+# Backups
+backups/
+
+# Logs
+*.log
+baobab-api/logs/
+
+# Prisma generated
+baobab-api/node_modules/.prisma/
+
+# OS
+.DS_Store
+Thumbs.db
