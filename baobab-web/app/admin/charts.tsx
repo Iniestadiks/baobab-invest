@@ -150,12 +150,12 @@ export default function AdminCharts() {
               {[
                 { label: "Capital levé brut", value: k.totalRaised, note: "Total investi par les investisseurs", color: "text-gray-900" },
                 { label: "↳ Cagnotte nette entrepreneurs", value: k.totalCagnotteNette, note: "Après BAOBAB 5% + mentor 2% + garantie 2%", color: "text-green-700" },
-                { label: "↳ Commission BAOBAB collecte", value: Math.round(k.totalRaised - k.totalCagnotteNette - Math.round(k.totalRaised*0.02) - Math.round(k.totalRaised*0.02)), note: "5% à la clôture", color: "text-purple-700" },
-                { label: "↳ Commission mentors versée", value: Math.round(k.totalRaised * 0.02), note: "2% crédité sur wallet mentor", color: "text-blue-700" },
-                { label: "↳ Fonds de garantie", value: Math.round(k.totalRaised * 0.02), note: "2% réservé — libéré au remboursement", color: "text-orange-700" },
+                { label: "↳ Commission BAOBAB collecte", value: Math.round(k.totalRaised * (k.feeMap?.commission_baobab_collection||5) / 100), note: `${k.feeMap?.commission_baobab_collection||5}% à la clôture`, color: "text-purple-700" },
+                { label: "↳ Commission mentors versée", value: Math.round(k.totalRaised * (k.feeMap?.commission_mentor||2) / 100), note: `${k.feeMap?.commission_mentor||2}% crédité sur wallet mentor`, color: "text-blue-700" },
+                { label: "↳ Fonds de garantie", value: Math.round(k.totalRaised * (k.feeMap?.commission_guarantee||2) / 100), note: `${k.feeMap?.commission_guarantee||2}% réservé — libéré au remboursement`, color: "text-orange-700" },
                 { label: "Retour total brut (projeté)", value: k.totalExpectedReturn, note: "Capital + intérêts promis", color: "text-gray-900" },
                 { label: "↳ Net versé aux investisseurs", value: k.totalNetInvestors, note: "Après BAOBAB 5% + PayDunya 2% sur retours", color: "text-green-700" },
-                { label: "↳ Commission BAOBAB sur retours", value: k.totalExpectedReturn - k.totalNetInvestors - Math.round(k.totalExpectedReturn * 0.02), note: "5% prélevé au remboursement", color: "text-purple-700" },
+                { label: "↳ Commission BAOBAB sur retours", value: Math.round(k.totalExpectedReturn * (k.feeMap?.commission_baobab_return||5) / 100), note: `${k.feeMap?.commission_baobab_return||5}% prélevé au remboursement`, color: "text-purple-700" },
                 { label: "Revenu net BAOBAB (encaissé)", value: k.revenuNetBAOBAB, note: "Collecte - PayDunya absorbé", color: "text-purple-800 font-bold" },
               ].map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">

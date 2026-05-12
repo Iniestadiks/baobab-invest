@@ -309,7 +309,7 @@ export default function EntrepreneurDashboard() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Projets soumis", value: projects.length, icon: "📋", bg: "bg-blue-50", color: "text-blue-700" },
+            { label: "Projets soumis", value: visibleProjects.length, icon: "📋", bg: "bg-blue-50", color: "text-blue-700" },
             { label: "Fonds dépensés", value: `${totalDepense.toLocaleString()} FCFA`, icon: "🏗️", bg: "bg-orange-50", color: "text-orange-700" },
             { label: "Disponible", value: `${Math.max(totalDisponible,0).toLocaleString()} FCFA`, icon: "💳", bg: "bg-purple-50", color: "text-purple-700" },
             { label: "Projets actifs", value: activeProjects, icon: "🟢", bg: "bg-green-50", color: "text-green-700" },
@@ -335,7 +335,7 @@ export default function EntrepreneurDashboard() {
                 <h3 className="font-bold text-gray-900 text-lg">Mes Projets</h3>
                 <Link href="/projects/submit" className="text-sm text-green-600 hover:underline">+ Nouveau</Link>
               </div>
-              {projects.length === 0 ? (
+              {visibleProjects.length === 0 ? (
                 <div className="text-center py-10">
                   <div className="text-5xl mb-3">🌱</div>
                   <p className="text-gray-500 mb-4">Aucun projet soumis</p>
