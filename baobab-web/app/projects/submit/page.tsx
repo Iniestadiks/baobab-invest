@@ -1,4 +1,5 @@
 "use client";
+import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authPost } from "@/lib/api";
@@ -32,6 +33,7 @@ export default function SubmitProjectPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [score, setScore] = useState<number | null>(null);
+  const { fees } = usePlatformConfig();
   const [mentors, setMentors] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
 
@@ -39,7 +41,7 @@ export default function SubmitProjectPage() {
     hasInvestedBefore: false,
     title: "", description: "", sector: "AGRICULTURE",
     city: "", country: "SN", pitchVideoUrl: "", coverImageUrl: "",
-    goalAmount: "", minimumInvestment: "5000", expectedReturn: "",
+    goalAmount: "", netBesoin: "", minimumInvestment: "5000", expectedReturn: "",
     durationMonths: "", riskLevel: "MEDIUM", campaignEndsAt: "",
     mentorId: "", acceptContract: false, acceptTransparency: false,
   });
@@ -326,22 +328,57 @@ export default function SubmitProjectPage() {
               <h2 className="text-xl font-bold text-gray-900 mb-2">💰 Plan Financier</h2>
               <p className="text-gray-500 text-sm mb-6">Définis les paramètres financiers de ta campagne.</p>
               <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 mb-1 block">
-                      Montant total à lever (FCFA) * <span className="text-red-500 font-bold">— minimum 100 000 FCFA obligatoire</span>
+                {/* Calculateur besoin net → objectif collecte */}
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+                  <div className="font-semibold text-blue-800 text-sm">🧮 Calculateur de besoin</div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">
+                      De combien as-tu besoin NET pour ton projet ? *
                     </label>
-                  <input name="goalAmount" type="number" min="100000" onBlur={e => { if(Number(e.target.value) < 100000 && e.target.value) { const ev = {...e, target:{...e.target,name:"goalAmount",value:"100000"}}; handleChange(ev as any); }}} value={form.goalAmount} onChange={handleChange}
-                    placeholder="500000" min="100000" className="input-field" />
+                    <input type="number" min="91000" placeholder="Ex: 500 000 FCFA"
+                      value={form.netBesoin}
+                      onChange={e => {
+                        const net = Number(e.target.value);
+                        const frais = (fees?.commission_baobab_collection||5) + (fees?.commission_mentor||2) + (fees?.commission_guarantee||2);
+                        const objectif = net > 0 ? Math.ceil(net / (1 - frais/100)) : 0;
+                        setForm(f => ({ ...f, netBesoin: e.target.value, goalAmount: objectif > 0 ? String(objectif) : "" }));
+                      }}
+                      className="input-field" />
+                    {form.netBesoin && Number(form.netBesoin) > 0 && (
+                      <div className="mt-2 bg-white rounded-xl p-3 border border-blue-100 text-xs space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Besoin net</span>
+                          <span className="font-bold text-blue-700">{Number(form.netBesoin).toLocaleString()} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-red-500">
+                          <span>Frais BAOBAB 5% + mentor 2% + garantie 2%</span>
+                          <span>+{Math.ceil(Number(form.netBesoin) / 0.91 - Number(form.netBesoin)).toLocaleString()} FCFA</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-green-700 border-t border-gray-100 pt-1">
+                          <span>Objectif de collecte affiché</span>
+                          <span>{Number(form.goalAmount).toLocaleString()} FCFA</span>
+                        </div>
+                        <div className="text-gray-400">Tu recevras exactement {Number(form.netBesoin).toLocaleString()} FCFA sur ton compte une fois l&apos;objectif atteint.</div>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">
+                      Objectif de collecte calculé (FCFA) *
+                      <span className="text-gray-400 font-normal ml-1">— ajusté automatiquement</span>
+                    </label>
+                    <input name="goalAmount" type="number" value={form.goalAmount} onChange={handleChange}
+                      placeholder="Calculé automatiquement ci-dessus" className="input-field bg-gray-50" />
+                    {form.goalAmount && Number(form.goalAmount) > 0 && (
+                      <div className="text-xs text-green-600 mt-1 font-medium">
+                        ✅ {Number(form.goalAmount).toLocaleString()} FCFA à collecter
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    {form.goalAmount && Number(form.goalAmount) > 0 && (
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className="text-sm font-bold text-green-700">{Number(form.goalAmount).toLocaleString("fr-FR")} FCFA</span>
-                        <span className="text-xs text-gray-400">= {toWords(Number(form.goalAmount))} FCFA</span>
-                      </div>
-                    )}
-                    <div className="text-xs text-gray-400 mt-1">💡 Minimum 100 000 FCFA. Ce montant sera collecté auprès de plusieurs investisseurs. Ex: 500 000 FCFA = 100 investisseurs × 5 000 FCFA.</div>
+                    <div className="text-xs text-gray-400 mt-1">💡 Minimum 100 000 FCFA net. Ex: 500 000 FCFA = 100 investisseurs × 5 000 FCFA.</div>
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">
                       Investissement minimum par personne (FCFA) * <span className="text-red-500 font-bold">— minimum 5 000 FCFA obligatoire</span>
                     </label>

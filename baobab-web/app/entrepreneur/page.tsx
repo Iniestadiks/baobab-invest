@@ -137,6 +137,7 @@ export default function EntrepreneurDashboard() {
     s + (p.milestones?.filter((m:any) => !['REJECTED'].includes(m.status)).reduce((ms:number, m:any) => ms + m.amount, 0) || 0), 0);
   const totalInvestors = projects.reduce((s, p) => s + (p.investorCount || 0), 0);
   const activeProjects = projects.filter(p => p.status === "ACTIVE").length;
+  const visibleProjects = projects.filter(p => p.status !== "CANCELLED");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -343,7 +344,7 @@ export default function EntrepreneurDashboard() {
                   </Link>
                 </div>
               ) : (
-                projects.map((p: any) => {
+                visibleProjects.map((p: any) => {
                   const s = STATUS_CONFIG[p.status] || STATUS_CONFIG.DRAFT;
                   const fundingPercent = Math.round((p.raisedAmount / p.goalAmount) * 100);
                   return (

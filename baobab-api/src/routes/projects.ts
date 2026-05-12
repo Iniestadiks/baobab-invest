@@ -235,14 +235,20 @@ router.patch('/:id/approve', authenticate, requireAdmin, async (req: AuthRequest
     const { adminNote } = req.body
     const project = await prisma.project.update({
       where: { id: req.params.id },
-      data: { status: 'PENDING', adminNote }
+      data: { status: 'ACTIVE', adminNote }
+    })
+    await prisma.notification.create({
+      data: {
+        userId: project.entrepreneurId,
+        title: '✅ Projet approuvé !',
+        body: `Félicitations ! Votre projet "${project.title}" est maintenant en ligne. Les investisseurs peuvent y investir.`,
+        type: 'PROJECT_APPROVED',
+        data: JSON.stringify({ projectId: project.id })
+      }
     })
     successResponse(res, project, 'Projet approuvé et publié')
-  } catch {
-    errorResponse(res)
-  }
+  } catch (e) { console.error(e); errorResponse(res) }
 })
-
 // Admin — rejeter un projet
 router.patch('/:id/reject', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -251,12 +257,18 @@ router.patch('/:id/reject', authenticate, requireAdmin, async (req: AuthRequest,
       where: { id: req.params.id },
       data: { status: 'CANCELLED', adminNote }
     })
+    await prisma.notification.create({
+      data: {
+        userId: project.entrepreneurId,
+        title: '❌ Projet non validé',
+        body: `Votre projet "${project.title}" n'a pas été validé. Motif : ${adminNote || 'Non précisé'}. Corrigez et soumettez à nouveau.`,
+        type: 'PROJECT_REJECTED',
+        data: JSON.stringify({ projectId: project.id })
+      }
+    })
     successResponse(res, project, 'Projet rejeté')
-  } catch {
-    errorResponse(res)
-  }
+  } catch (e) { console.error(e); errorResponse(res) }
 })
-
 export default router
 
 // Debug route — à supprimer en production
