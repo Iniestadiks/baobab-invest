@@ -269,6 +269,137 @@ router.patch('/:id/reject', authenticate, requireAdmin, async (req: AuthRequest,
     successResponse(res, project, 'Projet rejeté')
   } catch (e) { console.error(e); errorResponse(res) }
 })
+// Entrepreneur — demander clôture anticipée
+router.post('/:id/request-early-close', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { note } = req.body
+    const project = await prisma.project.findUnique({ where: { id: req.params.id } })
+    if (!project || project.entrepreneurId !== req.userId) {
+      res.status(403).json({ success: false, message: 'Non autorisé' }); return
+    }
+    if (!['ACTIVE'].includes(project.status)) {
+      res.status(400).json({ success: false, message: 'Projet non éligible à la clôture anticipée' }); return
+    }
+    await prisma.project.update({
+      where: { id: req.params.id },
+      data: { earlyCloseRequested: true, earlyCloseNote: note || '' }
+    })
+    // Notifier les admins
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+    await prisma.notification.createMany({
+      data: admins.map(a => ({
+        userId: a.id,
+        title: 'Demande de cloture anticipee',
+        body: `L entrepreneur demande la cloture anticipee du projet "${project.title}" avec ${project.raisedAmount?.toLocaleString()} FCFA recoltes. Motif: ${note || 'Non precise'}`,
+        type: 'EARLY_CLOSE_REQUEST',
+        data: JSON.stringify({ projectId: project.id })
+      }))
+    })
+    successResponse(res, {}, 'Demande de clôture anticipée envoyée à l'administrateur')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Entrepreneur — demander prolongation
+router.post('/:id/request-extension', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { days, note } = req.body
+    if (!days || days < 7 || days > 90) {
+      res.status(400).json({ success: false, message: 'Prolongation entre 7 et 90 jours' }); return
+    }
+    const project = await prisma.project.findUnique({ where: { id: req.params.id } })
+    if (!project || project.entrepreneurId !== req.userId) {
+      res.status(403).json({ success: false, message: 'Non autorisé' }); return
+    }
+    if (!['ACTIVE'].includes(project.status)) {
+      res.status(400).json({ success: false, message: 'Projet non éligible à la prolongation' }); return
+    }
+    await prisma.project.update({
+      where: { id: req.params.id },
+      data: { extensionRequested: true, extensionDays: days, extensionNote: note || '' }
+    })
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+    await prisma.notification.createMany({
+      data: admins.map(a => ({
+        userId: a.id,
+        title: 'Demande de prolongation campagne',
+        body: `L entrepreneur demande une prolongation de ${days} jours pour "${project.title}". Motif: ${note || 'Non precise'}`,
+        type: 'EXTENSION_REQUEST',
+        data: JSON.stringify({ projectId: project.id })
+      }))
+    })
+    successResponse(res, {}, `Demande de prolongation de ${days} jours envoyée`)
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Admin — valider clôture anticipée
+router.post('/:id/approve-early-close', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id },
+      include: { investments: { include: { user: { select: { id: true, firstName: true } } } } }
+    })
+    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
+
+    const fees = await prisma.platformConfig.findMany()
+    const feeMap: any = {}
+    fees.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
+
+    // Clôturer le projet avec le montant récolté
+    await prisma.project.update({
+      where: { id: req.params.id },
+      data: { status: 'FUNDED', earlyCloseRequested: false, goalAmount: project.raisedAmount || 0 }
+    })
+
+    // Notifier l'entrepreneur
+    await prisma.notification.create({
+      data: {
+        userId: project.entrepreneurId,
+        title: 'Cloture anticipee approuvee',
+        body: `Votre demande de cloture anticipee pour "${project.title}" a ete approuvee. Le projet est finance avec ${project.raisedAmount?.toLocaleString()} FCFA.`,
+        type: 'EARLY_CLOSE_APPROVED',
+        data: JSON.stringify({ projectId: project.id })
+      }
+    })
+
+    // Notifier les investisseurs
+    const uniqueInvestors = [...new Set(project.investments.map((i: any) => i.userId))]
+    await prisma.notification.createMany({
+      data: uniqueInvestors.map((userId: any) => ({
+        userId,
+        title: 'Projet finance par cloture anticipee',
+        body: `Le projet "${project.title}" a ete clos par l entrepreneur avec ${project.raisedAmount?.toLocaleString()} FCFA recoltes. Les remboursements seront calcules sur cette base.`,
+        type: 'EARLY_CLOSE_INVESTOR',
+        data: JSON.stringify({ projectId: project.id })
+      }))
+    })
+
+    successResponse(res, {}, 'Clôture anticipée approuvée — projet financé')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Admin — valider prolongation
+router.post('/:id/approve-extension', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const project = await prisma.project.findUnique({ where: { id: req.params.id } })
+    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
+    const newEndDate = new Date((project.campaignEndsAt || new Date()).getTime() + (project.extensionDays || 30) * 24 * 60 * 60 * 1000)
+    await prisma.project.update({
+      where: { id: req.params.id },
+      data: { campaignEndsAt: newEndDate, extensionRequested: false, extensionDays: null }
+    })
+    await prisma.notification.create({
+      data: {
+        userId: project.entrepreneurId,
+        title: 'Prolongation approuvee',
+        body: `Votre campagne "${project.title}" est prolongee jusqu au ${newEndDate.toLocaleDateString('fr-FR')}.`,
+        type: 'EXTENSION_APPROVED',
+        data: JSON.stringify({ projectId: project.id, newEndDate })
+      }
+    })
+    successResponse(res, { newEndDate }, 'Prolongation approuvée')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
 export default router
 
 // Debug route — à supprimer en production

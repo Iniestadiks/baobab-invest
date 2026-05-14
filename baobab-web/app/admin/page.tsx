@@ -1923,6 +1923,36 @@ export default function AdminPage() {
                     <div className="font-bold text-green-700">+{p.expectedReturn}%</div>
                     <div className="text-xs text-gray-400">{p.durationMonths} mois</div>
                     <Link href={`/projects/${p.id}`} target="_blank" className="text-xs text-blue-600 hover:underline mt-2 block">Voir →</Link>
+                  {p.earlyCloseRequested && (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-xs bg-orange-50 border border-orange-200 rounded-lg p-2 text-orange-700">
+                        🔒 Clôture anticipée demandée — {p.raisedAmount?.toLocaleString()} FCFA récoltés
+                        {p.earlyCloseNote && <div className="text-xs mt-0.5">Motif: {p.earlyCloseNote}</div>}
+                      </div>
+                      <button onClick={async () => {
+                        const res = await authPost(`/api/projects/${p.id}/approve-early-close`, {});
+                        if (res.success) { flash("✅ Clôture anticipée approuvée"); loadData(); }
+                        else flash("❌ " + res.message);
+                      }} className="w-full text-xs bg-orange-600 text-white px-2 py-1.5 rounded-lg hover:bg-orange-700 font-bold">
+                        ✅ Approuver la clôture anticipée
+                      </button>
+                    </div>
+                  )}
+                  {p.extensionRequested && (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg p-2 text-blue-700">
+                        ⏰ Prolongation de {p.extensionDays} jours demandée
+                        {p.extensionNote && <div className="text-xs mt-0.5">Motif: {p.extensionNote}</div>}
+                      </div>
+                      <button onClick={async () => {
+                        const res = await authPost(`/api/projects/${p.id}/approve-extension`, {});
+                        if (res.success) { flash("✅ Prolongation approuvée"); loadData(); }
+                        else flash("❌ " + res.message);
+                      }} className="w-full text-xs bg-blue-600 text-white px-2 py-1.5 rounded-lg hover:bg-blue-700 font-bold">
+                        ✅ Approuver la prolongation
+                      </button>
+                    </div>
+                  )}
                   </div>
                 </div>
               </div>
