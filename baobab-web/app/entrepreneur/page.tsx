@@ -27,6 +27,7 @@ export default function EntrepreneurDashboard() {
   const [user, setUser] = useState<any>(null);
   const { fees } = usePlatformConfig();
   const [projects, setProjects] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<Record<string, any>>({});
   const [wallet, setWallet] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [selectedProjectInvestors, setSelectedProjectInvestors] = useState<any>(null);
@@ -52,7 +53,17 @@ export default function EntrepreneurDashboard() {
         setWallet(me.data.wallet);
         localStorage.setItem("user", JSON.stringify(me.data));
       }
-      if (proj.success) setProjects(proj.data || []);
+      if (proj.success) {
+        setProjects(proj.data || []);
+        // Charger échéanciers pour projets FUNDED/IN_PROGRESS
+        const funded = (proj.data || []).filter((p: any) => ['FUNDED','IN_PROGRESS','COMPLETED'].includes(p.status));
+        const schedMap: any = {};
+        await Promise.all(funded.map(async (p: any) => {
+          const s = await authGet(\`/api/repayment/my/\${p.id}\`);
+          if (s.success && s.data) schedMap[p.id] = s.data;
+        }));
+        setSchedules(schedMap);
+      }
       if (notif.success) {
         setNotifications(notif.data.notifications?.slice(0, 5) || []);
         setUnread(notif.data.unreadCount || 0);
