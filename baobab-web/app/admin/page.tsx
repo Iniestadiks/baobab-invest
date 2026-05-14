@@ -307,7 +307,7 @@ function KycTab({ flash, authPost, authPatch, authGet }: any) {
     return "📄 Non soumis";
   };
 
-  const API = process.env.NEXT_PUBLIC_API_URL;
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
 
   return (
     <div className="space-y-5">
@@ -735,12 +735,139 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   );
 }
 
+
+function StatsTab({ authGet }: any) {
+  const [period, setPeriod] = React.useState("all");
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+
+  const getDateRange = (p: string) => {
+    const now = new Date();
+    if (p === "month") {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { from: from.toISOString().split("T")[0], to: now.toISOString().split("T")[0] };
+    }
+    if (p === "year") {
+      const from = new Date(now.getFullYear(), 0, 1);
+      return { from: from.toISOString().split("T")[0], to: now.toISOString().split("T")[0] };
+    }
+    if (p === "last3") {
+      const from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      return { from: from.toISOString().split("T")[0], to: now.toISOString().split("T")[0] };
+    }
+    if (p === "custom") return { from: dateFrom, to: dateTo };
+    return { from: "", to: "" };
+  };
+
+  const downloadPDF = async () => {
+    const token = localStorage.getItem("accessToken");
+    const { from, to } = getDateRange(period);
+    const params = from && to ? `?from=${from}&to=${to}` : "";
+    const res = await fetch(`${API}/api/pdf/report/admin${params}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) { alert("Erreur génération PDF"); return; }
+    const blob = await res.blob();
+    const label = period === "month" ? "mensuel" : period === "year" ? "annuel" : period === "last3" ? "trimestriel" : "complet";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `rapport-baobab-${label}-${new Date().toISOString().split("T")[0]}.pdf`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const downloadCSV = async () => {
+    const token = localStorage.getItem("accessToken");
+    const res = await fetch(`${API}/api/exports/admin`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) { alert("Erreur export CSV"); return; }
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `stats-baobab-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* En-tête avec filtres de période */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+          <h2 className="text-xl font-bold text-gray-900">📈 Statistiques & Rapports</h2>
+          <div className="flex gap-2">
+            <button onClick={downloadPDF}
+              className="bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-xl flex items-center gap-2">
+              📄 Télécharger PDF
+            </button>
+            <button onClick={downloadCSV}
+              className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-4 py-2 rounded-xl flex items-center gap-2">
+              📥 Export CSV
+            </button>
+          </div>
+        </div>
+
+        {/* Filtres période */}
+        <div className="flex gap-2 flex-wrap items-center">
+          <span className="text-xs text-gray-500 font-medium">Période du rapport :</span>
+          {[
+            { id: "all", label: "Tout" },
+            { id: "month", label: "Ce mois" },
+            { id: "last3", label: "3 derniers mois" },
+            { id: "year", label: "Cette année" },
+            { id: "custom", label: "Personnalisé" },
+          ].map(p => (
+            <button key={p.id} onClick={() => setPeriod(p.id)}
+              className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-colors ${period === p.id ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Dates personnalisées */}
+        {period === "custom" && (
+          <div className="flex gap-3 mt-3 items-center">
+            <div>
+              <label className="text-xs text-gray-500">Du</label>
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm ml-2 focus:outline-none focus:border-green-400" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Au</label>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm ml-2 focus:outline-none focus:border-green-400" />
+            </div>
+            {dateFrom && dateTo && (
+              <span className="text-xs text-green-600 font-medium">
+                Rapport du {new Date(dateFrom).toLocaleDateString("fr-FR")} au {new Date(dateTo).toLocaleDateString("fr-FR")}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Info période sélectionnée */}
+        <div className="mt-3 text-xs text-gray-400">
+          {period === "month" && "Rapport mensuel — du 1er du mois à aujourd'hui"}
+          {period === "last3" && "Rapport trimestriel — 90 derniers jours"}
+          {period === "year" && "Rapport annuel — du 1er janvier à aujourd'hui"}
+          {period === "all" && "Rapport complet — toutes les données depuis le lancement"}
+        </div>
+      </div>
+
+      {/* Graphiques AdminCharts */}
+      <AdminCharts />
+    </div>
+  );
+}
+
 function FinancesTab({ authGet }: any) {
   const [data, setData] = React.useState<any>(null);
   const [revenues, setRevenues] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [openProject, setOpenProject] = React.useState<string | null>(null);
-  const API = process.env.NEXT_PUBLIC_API_URL;
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
 
   React.useEffect(() => {
     Promise.all([
@@ -754,7 +881,8 @@ function FinancesTab({ authGet }: any) {
 
   const downloadAdminPDF = async () => {
     const token = localStorage.getItem("accessToken");
-    const res = await fetch(`${API}/api/pdf/report/admin`, { headers: { Authorization: `Bearer ${token}` } });
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://46.202.132.161:3001';
+    const res = await fetch(`${apiUrl}/api/pdf/report/admin`, { headers: { Authorization: `Bearer ${token}` } });
     const blob = await res.blob();
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "rapport-admin.pdf"; a.click(); URL.revokeObjectURL(a.href);
   };
@@ -1037,7 +1165,7 @@ export default function AdminPage() {
   const loadData = async () => {
     setLoading(true);
     // Vérification automatique des projets inactifs
-    authPost("/api/admin/check-inactive-projects", {}).catch(() => {});
+    // Vérification inactive — uniquement via bouton manuel dans Vue générale
     try {
       const [pendingProj, allProj, usrs, suppl, notif, mils, rev, txs] = await Promise.all([
         authGet("/api/projects?status=PENDING_REVIEW&limit=50"),
@@ -1801,7 +1929,7 @@ export default function AdminPage() {
             ))}
           </div>
         )}
-        {tab === "stats" && <AdminCharts />}
+        {tab === "stats" && <StatsTab authGet={authGet} />}
         {tab === "config" && <ConfigTab flash={flash} />}
         {tab === "transactions" && <TransactionsTab flash={flash} />}
 

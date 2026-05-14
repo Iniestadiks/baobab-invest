@@ -1,144 +1,204 @@
 import PDFDocument from 'pdfkit'
 import { Response } from 'express'
 
-// Couleurs BAOBAB INVEST
 const GREEN = '#16a34a'
 const DARK = '#1a1a2e'
 const GRAY = '#6b7280'
-const LIGHT = '#f0fdf4'
+const LIGHT_GREEN = '#f0fdf4'
+const LIGHT_GRAY = '#f9fafb'
+const BORDER = '#e5e7eb'
 
 function header(doc: any, title: string, subtitle: string) {
-  // Fond vert header
-  doc.rect(0, 0, doc.page.width, 100).fill(GREEN)
-  // Logo texte
-  doc.fillColor('white').fontSize(22).font('Helvetica-Bold').text('🌳 BAOBAB INVEST', 40, 25)
-  doc.fontSize(11).font('Helvetica').text(subtitle, 40, 55)
-  // Titre du document
-  doc.fillColor(DARK).fontSize(18).font('Helvetica-Bold').text(title, 40, 115)
-  doc.moveDown(0.5)
-  doc.strokeColor(GREEN).lineWidth(2).moveTo(40, doc.y).lineTo(doc.page.width - 40, doc.y).stroke()
-  doc.moveDown(0.5)
+  doc.rect(0, 0, doc.page.width, 90).fill(GREEN)
+  doc.fillColor('white').fontSize(20).font('Helvetica-Bold')
+    .text('BAOBAB INVEST', 40, 20)
+  doc.fontSize(10).font('Helvetica')
+    .text('Plateforme de micro-investissement UEMOA/CEMAC', 40, 45)
+  doc.fontSize(10).font('Helvetica')
+    .text(subtitle, 40, 62)
+  doc.fillColor(DARK).fontSize(16).font('Helvetica-Bold')
+    .text(title, 40, 108)
+  doc.strokeColor(GREEN).lineWidth(2)
+    .moveTo(40, 130).lineTo(doc.page.width - 40, 130).stroke()
+  doc.y = 140
 }
 
 function footer(doc: any) {
-  const y = doc.page.height - 50
-  doc.strokeColor('#e5e7eb').lineWidth(1).moveTo(40, y).lineTo(doc.page.width - 40, y).stroke()
-  doc.fillColor(GRAY).fontSize(9).font('Helvetica')
-    .text('BAOBAB INVEST — Plateforme de micro-investissement UEMOA/CEMAC', 40, y + 8, { align: 'center' })
-    .text(`Document généré le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} — Confidentiel`, 40, y + 20, { align: 'center' })
+  const y = doc.page.height - 55
+  doc.strokeColor(BORDER).lineWidth(1)
+    .moveTo(40, y).lineTo(doc.page.width - 40, y).stroke()
+  doc.fillColor(GRAY).fontSize(8).font('Helvetica')
+    .text('BAOBAB INVEST — Document confidentiel — Plateforme de micro-investissement', 40, y + 10, { align: 'center', width: doc.page.width - 80 })
+    .text(`Genere le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`, 40, y + 22, { align: 'center', width: doc.page.width - 80 })
 }
 
 function section(doc: any, title: string) {
-  doc.moveDown(0.5)
-  doc.rect(40, doc.y, doc.page.width - 80, 24).fill(LIGHT)
-  doc.fillColor(GREEN).fontSize(11).font('Helvetica-Bold').text(title, 50, doc.y - 18)
   doc.moveDown(0.8)
+  const y = doc.y
+  doc.rect(40, y, doc.page.width - 80, 22).fill(LIGHT_GREEN)
+  doc.fillColor(GREEN).fontSize(10).font('Helvetica-Bold')
+    .text(title, 50, y + 6)
+  doc.y = y + 30
 }
 
 function row(doc: any, label: string, value: string, highlight = false) {
+  if (doc.y > 720) { doc.addPage(); footer(doc); doc.y = 40 }
   const y = doc.y
   if (highlight) {
-    doc.rect(40, y - 4, doc.page.width - 80, 22).fill('#fefce8')
+    doc.rect(40, y - 2, doc.page.width - 80, 18).fill('#fefce8')
   }
-  doc.fillColor(GRAY).fontSize(10).font('Helvetica').text(label, 50, y, { width: 200 })
-  doc.fillColor(DARK).fontSize(10).font('Helvetica-Bold').text(value, 260, y)
-  doc.moveDown(0.6)
+  doc.fillColor(GRAY).fontSize(9).font('Helvetica')
+    .text(label, 50, y, { width: 220 })
+  doc.fillColor(DARK).fontSize(9).font('Helvetica-Bold')
+    .text(value, 280, y, { width: 250 })
+  doc.y = y + 18
+}
+
+function divider(doc: any) {
+  doc.strokeColor(BORDER).lineWidth(0.5)
+    .moveTo(40, doc.y).lineTo(doc.page.width - 40, doc.y).stroke()
+  doc.y += 8
 }
 
 // ============================================
 // CERTIFICAT D'INVESTISSEMENT
 // ============================================
 export function generateInvestmentCertificate(res: Response, data: {
-  investor: any, investment: any, project: any
+  investor: any, investment: any, project: any, fees?: any
 }) {
   const doc = new PDFDocument({ size: 'A4', margin: 40 })
   res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `attachment; filename="certificat-investissement-${data.investment.id.substring(0,8)}.pdf"`)
+  res.setHeader('Content-Disposition', `attachment; filename="certificat-${data.investment.id.substring(0,8)}.pdf"`)
   doc.pipe(res)
 
-  header(doc, 'Certificat d\'Investissement', 'Preuve officielle de participation')
+  header(doc, 'CERTIFICAT D\'INVESTISSEMENT', 'Preuve officielle de participation')
 
-  // Numéro de certificat
-  doc.fillColor(GREEN).fontSize(13).font('Helvetica-Bold')
-    .text(`N° CERT-${data.investment.id.substring(0,8).toUpperCase()}`, { align: 'right' })
-  doc.moveDown(0.5)
+  // Numero certificat
+  const y0 = doc.y
+  doc.fillColor(GREEN).fontSize(11).font('Helvetica-Bold')
+    .text(`N° CERT-${data.investment.id.substring(0,8).toUpperCase()}`, 40, y0, { align: 'right', width: doc.page.width - 80 })
+  doc.y = y0 + 20
 
-  section(doc, '👤 INVESTISSEUR')
+  section(doc, 'INVESTISSEUR')
   row(doc, 'Nom complet', `${data.investor.firstName} ${data.investor.lastName}`)
   row(doc, 'Email', data.investor.email)
   row(doc, 'Ville', data.investor.city || '—')
-  row(doc, 'Statut KYC', data.investor.kycStatus === 'VERIFIED' ? '✓ Vérifié' : 'En attente')
+  row(doc, 'Statut KYC', data.investor.kycStatus === 'VERIFIED' ? 'Verifie' : 'En attente')
 
-  section(doc, '🚀 PROJET FINANCÉ')
+  section(doc, 'PROJET FINANCE')
   row(doc, 'Nom du projet', data.project.title)
   row(doc, 'Secteur', data.project.sector)
-  row(doc, 'Localisation', data.project.location || '—')
-  row(doc, 'Statut', data.project.status)
-  row(doc, 'Objectif de levée', `${data.project.goalAmount?.toLocaleString()} FCFA`)
+  row(doc, 'Ville', data.project.city || '—')
+  row(doc, 'Statut projet', data.project.status)
+  row(doc, 'Objectif de levee', `${(data.project.goalAmount || 0).toLocaleString()} FCFA`)
 
-  section(doc, '💰 DÉTAILS DE L\'INVESTISSEMENT')
-  row(doc, 'Montant investi', `${data.investment.amount?.toLocaleString()} FCFA`, true)
+  section(doc, 'DETAILS DE L\'INVESTISSEMENT')
+  const fees = data.fees || {}
+  const baobabRate = fees.commission_baobab_return || 5
+  const paydunyaRate = fees.paydunya_payout || 3
+  const grossReturn = data.investment.expectedReturn || 0
+  const netReturn = Math.round(grossReturn * (1 - baobabRate/100 - paydunyaRate/100))
+  const gain = netReturn - data.investment.amount
+
+  row(doc, 'Montant investi', `${(data.investment.amount || 0).toLocaleString()} FCFA`, true)
   row(doc, 'Taux de retour', `${data.project.expectedReturn || 0}%`)
-  row(doc, 'Retour attendu', `${data.investment.expectedReturn?.toLocaleString()} FCFA`, true)
-  row(doc, 'Contribution fonds garantie (2%)', `${data.investment.guaranteeContribution?.toLocaleString()} FCFA`)
+  row(doc, 'Retour brut attendu', `${grossReturn.toLocaleString()} FCFA`)
+  row(doc, `Commission BAOBAB retours (${baobabRate}%)`, `-${Math.round(grossReturn * baobabRate/100).toLocaleString()} FCFA`)
+  row(doc, `Frais PayDunya (${paydunyaRate}%)`, `-${Math.round(grossReturn * paydunyaRate/100).toLocaleString()} FCFA`)
+  row(doc, 'NET A RECEVOIR', `${netReturn.toLocaleString()} FCFA`, true)
+  row(doc, 'Gain net', `+${gain.toLocaleString()} FCFA`, true)
+  row(doc, 'Contribution fonds garantie', `${(data.investment.guaranteeContribution || 0).toLocaleString()} FCFA`)
   row(doc, 'Date d\'investissement', new Date(data.investment.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))
-  row(doc, 'Statut investissement', data.investment.status === 'COMPLETED' ? '✓ Remboursé' : '⏳ En cours')
+  row(doc, 'Statut', data.investment.status === 'COMPLETED' ? 'Rembourse' : 'En cours')
+
   if (data.investment.returnedAmount) {
-    row(doc, 'Montant reçu', `${data.investment.returnedAmount?.toLocaleString()} FCFA`, true)
+    section(doc, 'REMBOURSEMENT')
+    row(doc, 'Montant recu', `${data.investment.returnedAmount.toLocaleString()} FCFA`, true)
+    row(doc, 'Date remboursement', data.investment.returnedAt ? new Date(data.investment.returnedAt).toLocaleDateString('fr-FR') : '—')
   }
 
-  // Cachet officiel
+  // Encadre officiel
   doc.moveDown(1)
-  doc.rect(40, doc.y, doc.page.width - 80, 60).stroke(GREEN)
-  doc.fillColor(DARK).fontSize(10).font('Helvetica')
-    .text('Ce document certifie la participation de l\'investisseur au projet mentionné ci-dessus sur la plateforme BAOBAB INVEST. Les fonds sont sécurisés en séquestre jusqu\'au remboursement.', 50, doc.y - 50, { width: doc.page.width - 100, align: 'center' })
+  const boxY = doc.y
+  doc.rect(40, boxY, doc.page.width - 80, 50).stroke(GREEN)
+  doc.fillColor(DARK).fontSize(9).font('Helvetica')
+    .text(
+      'Ce document certifie la participation de l\'investisseur au projet mentionne ci-dessus sur la plateforme BAOBAB INVEST. Les fonds sont securises en sequestre jusqu\'au remboursement conformement aux conditions generales.',
+      50, boxY + 8, { width: doc.page.width - 100, align: 'center' }
+    )
 
   footer(doc)
   doc.end()
 }
 
 // ============================================
-// RELEVÉ DE COMPTE INVESTISSEUR
+// RELEVE DE COMPTE INVESTISSEUR
 // ============================================
 export function generateInvestorStatement(res: Response, data: {
-  investor: any, investments: any[], wallet: any, period: string
+  investor: any, investments: any[], wallet: any, period: string, fees?: any
 }) {
   const doc = new PDFDocument({ size: 'A4', margin: 40 })
   res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `attachment; filename="releve-investisseur-${Date.now()}.pdf"`)
+  res.setHeader('Content-Disposition', `attachment; filename="releve-${Date.now()}.pdf"`)
   doc.pipe(res)
 
-  header(doc, 'Relevé de Compte Investisseur', data.period)
+  header(doc, 'RELEVE DE COMPTE INVESTISSEUR', data.period)
 
-  section(doc, '👤 TITULAIRE DU COMPTE')
+  section(doc, 'TITULAIRE DU COMPTE')
   row(doc, 'Nom', `${data.investor.firstName} ${data.investor.lastName}`)
   row(doc, 'Email', data.investor.email)
-  row(doc, 'Niveau Baobab', ['🌱 Graine','🌿 Jeune Baobab','🌳 Baobab','🏅 Grand Baobab'][data.investor.level - 1] || '—')
+  row(doc, 'Ville', data.investor.city || '—')
+  const levels = ['Graine', 'Jeune Baobab', 'Baobab', 'Grand Baobab']
+  row(doc, 'Niveau Baobab', levels[(data.investor.level || 1) - 1] || 'Graine')
+  row(doc, 'Membre depuis', new Date(data.investor.createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }))
 
-  section(doc, '💳 SITUATION WALLET')
+  section(doc, 'SITUATION WALLET')
   row(doc, 'Solde disponible', `${(data.wallet?.balance || 0).toLocaleString()} FCFA`, true)
-  row(doc, 'En séquestre', `${(data.wallet?.escrowBalance || 0).toLocaleString()} FCFA`)
+  row(doc, 'En sequestre', `${(data.wallet?.escrowBalance || 0).toLocaleString()} FCFA`)
   row(doc, 'Total investi', `${(data.wallet?.totalInvested || 0).toLocaleString()} FCFA`)
-  row(doc, 'Total gagné', `${(data.wallet?.totalEarned || 0).toLocaleString()} FCFA`, true)
+  row(doc, 'Total gagne', `${(data.wallet?.totalEarned || 0).toLocaleString()} FCFA`, true)
 
-  section(doc, '📊 RÉCAPITULATIF INVESTISSEMENTS')
+  const fees = data.fees || {}
+  const baobabRate = fees.commission_baobab_return || 5
+  const paydunyaRate = fees.paydunya_payout || 3
   const totalInvested = data.investments.reduce((s, i) => s + i.amount, 0)
-  const totalExpected = data.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
+  const totalGrossReturn = data.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
+  const totalNetReturn = Math.round(totalGrossReturn * (1 - baobabRate/100 - paydunyaRate/100))
   const totalReturned = data.investments.reduce((s, i) => s + (i.returnedAmount || 0), 0)
+  const rendementNet = totalInvested > 0 ? ((totalNetReturn / totalInvested - 1) * 100).toFixed(1) : '0'
+
+  section(doc, 'RECAPITULATIF FINANCIER')
   row(doc, 'Nombre d\'investissements', String(data.investments.length))
   row(doc, 'Total investi', `${totalInvested.toLocaleString()} FCFA`, true)
-  row(doc, 'Total retours attendus', `${totalExpected.toLocaleString()} FCFA`)
-  row(doc, 'Total déjà reçu', `${totalReturned.toLocaleString()} FCFA`, true)
-  row(doc, 'Rendement moyen', `${totalInvested > 0 ? ((totalExpected/totalInvested - 1)*100).toFixed(1) : 0}%`)
+  row(doc, 'Retour brut attendu', `${totalGrossReturn.toLocaleString()} FCFA`)
+  row(doc, `Commission BAOBAB ${baobabRate}% + PayDunya ${paydunyaRate}%`, `-${(totalGrossReturn - totalNetReturn).toLocaleString()} FCFA`)
+  row(doc, 'NET A RECEVOIR (projete)', `${totalNetReturn.toLocaleString()} FCFA`, true)
+  row(doc, 'Gain net projete', `+${(totalNetReturn - totalInvested).toLocaleString()} FCFA`, true)
+  row(doc, 'Rendement net moyen', `+${rendementNet}%`)
+  row(doc, 'Deja rembourse', `${totalReturned.toLocaleString()} FCFA`)
 
-  section(doc, '📋 DÉTAIL DES INVESTISSEMENTS')
+  section(doc, 'DETAIL DES INVESTISSEMENTS')
+  // En-tetes colonnes
+  const y0 = doc.y
+  doc.rect(40, y0, doc.page.width - 80, 16).fill(LIGHT_GREEN)
+  doc.fillColor(GREEN).fontSize(8).font('Helvetica-Bold')
+    .text('Projet', 50, y0 + 4)
+    .text('Investi', 230, y0 + 4)
+    .text('Net attendu', 310, y0 + 4)
+    .text('Statut', 410, y0 + 4)
+  doc.y = y0 + 20
+
   data.investments.forEach((inv, i) => {
-    if (doc.y > 700) { doc.addPage(); footer(doc) }
-    doc.fillColor(DARK).fontSize(9).font('Helvetica-Bold')
-      .text(`${i+1}. ${inv.project?.title || '—'}`, 50, doc.y)
-    doc.fillColor(GRAY).fontSize(9).font('Helvetica')
-      .text(`${inv.amount?.toLocaleString()} FCFA · Retour: ${inv.expectedReturn?.toLocaleString()} FCFA · ${new Date(inv.createdAt).toLocaleDateString('fr-FR')} · ${inv.status}`, 50, doc.y)
-    doc.moveDown(0.4)
+    if (doc.y > 720) { doc.addPage(); footer(doc); doc.y = 40 }
+    const netRet = Math.round((inv.expectedReturn || 0) * (1 - baobabRate/100 - paydunyaRate/100))
+    const rowY = doc.y
+    if (i % 2 === 0) doc.rect(40, rowY - 2, doc.page.width - 80, 18).fill(LIGHT_GRAY)
+    doc.fillColor(DARK).fontSize(8).font('Helvetica')
+      .text(inv.project?.title?.substring(0, 28) || '—', 50, rowY, { width: 175 })
+      .text(`${inv.amount.toLocaleString()}`, 230, rowY)
+      .text(`${netRet.toLocaleString()}`, 310, rowY)
+      .text(inv.status === 'COMPLETED' ? 'Rembourse' : 'En cours', 410, rowY)
+    doc.y = rowY + 18
   })
 
   footer(doc)
@@ -149,98 +209,73 @@ export function generateInvestorStatement(res: Response, data: {
 // RAPPORT PROJET ENTREPRENEUR
 // ============================================
 export function generateProjectReport(res: Response, data: {
-  entrepreneur: any, project: any, milestones: any[], investors: any[]
+  project: any, entrepreneur: any, investments: any[], milestones: any[], fees?: any
 }) {
   const doc = new PDFDocument({ size: 'A4', margin: 40 })
   res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `attachment; filename="rapport-projet-${data.project.id.substring(0,8)}.pdf"`)
+  res.setHeader('Content-Disposition', `attachment; filename="rapport-projet-${Date.now()}.pdf"`)
   doc.pipe(res)
 
-  header(doc, 'Rapport de Projet', `${data.project.title} — ${data.project.sector}`)
+  header(doc, 'RAPPORT DE PROJET', `Entrepreneur : ${data.entrepreneur.firstName} ${data.entrepreneur.lastName}`)
 
-  section(doc, '🚀 INFORMATIONS PROJET')
+  section(doc, 'INFORMATIONS PROJET')
   row(doc, 'Titre', data.project.title)
   row(doc, 'Secteur', data.project.sector)
-  row(doc, 'Localisation', data.project.location || '—')
+  row(doc, 'Ville', data.project.city || '—')
   row(doc, 'Statut', data.project.status)
-  row(doc, 'Date de soumission', new Date(data.project.createdAt).toLocaleDateString('fr-FR'))
+  row(doc, 'Objectif de collecte', `${(data.project.goalAmount || 0).toLocaleString()} FCFA`)
+  row(doc, 'Taux de retour promis', `${data.project.expectedReturn || 0}%`)
+  row(doc, 'Duree', `${data.project.durationMonths || 0} mois`)
 
-  section(doc, '💰 FINANCEMENT')
-  const pct = Math.round((data.project.raisedAmount / data.project.goalAmount) * 100)
-  row(doc, 'Objectif', `${data.project.goalAmount?.toLocaleString()} FCFA`)
-  row(doc, 'Montant levé', `${data.project.raisedAmount?.toLocaleString()} FCFA`, true)
-  row(doc, 'Progression', `${pct}%`)
-  row(doc, 'Nombre d\'investisseurs', String(data.investors.length))
-  row(doc, 'Taux de retour promis', `${data.project.expectedReturn}%`)
+  const fees = data.fees || {}
+  const baobabCol = fees.commission_baobab_collection || 5
+  const mentorRate = fees.commission_mentor || 2
+  const guaranteeRate = fees.commission_guarantee || 2
+  const totalRaised = data.project.raisedAmount || 0
+  const cagnotteNette = Math.round(totalRaised * (1 - (baobabCol + mentorRate + guaranteeRate)/100))
 
-  section(doc, '🏗️ JALONS')
-  const approved = data.milestones.filter(m => ['APPROVED','PAID'].includes(m.status))
-  const totalApproved = approved.reduce((s, m) => s + m.amount, 0)
-  row(doc, 'Total jalons', String(data.milestones.length))
-  row(doc, 'Jalons validés', String(approved.length))
-  row(doc, 'Fonds débloqués', `${totalApproved.toLocaleString()} FCFA`, true)
-  row(doc, 'Budget restant', `${(data.project.raisedAmount - totalApproved).toLocaleString()} FCFA`)
+  section(doc, 'SITUATION FINANCIERE')
+  row(doc, 'Leve brut', `${totalRaised.toLocaleString()} FCFA`, true)
+  row(doc, `Commission BAOBAB (${baobabCol}%)`, `-${Math.round(totalRaised * baobabCol/100).toLocaleString()} FCFA`)
+  row(doc, `Commission mentor (${mentorRate}%)`, `-${Math.round(totalRaised * mentorRate/100).toLocaleString()} FCFA`)
+  row(doc, `Fonds garantie (${guaranteeRate}%)`, `-${Math.round(totalRaised * guaranteeRate/100).toLocaleString()} FCFA`)
+  row(doc, 'CAGNOTTE NETTE', `${cagnotteNette.toLocaleString()} FCFA`, true)
+  row(doc, 'Progression', `${Math.round((totalRaised / (data.project.goalAmount || 1)) * 100)}%`)
+  row(doc, 'Nombre d\'investisseurs', String(data.investments.length))
 
-  doc.moveDown(0.3)
-  data.milestones.forEach((m, i) => {
-    if (doc.y > 700) { doc.addPage(); footer(doc) }
-    const status = m.status === 'APPROVED' || m.status === 'PAID' ? '✓' : m.status === 'SUBMITTED' ? '⏳' : '○'
-    doc.fillColor(DARK).fontSize(9).font('Helvetica')
-      .text(`${status} Jalon ${i+1}: ${m.title} — ${m.amount?.toLocaleString()} FCFA [${m.status}]`, 50, doc.y)
-    doc.moveDown(0.4)
-  })
+  if (data.milestones.length > 0) {
+    section(doc, 'JALONS')
+    data.milestones.forEach(m => {
+      if (doc.y > 720) { doc.addPage(); footer(doc); doc.y = 40 }
+      row(doc, m.title, `${(m.amount || 0).toLocaleString()} FCFA — ${m.status}`)
+    })
+  }
 
-  section(doc, '👤 PORTEUR DE PROJET')
-  row(doc, 'Nom', `${data.entrepreneur.firstName} ${data.entrepreneur.lastName}`)
-  row(doc, 'Score réputation', `${data.entrepreneur.reputationScore || 50}/100`)
-
-  footer(doc)
-  doc.end()
-}
-
-// ============================================
-// RAPPORT FINANCIER ADMIN
-// ============================================
-export function generateAdminReport(res: Response, data: {
-  revenues: any[], investments: any[], users: any[], projects: any[], period: string
-}) {
-  const doc = new PDFDocument({ size: 'A4', margin: 40 })
-  res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `attachment; filename="rapport-admin-${Date.now()}.pdf"`)
-  doc.pipe(res)
-
-  header(doc, 'Rapport Financier BAOBAB INVEST', data.period)
-
-  section(doc, '📊 STATISTIQUES GLOBALES')
-  row(doc, 'Utilisateurs total', String(data.users.length))
-  row(doc, 'Investisseurs', String(data.users.filter(u => u.role === 'INVESTOR').length))
-  row(doc, 'Entrepreneurs', String(data.users.filter(u => u.role === 'ENTREPRENEUR').length))
-  row(doc, 'Mentors', String(data.users.filter(u => u.role === 'MENTOR').length))
-  row(doc, 'KYC vérifiés', String(data.users.filter(u => u.kycStatus === 'VERIFIED').length))
-
-  section(doc, '🚀 PROJETS')
-  row(doc, 'Total projets', String(data.projects.length))
-  row(doc, 'Actifs', String(data.projects.filter(p => p.status === 'ACTIVE').length))
-  row(doc, 'Financés', String(data.projects.filter(p => p.status === 'FUNDED').length))
-  row(doc, 'Terminés', String(data.projects.filter(p => p.status === 'COMPLETED').length))
-  row(doc, 'Total levé', `${data.projects.reduce((s, p) => s + (p.raisedAmount||0), 0).toLocaleString()} FCFA`, true)
-
-  section(doc, '💰 REVENUS BAOBAB INVEST')
-  const byType: any = {}
-  data.revenues.forEach(r => { byType[r.type] = (byType[r.type] || 0) + r.amount })
-  const totalRev = data.revenues.reduce((s, r) => s + r.amount, 0)
-  Object.entries(byType).forEach(([type, amount]: any) => {
-    row(doc, type.replace(/_/g, ' '), `${amount.toLocaleString()} FCFA`)
-  })
-  row(doc, 'TOTAL REVENUS', `${totalRev.toLocaleString()} FCFA`, true)
-
-  section(doc, '📋 DERNIÈRES TRANSACTIONS REVENUS')
-  data.revenues.slice(0, 15).forEach(r => {
-    if (doc.y > 700) { doc.addPage(); footer(doc) }
-    doc.fillColor(DARK).fontSize(9).font('Helvetica')
-      .text(`${new Date(r.createdAt).toLocaleDateString('fr-FR')} · ${r.description || r.type} · ${r.amount > 0 ? '+' : ''}${r.amount.toLocaleString()} FCFA`, 50, doc.y)
-    doc.moveDown(0.4)
-  })
+  if (data.investments.length > 0) {
+    section(doc, 'INVESTISSEURS')
+    const baobabRet = fees.commission_baobab_return || 5
+    const paydunyaPayout = fees.paydunya_payout || 3
+    const y0 = doc.y
+    doc.rect(40, y0, doc.page.width - 80, 16).fill(LIGHT_GREEN)
+    doc.fillColor(GREEN).fontSize(8).font('Helvetica-Bold')
+      .text('Investisseur', 50, y0 + 4)
+      .text('Investi', 220, y0 + 4)
+      .text('Retour brut', 300, y0 + 4)
+      .text('Net investisseur', 390, y0 + 4)
+    doc.y = y0 + 20
+    data.investments.forEach((inv, i) => {
+      if (doc.y > 720) { doc.addPage(); footer(doc); doc.y = 40 }
+      const netRet = Math.round((inv.expectedReturn || 0) * (1 - baobabRet/100 - paydunyaPayout/100))
+      const rowY = doc.y
+      if (i % 2 === 0) doc.rect(40, rowY - 2, doc.page.width - 80, 18).fill(LIGHT_GRAY)
+      doc.fillColor(DARK).fontSize(8).font('Helvetica')
+        .text(`${inv.user?.firstName || ''} ${inv.user?.lastName || ''}`, 50, rowY, { width: 165 })
+        .text(`${inv.amount.toLocaleString()}`, 220, rowY)
+        .text(`${(inv.expectedReturn || 0).toLocaleString()}`, 300, rowY)
+        .text(`${netRet.toLocaleString()}`, 390, rowY)
+      doc.y = rowY + 18
+    })
+  }
 
   footer(doc)
   doc.end()
@@ -250,37 +285,109 @@ export function generateAdminReport(res: Response, data: {
 // RAPPORT MENTOR
 // ============================================
 export function generateMentorReport(res: Response, data: {
-  mentor: any, projects: any[], wallet: any, period: string
+  mentor: any, projects: any[], wallet: any, fees?: any
 }) {
   const doc = new PDFDocument({ size: 'A4', margin: 40 })
   res.setHeader('Content-Type', 'application/pdf')
   res.setHeader('Content-Disposition', `attachment; filename="rapport-mentor-${Date.now()}.pdf"`)
   doc.pipe(res)
 
-  header(doc, 'Rapport Mentor', data.period)
+  header(doc, 'RAPPORT MENTOR / GARANT', `Periode : ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`)
 
-  section(doc, '🎓 PROFIL MENTOR')
+  section(doc, 'PROFIL MENTOR')
   row(doc, 'Nom', `${data.mentor.firstName} ${data.mentor.lastName}`)
-  row(doc, 'Score réputation', `${data.mentor.reputationScore || 50}/100`)
-  row(doc, 'Solde wallet', `${(data.wallet?.balance || 0).toLocaleString()} FCFA`, true)
+  row(doc, 'Email', data.mentor.email)
+  row(doc, 'Score reputation', `${data.mentor.reputationScore || 50}/100`)
+  row(doc, 'Niveau', `${data.mentor.level || 1}`)
+  row(doc, 'Statut KYC', data.mentor.kycStatus === 'VERIFIED' ? 'Verifie' : 'En attente')
 
-  section(doc, '📊 PROJETS MENTORÉS')
-  row(doc, 'Total projets', String(data.projects.length))
-  row(doc, 'Actifs', String(data.projects.filter(p => ['ACTIVE','FUNDED','IN_PROGRESS'].includes(p.status)).length))
-  row(doc, 'Terminés', String(data.projects.filter(p => p.status === 'COMPLETED').length))
-  const totalRaised = data.projects.reduce((s, p) => s + (p.raisedAmount||0), 0)
-  const totalCommission = Math.round(totalRaised * 0.02)
-  row(doc, 'Total levé (tous projets)', `${totalRaised.toLocaleString()} FCFA`)
-  row(doc, 'Commissions totales (2%)', `${totalCommission.toLocaleString()} FCFA`, true)
+  const fees = data.fees || {}
+  const mentorRate = fees.commission_mentor || 2
+  const totalCommissions = data.projects.reduce((s, p) => s + Math.round((p.raisedAmount || 0) * mentorRate / 100), 0)
 
-  section(doc, '📋 DÉTAIL PROJETS')
+  section(doc, 'SITUATION WALLET')
+  row(doc, 'Solde disponible', `${(data.wallet?.balance || 0).toLocaleString()} FCFA`, true)
+  row(doc, 'Total commissions percues', `${totalCommissions.toLocaleString()} FCFA`, true)
+
+  section(doc, 'PROJETS MENTORES')
+  const y0 = doc.y
+  doc.rect(40, y0, doc.page.width - 80, 16).fill(LIGHT_GREEN)
+  doc.fillColor(GREEN).fontSize(8).font('Helvetica-Bold')
+    .text('Projet', 50, y0 + 4)
+    .text('Leve', 220, y0 + 4)
+    .text(`Commission ${mentorRate}%`, 300, y0 + 4)
+    .text('Statut', 410, y0 + 4)
+  doc.y = y0 + 20
+
   data.projects.forEach((p, i) => {
-    if (doc.y > 700) { doc.addPage(); footer(doc) }
-    const commission = Math.round((p.raisedAmount||0) * 0.02)
-    doc.fillColor(DARK).fontSize(9).font('Helvetica-Bold').text(`${i+1}. ${p.title}`, 50, doc.y)
-    doc.fillColor(GRAY).fontSize(9).font('Helvetica')
-      .text(`${p.sector} · Levé: ${(p.raisedAmount||0).toLocaleString()} FCFA · Commission: ${commission.toLocaleString()} FCFA · ${p.status}`, 50, doc.y)
-    doc.moveDown(0.5)
+    if (doc.y > 720) { doc.addPage(); footer(doc); doc.y = 40 }
+    const commission = Math.round((p.raisedAmount || 0) * mentorRate / 100)
+    const rowY = doc.y
+    if (i % 2 === 0) doc.rect(40, rowY - 2, doc.page.width - 80, 18).fill(LIGHT_GRAY)
+    doc.fillColor(DARK).fontSize(8).font('Helvetica')
+      .text(p.title?.substring(0, 28) || '—', 50, rowY, { width: 165 })
+      .text(`${(p.raisedAmount || 0).toLocaleString()}`, 220, rowY)
+      .text(`${commission.toLocaleString()}`, 300, rowY)
+      .text(p.status, 410, rowY)
+    doc.y = rowY + 18
+  })
+
+  footer(doc)
+  doc.end()
+}
+
+// ============================================
+// RAPPORT ADMIN
+// ============================================
+export function generateAdminReport(res: Response, data: {
+  stats: any, projects: any[], revenues: any[], fees?: any
+}) {
+  const doc = new PDFDocument({ size: 'A4', margin: 40 })
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `attachment; filename="rapport-admin-${Date.now()}.pdf"`)
+  doc.pipe(res)
+
+  header(doc, 'RAPPORT ADMINISTRATEUR', `Genere le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`)
+
+  const fees = data.fees || {}
+
+  section(doc, 'RESUME PLATEFORME')
+  row(doc, 'Total utilisateurs', String(data.stats.totalUsers || 0))
+  row(doc, 'Total investissements', `${(data.stats.totalRaised || 0).toLocaleString()} FCFA`)
+  row(doc, 'Cagnotte nette projets', `${(data.stats.totalCagnotteNette || 0).toLocaleString()} FCFA`, true)
+  row(doc, 'Retours nets investisseurs', `${(data.stats.totalNetInvestors || 0).toLocaleString()} FCFA`)
+  row(doc, 'Revenu net BAOBAB', `${(data.stats.revenuNetBAOBAB || 0).toLocaleString()} FCFA`, true)
+  row(doc, 'Projets actifs', String(data.stats.activeProjects || 0))
+  row(doc, 'Projets finances', String(data.stats.fundedProjects || 0))
+  row(doc, 'Projets termines', String(data.stats.completedProjects || 0))
+  row(doc, 'KYC verifies', `${data.stats.kycVerified || 0} / ${data.stats.totalUsers || 0} (${data.stats.kycRate || 0}%)`)
+
+  section(doc, 'TAUX EN VIGUEUR')
+  row(doc, 'Commission BAOBAB collecte', `${fees.commission_baobab_collection || 5}%`)
+  row(doc, 'Commission BAOBAB retours', `${fees.commission_baobab_return || 5}%`)
+  row(doc, 'Commission mentor', `${fees.commission_mentor || 2}%`)
+  row(doc, 'Fonds garantie', `${fees.commission_guarantee || 2}%`)
+  row(doc, 'PayDunya Payin (absorbe)', `${fees.paydunya_payin || 4}%`)
+  row(doc, 'PayDunya Payout (absorbe)', `${fees.paydunya_payout || 3}%`)
+
+  section(doc, 'DERNIERS REVENUS')
+  const y0 = doc.y
+  doc.rect(40, y0, doc.page.width - 80, 16).fill(LIGHT_GREEN)
+  doc.fillColor(GREEN).fontSize(8).font('Helvetica-Bold')
+    .text('Type', 50, y0 + 4)
+    .text('Montant', 280, y0 + 4)
+    .text('Date', 380, y0 + 4)
+  doc.y = y0 + 20
+
+  data.revenues.slice(0, 15).forEach((r, i) => {
+    if (doc.y > 720) { doc.addPage(); footer(doc); doc.y = 40 }
+    const rowY = doc.y
+    if (i % 2 === 0) doc.rect(40, rowY - 2, doc.page.width - 80, 18).fill(LIGHT_GRAY)
+    doc.fillColor(DARK).fontSize(8).font('Helvetica')
+      .text(r.description?.substring(0, 40) || r.type, 50, rowY, { width: 225 })
+      .text(`${r.amount.toLocaleString()} FCFA`, 280, rowY)
+      .text(new Date(r.createdAt).toLocaleDateString('fr-FR'), 380, rowY)
+    doc.y = rowY + 18
   })
 
   footer(doc)

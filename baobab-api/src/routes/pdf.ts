@@ -93,24 +93,38 @@ router.get('/report/mentor', authenticate, async (req: AuthRequest, res: Respons
 // Rapport admin
 router.get('/report/admin', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { from, to } = req.query
-    const where: any = {}
-    if (from) where.createdAt = { ...where.createdAt, gte: new Date(String(from)) }
-    if (to) where.createdAt = { ...where.createdAt, lte: new Date(String(to)) }
-
-    const [revenues, investments, users, projects] = await Promise.all([
-      prisma.platformRevenue.findMany({ where, orderBy: { createdAt: 'desc' } }),
-      prisma.investment.findMany({ select: { amount: true, createdAt: true } }),
-      prisma.user.findMany({ select: { role: true, kycStatus: true, createdAt: true } }),
-      prisma.project.findMany({ select: { status: true, raisedAmount: true, sector: true } })
+    const [revenues, feesConfig, users] = await Promise.all([
+      prisma.platformRevenue.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }),
+      prisma.platformConfig.findMany(),
+      prisma.user.findMany({ select: { role: true, kycStatus: true } })
     ])
-
-    const period = from && to
-      ? `Du ${new Date(String(from)).toLocaleDateString('fr-FR')} au ${new Date(String(to)).toLocaleDateString('fr-FR')}`
-      : `Rapport complet — ${new Date().toLocaleDateString('fr-FR')}`
-
-    generateAdminReport(res, { revenues, investments, users, projects, period })
-  } catch (e) { console.error(e); res.status(500).json({ success: false, message: 'Erreur génération PDF' }) }
+    const projects = await prisma.project.findMany({
+      include: {
+        investments: { select: { amount: true, expectedReturn: true, status: true, createdAt: true, user: { select: { firstName: true, lastName: true } } } },
+        entrepreneur: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    const feeMap: any = {}
+    feesConfig.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
+    const totalRaised = projects.reduce((s: number, p: any) => s + (p.raisedAmount || 0), 0)
+    const fraisTaux = (feeMap.commission_baobab_collection||5) + (feeMap.commission_mentor||2) + (feeMap.commission_guarantee||2)
+    const totalCagnotteNette = Math.round(totalRaised * (1 - fraisTaux/100))
+    const totalGrossReturn = projects.reduce((s: number, p: any) => s + p.investments.reduce((ss: number, i: any) => ss + (i.expectedReturn||0), 0), 0)
+    const totalNetInvestors = Math.round(totalGrossReturn * (1 - (feeMap.commission_baobab_return||5)/100 - (feeMap.paydunya_payout||3)/100))
+    const revByType: any = {}
+    revenues.forEach((r: any) => { revByType[r.type] = (revByType[r.type]||0) + r.amount })
+    const revenuNetBAOBAB = (revByType['COMMISSION_COLLECTION']||0) - Math.abs(revByType['PAYDUNYA_FEE']||0)
+    const stats = {
+      totalUsers: users.length,
+      totalRaised, totalCagnotteNette, totalNetInvestors, revenuNetBAOBAB,
+      activeProjects: projects.filter((p: any) => p.status === 'ACTIVE').length,
+      fundedProjects: projects.filter((p: any) => p.status === 'FUNDED').length,
+      completedProjects: projects.filter((p: any) => p.status === 'COMPLETED').length,
+      kycVerified: users.filter((u: any) => u.kycStatus === 'VERIFIED').length,
+      kycRate: Math.round((users.filter((u: any) => u.kycStatus === 'VERIFIED').length / (users.length||1)) * 100)
+    }
+    generateAdminReport(res, { stats, projects, revenues, fees: feeMap })
+  } catch (e) { console.error(e); res.status(500).json({ success: false, message: 'Erreur generation PDF' }) }
 })
-
 export default router
