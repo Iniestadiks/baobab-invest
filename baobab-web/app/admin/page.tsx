@@ -526,6 +526,14 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   const fundedProjects = allProjects.filter((p: any) => p.status === "FUNDED" || p.status === "IN_PROGRESS");
   const activeNotFunded = allProjects.filter((p: any) => p.status === "ACTIVE");
   const completedProjects = allProjects.filter((p: any) => p.status === "COMPLETED");
+  const [schedules, setSchedules] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    // Charger les échéanciers en cours
+    authGet("/api/repayment/admin/all").then((res: any) => {
+      if (res.success) setSchedules(res.data || []);
+    });
+  }, []);
 
   const loadDetails = async (projectId: string) => {
     if (details[projectId]) return;
@@ -725,7 +733,64 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
         </div>
       )}
 
-      {fundedProjects.length === 0 && activeNotFunded.length === 0 && completedProjects.length === 0 && (
+      {/* Échéanciers en cours */}
+      {schedules.length > 0 && (
+        <div className="space-y-3">
+          <div className="font-semibold text-gray-700">📅 Échéanciers de remboursement progressif</div>
+          {schedules.map((s: any) => (
+            <div key={s.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="font-bold text-gray-900">{s.project?.title}</div>
+                  <div className="text-xs text-gray-500">Entrepreneur : {s.project?.entrepreneur?.firstName} {s.project?.entrepreneur?.lastName}</div>
+                </div>
+                <span className={`text-xs font-bold px-2 py-1 rounded-full ${s.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                  {s.status === 'COMPLETED' ? '✅ Terminé' : `${s.paidMonths}/${s.totalMonths} mois`}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-3 text-xs mb-3">
+                <div className="bg-gray-50 rounded-xl p-2">
+                  <div className="text-gray-400">Total dû</div>
+                  <div className="font-bold">{s.totalAmount?.toLocaleString()} FCFA</div>
+                </div>
+                <div className="bg-green-50 rounded-xl p-2">
+                  <div className="text-gray-400">Déjà payé</div>
+                  <div className="font-bold text-green-700">{(s.totalAmount - s.remainingAmount)?.toLocaleString()} FCFA</div>
+                </div>
+                <div className="bg-orange-50 rounded-xl p-2">
+                  <div className="text-gray-400">Restant</div>
+                  <div className="font-bold text-orange-700">{s.remainingAmount?.toLocaleString()} FCFA</div>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-2">
+                  <div className="text-gray-400">Mensualité</div>
+                  <div className="font-bold text-blue-700">{s.monthlyAmount?.toLocaleString()} FCFA</div>
+                </div>
+              </div>
+              <div className="bg-gray-200 rounded-full h-2 mb-2">
+                <div className="bg-green-500 h-2 rounded-full transition-all"
+                  style={{width: `${Math.round((s.paidMonths / s.totalMonths) * 100)}%`}} />
+              </div>
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>{Math.round((s.paidMonths / s.totalMonths) * 100)}% remboursé</span>
+                {s.nextDueDate && <span>Prochain : {new Date(s.nextDueDate).toLocaleDateString("fr-FR")}</span>}
+              </div>
+              {/* Détail paiements */}
+              {s.payments && (
+                <div className="mt-3 space-y-1">
+                  {s.payments.map((pay: any) => (
+                    <div key={pay.id} className={`flex justify-between text-xs px-2 py-1 rounded-lg ${pay.status === 'PAID' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                      <span>Mois {pay.monthNumber} — {pay.amount?.toLocaleString()} FCFA</span>
+                      <span>{pay.status === 'PAID' ? `✅ ${new Date(pay.paidAt).toLocaleDateString("fr-FR")}` : `⏳ Prévu ${new Date(pay.dueDate).toLocaleDateString("fr-FR")}`}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {fundedProjects.length === 0 && activeNotFunded.length === 0 && completedProjects.length === 0 && schedules.length === 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
           <div className="text-5xl mb-3">💰</div>
           <p className="text-gray-400">Aucun projet à rembourser</p>

@@ -224,4 +224,23 @@ router.get('/investor/received', authenticate, async (req: AuthRequest, res: Res
   } catch (e) { errorResponse(res) }
 })
 
+// Admin — voir tous les échéanciers
+router.get('/admin/all', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const schedules = await prisma.repaymentSchedule.findMany({
+      include: {
+        project: {
+          select: {
+            title: true,
+            entrepreneur: { select: { firstName: true, lastName: true } }
+          }
+        },
+        payments: { orderBy: { monthNumber: 'asc' } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    successResponse(res, schedules)
+  } catch (e) { errorResponse(res) }
+})
+
 export default router
