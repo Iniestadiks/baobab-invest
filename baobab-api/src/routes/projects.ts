@@ -295,7 +295,7 @@ router.post('/:id/request-early-close', authenticate, async (req: AuthRequest, r
         data: JSON.stringify({ projectId: project.id })
       }))
     })
-    successResponse(res, {}, 'Demande de clôture anticipée envoyée à l'administrateur')
+    successResponse(res, {}, 'Demande de cloture anticipee envoyee a l administrateur')
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
