@@ -39,9 +39,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [notifOpen, setNotifOpen] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"all"|"3m"|"6m">("all");
+  const [repayments, setRepayments] = useState<any[]>([]);
   const router = useRouter();
 
   useEffect(() => {
+    authGet("/api/repayment/investor/received").then((res: any) => {
+      if (res.success) setRepayments(res.data || []);
+    });
     const token = localStorage.getItem("accessToken");
     if (!token) { router.replace("/auth/login"); return; }
     Promise.all([
@@ -385,6 +389,31 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Remboursements reçus */}
+        {repayments.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4">💸 Remboursements reçus</h3>
+            <div className="space-y-2">
+              {repayments.slice(0, 10).map((r: any, i: number) => {
+                const data = r.data ? JSON.parse(r.data) : {};
+                return (
+                  <div key={i} className="flex items-center justify-between p-3 bg-green-50 border border-green-100 rounded-xl">
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">{r.body?.substring(0, 60)}...</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{new Date(r.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+                    </div>
+                    <div className="text-green-700 font-bold text-sm flex-shrink-0">
+                      +{data.amount?.toLocaleString() || "—"} FCFA
+                    </div>
+                  </div>
+                );
+              })}
+              {repayments.length > 10 && (
+                <div className="text-center text-xs text-gray-400 pt-1">{repayments.length - 10} autres remboursements...</div>
+              )}
+            </div>
+          </div>
+        )}
         {/* Notifications */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <div className="flex justify-between items-center mb-3">
