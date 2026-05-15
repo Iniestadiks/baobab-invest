@@ -1951,7 +1951,24 @@ export default function AdminPage() {
                         <div className="font-bold text-gray-900 text-lg">{selectedUser.firstName} {selectedUser.lastName}</div>
                         <div className="text-xs text-gray-500">{selectedUser.email} · {selectedUser.role}</div>
                       </div>
-                      <button onClick={() => { setSelectedUser(null); setUserDetail(null); }} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">×</button>
+                      <div className="flex gap-2">
+                        <button onClick={async () => {
+                          const token = localStorage.getItem("accessToken");
+                          const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+                          const role = selectedUser.role.toLowerCase();
+                          const type = role === "investor" ? "investor" : role === "entrepreneur" ? "entrepreneur" : "mentor";
+                          const res = await fetch(`${API}/api/pdf/admin/user/${selectedUser.id}?type=${type}`, { headers: { Authorization: `Bearer ${token}` } });
+                          if (!res.ok) { alert("Erreur PDF"); return; }
+                          const blob = await res.blob();
+                          const a = document.createElement("a");
+                          a.href = URL.createObjectURL(blob);
+                          a.download = `rapport-${selectedUser.firstName}-${selectedUser.lastName}.pdf`;
+                          a.click();
+                        }} className="bg-red-600 text-white text-xs px-3 py-1.5 rounded-xl hover:bg-red-700 font-medium">
+                          📄 PDF
+                        </button>
+                        <button onClick={() => { setSelectedUser(null); setUserDetail(null); }} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">×</button>
+                      </div>
                     </div>
                     <div className="p-5 space-y-5">
                       {/* Wallet complet */}

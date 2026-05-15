@@ -185,9 +185,19 @@ export default function DashboardPage() {
             <button onClick={exportCSV} className="text-xs border border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-600 px-3 py-2 rounded-xl transition-colors">
               📥 CSV
             </button>
-            <button onClick={() => downloadPDF('/api/pdf/statement/investor', 'releve-compte.pdf')} className="text-xs border border-green-200 text-green-600 hover:bg-green-50 px-3 py-2 rounded-xl transition-colors">
-              📄 PDF Relevé
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { label: "📄 Mensuel", period: "month" },
+                { label: "📊 Trimestriel", period: "quarter" },
+                { label: "📈 Annuel", period: "year" },
+                { label: "📋 Complet", period: "" },
+              ].map(({ label, period }) => (
+                <button key={period} onClick={() => downloadPDF(`/api/pdf/statement/investor${period ? "?period=" + period : ""}`, `releve-${period || "complet"}.pdf`)}
+                  className="text-xs border border-green-200 text-green-600 hover:bg-green-50 px-3 py-2 rounded-xl transition-colors">
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

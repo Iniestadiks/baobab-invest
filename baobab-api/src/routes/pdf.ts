@@ -127,4 +127,130 @@ router.get('/report/admin', authenticate, requireAdmin, async (req: AuthRequest,
     generateAdminReport(res, { stats, projects, revenues, fees: feeMap })
   } catch (e) { console.error(e); res.status(500).json({ success: false, message: 'Erreur generation PDF' }) }
 })
+// Relevé investisseur avec période (mensuel/trimestriel/annuel)
+router.get('/statement/investor', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { period } = req.query
+    const now = new Date()
+    let from: Date | null = null
+    let periodLabel = 'Rapport complet'
+
+    if (period === 'month') {
+      from = new Date(now.getFullYear(), now.getMonth(), 1)
+      periodLabel = 'Rapport mensuel — ' + now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+    } else if (period === 'quarter') {
+      from = new Date(now.getTime() - 90*24*60*60*1000)
+      periodLabel = 'Rapport trimestriel — ' + from.toLocaleDateString('fr-FR') + ' au ' + now.toLocaleDateString('fr-FR')
+    } else if (period === 'year') {
+      from = new Date(now.getFullYear(), 0, 1)
+      periodLabel = 'Rapport annuel ' + now.getFullYear()
+    }
+
+    const [user, wallet, feesConfig] = await Promise.all([
+      prisma.user.findUnique({ where: { id: req.userId! } }),
+      prisma.wallet.findUnique({ where: { userId: req.userId! } }),
+      prisma.platformConfig.findMany()
+    ])
+
+    const where: any = { userId: req.userId! }
+    if (from) where.createdAt = { gte: from }
+
+    const investments = await prisma.investment.findMany({
+      where,
+      include: { project: { select: { title: true, sector: true, status: true, expectedReturn: true } } },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const feeMap: any = {}
+    feesConfig.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
+
+    generateInvestorStatement(res, { investor: user, investments, wallet, period: periodLabel, fees: feeMap })
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Rapport entrepreneur avec période
+router.get('/report/entrepreneur', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const [user, feesConfig] = await Promise.all([
+      prisma.user.findUnique({ where: { id: req.userId! } }),
+      prisma.platformConfig.findMany()
+    ])
+    const feeMap: any = {}
+    feesConfig.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
+
+    const projects = await prisma.project.findMany({
+      where: { entrepreneurId: req.userId! },
+      include: {
+        investments: { include: { user: { select: { firstName: true, lastName: true } } } },
+        milestones: true,
+        repaymentSchedules: { include: { payments: { orderBy: { monthNumber: 'asc' } } } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Générer un rapport pour chaque projet ou le premier
+    if (projects.length === 0) { res.status(404).json({ success: false, message: 'Aucun projet' }); return }
+    const project = projects[0]
+    generateProjectReport(res, { project, entrepreneur: user, investments: project.investments, milestones: project.milestones, fees: feeMap })
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Rapport mentor avec période
+router.get('/report/mentor', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const [user, wallet, feesConfig] = await Promise.all([
+      prisma.user.findUnique({ where: { id: req.userId! } }),
+      prisma.wallet.findUnique({ where: { userId: req.userId! } }),
+      prisma.platformConfig.findMany()
+    ])
+    const feeMap: any = {}
+    feesConfig.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
+
+    const projects = await prisma.project.findMany({
+      where: { mentorId: req.userId! },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    generateMentorReport(res, { mentor: user, projects, wallet, fees: feeMap })
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Admin — rapport d'un utilisateur spécifique
+router.get('/admin/user/:userId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { type } = req.query // investor, entrepreneur, mentor
+    const [user, wallet, feesConfig] = await Promise.all([
+      prisma.user.findUnique({ where: { id: req.params.userId } }),
+      prisma.wallet.findUnique({ where: { userId: req.params.userId } }),
+      prisma.platformConfig.findMany()
+    ])
+    if (!user) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return }
+
+    const feeMap: any = {}
+    feesConfig.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
+
+    if (type === 'investor' || user.role === 'INVESTOR') {
+      const investments = await prisma.investment.findMany({
+        where: { userId: req.params.userId },
+        include: { project: { select: { title: true, sector: true, status: true, expectedReturn: true } } },
+        orderBy: { createdAt: 'desc' }
+      })
+      generateInvestorStatement(res, { investor: user, investments, wallet, period: 'Rapport complet — ' + user.firstName + ' ' + user.lastName, fees: feeMap })
+    } else if (type === 'entrepreneur' || user.role === 'ENTREPRENEUR') {
+      const projects = await prisma.project.findMany({
+        where: { entrepreneurId: req.params.userId },
+        include: { investments: { include: { user: { select: { firstName: true, lastName: true } } } }, milestones: true },
+        orderBy: { createdAt: 'desc' }
+      })
+      if (projects.length === 0) { res.status(404).json({ success: false, message: 'Aucun projet' }); return }
+      generateProjectReport(res, { project: projects[0], entrepreneur: user, investments: projects[0].investments, milestones: projects[0].milestones, fees: feeMap })
+    } else if (type === 'mentor' || user.role === 'MENTOR') {
+      const projects = await prisma.project.findMany({ where: { mentorId: req.params.userId } })
+      generateMentorReport(res, { mentor: user, projects, wallet, fees: feeMap })
+    } else {
+      res.status(400).json({ success: false, message: 'Type de rapport invalide' })
+    }
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
 export default router
