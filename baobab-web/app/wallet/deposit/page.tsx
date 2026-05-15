@@ -1,125 +1,131 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authPost, authGet } from "@/lib/api";
-
-const OPERATORS = ["Orange Money", "Wave", "Free Money", "Expresso", "MTN MoMo"];
-const OP_ICONS: Record<string, string> = {
-  "Orange Money": "🟠", "Wave": "🔵", "Free Money": "🟢", "Expresso": "🔴", "MTN MoMo": "🟡"
-};
 
 export default function DepositPage() {
   const router = useRouter();
-  const [wallet, setWallet] = useState<any>(null);
+  const params = useSearchParams();
   const [amount, setAmount] = useState("");
-  const [phone, setPhone] = useState("");
-  const [operator, setOperator] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const fmt = (n: number) => mounted ? n.toLocaleString("fr-FR") : n.toString();
-  const [msg, setMsg] = useState<{text:string,ok:boolean}|null>(null);
+  const [msg, setMsg] = useState("");
+  const [wallet, setWallet] = useState<any>(null);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) { router.replace("/auth/login"); return; }
-    authGet("/api/auth/me").then(r => { if (r.success) setWallet(r.data.wallet); });
+    authGet("/api/auth/me").then((r: any) => { if (r.success) setWallet(r.data.wallet); });
+
+    // Vérifier si retour de PayDunya
+    const status = params.get("status");
+    const txId = params.get("txId");
+    if (status === "success" && txId) {
+      setVerifying(true);
+      setTimeout(async () => {
+        const res = await authPost(`/api/wallet/deposit/verify/${txId}`, {});
+        if (res.success && res.data?.status === "COMPLETED") {
+          setMsg(`✅ Dépôt de ${res.data.amount?.toLocaleString()} FCFA confirmé !`);
+          authGet("/api/auth/me").then((r: any) => { if (r.success) setWallet(r.data.wallet); });
+        } else {
+          setMsg("⏳ Paiement en cours de vérification...");
+        }
+        setVerifying(false);
+      }, 2000);
+    } else if (status === "cancel") {
+      setMsg("❌ Paiement annulé.");
+    }
   }, []);
 
-  const submit = async () => {
-    if (!amount || !phone || !operator) { setMsg({text:"Tous les champs sont requis",ok:false}); return; }
-    if (Number(amount) < 1000) { setMsg({text:"Montant minimum : 1 000 FCFA",ok:false}); return; }
+  const handleDeposit = async () => {
+    if (!amount || Number(amount) < 1000) {
+      setMsg("❌ Montant minimum 1 000 FCFA"); return;
+    }
     setLoading(true);
-    try {
-      const res = await authPost("/api/wallet/deposit", { amount: Number(amount), phoneNumber: phone, operator });
-      if (res.success) {
-        setMsg({text:"✅ Demande enregistrée ! Votre solde sera crédité après validation (quelques minutes).",ok:true});
-        setAmount(""); setPhone(""); setOperator("");
-      } else setMsg({text:"❌ " + res.message, ok:false});
-    } finally { setLoading(false); }
+    setMsg("");
+    const res = await authPost("/api/wallet/deposit", { amount: Number(amount) });
+    if (res.success && res.data?.paymentUrl) {
+      window.location.href = res.data.paymentUrl;
+    } else {
+      setMsg("❌ " + (res.message || "Erreur lors de l'initiation du paiement"));
+      setLoading(false);
+    }
   };
 
-  const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "{}") : {};
-  const dashboard = user.role === "ENTREPRENEUR" ? "/entrepreneur" : user.role === "MENTOR" ? "/mentor" : "/dashboard";
+  const AMOUNTS = [5000, 10000, 25000, 50000, 100000, 250000];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-lg mx-auto px-6 py-4 flex items-center gap-3">
-          <Link href={dashboard} className="text-gray-400 hover:text-green-600">←</Link>
-          <span className="font-bold text-gray-900">💳 Déposer des fonds</span>
-        </div>
-      </nav>
-      <div className="max-w-lg mx-auto px-6 py-8 space-y-5">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 w-full max-w-md p-8">
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 mb-6 flex items-center gap-2 text-sm">
+          ← Retour
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Déposer des fonds</h1>
+        <p className="text-gray-500 text-sm mb-6">Rechargez votre wallet via Mobile Money</p>
 
-        {/* Solde actuel */}
-        <div className="bg-green-600 rounded-2xl p-5 text-white">
-          <div className="text-sm opacity-80 mb-1">Solde actuel</div>
-          <div className="text-3xl font-bold">{mounted ? (wallet?.balance || 0).toLocaleString("fr-FR") : String(wallet?.balance || 0)} FCFA</div>
-          <div className="text-sm opacity-70 mt-1">Wallet BAOBAB INVEST</div>
-        </div>
+        {wallet && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
+            <div className="text-xs text-gray-500">Solde actuel</div>
+            <div className="text-2xl font-bold text-green-700">{(wallet.balance || 0).toLocaleString()} FCFA</div>
+          </div>
+        )}
+
+        {verifying && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 text-center">
+            <div className="text-blue-700 font-medium">Vérification du paiement...</div>
+            <div className="text-xs text-blue-500 mt-1">Patientez quelques secondes</div>
+          </div>
+        )}
 
         {msg && (
-          <div className={`rounded-xl p-4 text-sm ${msg.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
-            {msg.text}
+          <div className={`p-4 rounded-2xl mb-6 text-sm font-medium ${msg.startsWith("✅") ? "bg-green-50 text-green-800 border border-green-200" : msg.startsWith("⏳") ? "bg-blue-50 text-blue-800 border border-blue-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
+            {msg}
           </div>
         )}
 
         {/* Montants rapides */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h3 className="font-bold text-gray-900 mb-3">Montant à déposer</h3>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {[5000, 10000, 25000, 50000, 100000, 250000].map(v => (
-              <button key={v} onClick={() => setAmount(String(v))}
-                className={`py-2 rounded-xl text-sm font-medium border transition-colors ${amount === String(v) ? "bg-green-600 text-white border-green-600" : "bg-gray-50 text-gray-700 border-gray-200 hover:border-green-300"}`}>
-                {fmt(v)}
+        <div className="mb-4">
+          <label className="text-xs font-semibold text-gray-600 mb-2 block">Montant rapide</label>
+          <div className="grid grid-cols-3 gap-2">
+            {AMOUNTS.map(a => (
+              <button key={a} onClick={() => setAmount(String(a))}
+                className={`text-sm py-2 px-3 rounded-xl font-medium border transition-colors ${amount === String(a) ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-200 hover:border-green-300"}`}>
+                {a.toLocaleString()}
               </button>
             ))}
           </div>
-          <input
-            type="number" value={amount} onChange={e => setAmount(e.target.value)}
-            placeholder="Ou entrez un montant personnalisé..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400"
-          />
-          {amount && <p className="text-xs text-gray-400 mt-1">{mounted ? Number(amount).toLocaleString("fr-FR") : amount} FCFA</p>}
         </div>
 
-        {/* Opérateur */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h3 className="font-bold text-gray-900 mb-3">Opérateur Mobile Money</h3>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            {OPERATORS.map(op => (
-              <button key={op} onClick={() => setOperator(op)}
-                className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-colors ${operator === op ? "bg-green-600 text-white border-green-600" : "bg-gray-50 text-gray-700 border-gray-200 hover:border-green-300"}`}>
-                <span>{OP_ICONS[op]}</span><span>{op}</span>
-              </button>
+        {/* Montant personnalisé */}
+        <div className="mb-6">
+          <label className="text-xs font-semibold text-gray-600 mb-2 block">Ou saisissez un montant (FCFA)</label>
+          <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+            placeholder="Ex: 15000" min="1000"
+            className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-lg font-bold focus:outline-none focus:border-green-400 text-center" />
+          {amount && Number(amount) >= 1000 && (
+            <div className="text-center text-xs text-green-600 mt-1 font-medium">
+              Votre wallet sera crédité de {Number(amount).toLocaleString()} FCFA
+            </div>
+          )}
+        </div>
+
+        {/* Moyens de paiement */}
+        <div className="bg-gray-50 rounded-2xl p-4 mb-6">
+          <div className="text-xs font-semibold text-gray-600 mb-3">Moyens de paiement acceptés</div>
+          <div className="flex flex-wrap gap-2">
+            {["Orange Money", "Wave", "Free Money", "Expresso", "Carte bancaire"].map(m => (
+              <span key={m} className="text-xs bg-white border border-gray-200 px-2.5 py-1 rounded-lg text-gray-600">{m}</span>
             ))}
           </div>
-          <input
-            type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-            placeholder="Numéro Mobile Money (ex: +221 77 000 00 00)"
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400"
-          />
+          <div className="text-xs text-gray-400 mt-2">Sécurisé par PayDunya — Aucun frais pour vous</div>
         </div>
 
-        {/* Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-700">
-          <p className="font-semibold mb-1">ℹ️ Comment ça marche ?</p>
-          <p>1. Soumettez votre demande de dépôt</p>
-          <p>2. Effectuez le virement depuis votre Mobile Money</p>
-          <p>3. Votre wallet est crédité sous quelques minutes après validation</p>
-          <p className="mt-1 font-medium">🔒 Avec PayDunya : tout sera automatique</p>
-        </div>
-
-        <button onClick={submit} disabled={loading || !amount || !phone || !operator}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-2xl transition-colors disabled:opacity-50 text-lg">
-          {loading ? "Envoi..." : `💳 Demander le dépôt de ${amount ? mounted ? Number(amount).toLocaleString("fr-FR") : amount : "0"} FCFA`}
+        <button onClick={handleDeposit} disabled={loading || !amount || Number(amount) < 1000}
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-2xl text-lg transition-colors disabled:opacity-50">
+          {loading ? "Redirection vers PayDunya..." : `Déposer ${amount ? Number(amount).toLocaleString() : "..."} FCFA`}
         </button>
 
-        <Link href="/wallet/history" className="block text-center text-sm text-gray-400 hover:text-green-600">
-          Voir l&apos;historique de mes transactions →
-        </Link>
+        <p className="text-xs text-gray-400 text-center mt-4">
+          Vous serez redirigé vers la page de paiement PayDunya sécurisée
+        </p>
       </div>
     </div>
   );
