@@ -937,13 +937,20 @@ function FinancesTab({ authGet }: any) {
   const [openProject, setOpenProject] = React.useState<string | null>(null);
   const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
 
+  const [adminWallet, setAdminWallet] = React.useState<any>(null);
+  const [schedules, setSchedules] = React.useState<any[]>([]);
+
   React.useEffect(() => {
     Promise.all([
       authGet("/api/admin/finances/details"),
       authGet("/api/admin/platform-revenues"),
-    ]).then(([det, rev]) => {
+      authGet("/api/auth/me"),
+      authGet("/api/repayment/admin/all"),
+    ]).then(([det, rev, me, sched]) => {
       if (det.success) setData(det.data);
       if (rev.success) setRevenues(rev.data);
+      if (me.success) setAdminWallet(me.data?.wallet);
+      if (sched.success) setSchedules(sched.data || []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -976,6 +983,89 @@ function FinancesTab({ authGet }: any) {
           </button>
         </div>
       </div>
+
+      {/* Poches Wallet BAOBAB */}
+      {adminWallet && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <h3 className="font-bold text-gray-900 mb-4">🏦 Wallet BAOBAB INVEST — Répartition des fonds</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+              <div className="text-xs text-gray-500 mb-1">💰 Commissions nettes</div>
+              <div className="text-xl font-bold text-green-700">{(adminWallet.commissionBalance || 0).toLocaleString()} FCFA</div>
+              <div className="text-xs text-gray-400 mt-1">Ce que BAOBAB gagne réellement</div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+              <div className="text-xs text-gray-500 mb-1">🔒 Séquestre investisseurs</div>
+              <div className="text-xl font-bold text-blue-700">{(adminWallet.escrowInvestors || 0).toLocaleString()} FCFA</div>
+              <div className="text-xs text-gray-400 mt-1">Fonds en attente de retour</div>
+            </div>
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+              <div className="text-xs text-gray-500 mb-1">🛡️ Fonds de garantie</div>
+              <div className="text-xl font-bold text-orange-700">{(adminWallet.guaranteeBalance || 0).toLocaleString()} FCFA</div>
+              <div className="text-xs text-gray-400 mt-1">Réservé — projets en difficulté</div>
+            </div>
+            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4">
+              <div className="text-xs text-gray-500 mb-1">💳 Solde total wallet</div>
+              <div className="text-xl font-bold text-purple-700">{(adminWallet.balance || 0).toLocaleString()} FCFA</div>
+              <div className="text-xs text-gray-400 mt-1">Disponible immédiatement</div>
+            </div>
+          </div>
+          <div className="mt-3 bg-gray-50 rounded-xl p-3 text-xs text-gray-500">
+            <strong>Logique :</strong> Commissions = revenus BAOBAB | Séquestre = argent des investisseurs à redistribuer | Garantie = filet de sécurité (2% par investissement)
+          </div>
+        </div>
+      )}
+
+      {/* Échéanciers remboursement en cours */}
+      {schedules.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <h3 className="font-bold text-gray-900 mb-4">📅 Remboursements progressifs en cours</h3>
+          <div className="space-y-3">
+            {schedules.map((s: any) => {
+              const pct = Math.round((s.paidMonths / s.totalMonths) * 100);
+              const paidAmount = s.totalAmount - s.remainingAmount;
+              return (
+                <div key={s.id} className="border border-gray-100 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <div className="font-semibold text-gray-900">{s.project?.title}</div>
+                      <div className="text-xs text-gray-500">{s.project?.entrepreneur?.firstName} {s.project?.entrepreneur?.lastName}</div>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${s.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                      {s.paidMonths}/{s.totalMonths} mois
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-xs mb-2">
+                    <div className="bg-gray-50 rounded-lg p-2">
+                      <div className="text-gray-400">Total dû</div>
+                      <div className="font-bold">{s.totalAmount?.toLocaleString()} FCFA</div>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-2">
+                      <div className="text-gray-400">Déjà payé</div>
+                      <div className="font-bold text-green-700">{paidAmount.toLocaleString()} FCFA</div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-2">
+                      <div className="text-gray-400">Restant</div>
+                      <div className="font-bold text-orange-700">{s.remainingAmount?.toLocaleString()} FCFA</div>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-2">
+                      <div className="text-gray-400">Mensualité</div>
+                      <div className="font-bold text-blue-700">{s.monthlyAmount?.toLocaleString()} FCFA</div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-200 rounded-full h-2 mb-1">
+                    <div className="bg-green-500 h-2 rounded-full" style={{width: `${pct}%`}} />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>{pct}% remboursé</span>
+                    {s.nextDueDate && <span>Prochain : {new Date(s.nextDueDate).toLocaleDateString("fr-FR")}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* KPIs globaux */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
