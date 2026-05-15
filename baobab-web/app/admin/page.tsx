@@ -677,9 +677,12 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                       <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
                         ⚠️ <strong>Action irréversible</strong> — Les fonds seront crédités sur les wallets des investisseurs. Le projet passera en statut COMPLETED.
                       </div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800 mb-2">
+                        <strong>Important :</strong> Cliquer ici cree uniquement l echeancier de remboursement. L entrepreneur devra payer chaque mensualite. Les investisseurs recevront leur part au fur et a mesure des paiements.
+                      </div>
                       <button onClick={() => reimburse(p.id)} disabled={processing === p.id}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 transition-colors">
-                        {processing === p.id ? "⏳ Traitement en cours..." : `💰 Confirmer le remboursement — ${netInvestors.toLocaleString()} FCFA aux investisseurs`}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 transition-colors">
+                        {processing === p.id ? "⏳ Creation en cours..." : `📅 Creer l echeancier — ${(p.monthlyAmount || Math.ceil(netInvestors / (p.durationMonths || 12))).toLocaleString()} FCFA/mois x ${p.durationMonths || 12} mois`}
                       </button>
                     </div>
                   </div>

@@ -187,92 +187,59 @@ router.post('/reimburse-project/:projectId', authenticate, async (req: AuthReque
       }
     })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
-    if (project.status !== 'FUNDED') { res.status(400).json({ success: false, message: 'Projet non eligible' }); return }
+    if (!['FUNDED', 'IN_PROGRESS'].includes(project.status)) { res.status(400).json({ success: false, message: 'Projet non eligible' }); return }
 
     const fees = await getFees()
     const baobabRate = fees.commission_baobab_return || 5
     const paydunyaRate = fees.paydunya_payout || 3
 
-    await prisma.$transaction(async (tx) => {
-      let totalNetDistributed = 0
+    // Passer projet en IN_PROGRESS (remboursement en cours)
+    await prisma.project.update({ where: { id: project.id }, data: { status: 'IN_PROGRESS' } })
 
-      for (const inv of project.investments) {
-        const grossReturn = inv.expectedReturn || 0
-        const baobabOnReturn = Math.round(grossReturn * baobabRate / 100)
-        const paydunyaOnReturn = Math.round(grossReturn * paydunyaRate / 100)
-        const netReturn = grossReturn - baobabOnReturn - paydunyaOnReturn
+    // Notifier tous les acteurs
+    const uniqueInvestors = [...new Set(project.investments.map((i: any) => i.userId))]
+    const totalNet = Math.round(project.investments.reduce((s, i) => s + (i.expectedReturn||0), 0) * (1 - baobabRate/100 - paydunyaRate/100))
+    const months = project.durationMonths || 12
+    const monthly = Math.ceil(totalNet / months)
 
-        // Créditer investisseur
-        await tx.wallet.update({
-          where: { userId: inv.userId },
-          data: { balance: { increment: netReturn }, totalEarned: { increment: netReturn - inv.amount }, escrowBalance: { decrement: inv.amount } }
-        })
-
-        // Commission BAOBAB sur retours
-        await tx.platformRevenue.create({
-          data: { type: 'COMMISSION_RETURN', amount: baobabOnReturn, projectId: project.id, description: `Commission retour 5% — ${project.title}` }
-        })
-        await tx.platformRevenue.create({
-          data: { type: 'PAYDUNYA_FEE', amount: -paydunyaOnReturn, projectId: project.id, description: `PayDunya Payout absorbe — ${project.title}` }
-        })
-
-        // Notifier investisseur
-        await tx.notification.create({
-          data: {
-            userId: inv.userId,
-            title: 'Remboursement recu',
-            body: `Vous avez recu ${netReturn.toLocaleString()} FCFA pour votre investissement dans "${project.title}". Gain net: +${(netReturn - inv.amount).toLocaleString()} FCFA.`,
-            type: 'REPAYMENT_RECEIVED',
-            data: JSON.stringify({ projectId: project.id, amount: netReturn, gain: netReturn - inv.amount })
-          }
-        })
-
-        totalNetDistributed += netReturn
+    // Notifier l entrepreneur
+    await prisma.notification.create({
+      data: {
+        userId: project.entrepreneurId,
+        title: 'Echeancier de remboursement active',
+        body: `Votre projet "${project.title}" est entre en phase de remboursement. Vous devez rembourser ${monthly.toLocaleString()} FCFA/mois pendant ${months} mois. Total: ${totalNet.toLocaleString()} FCFA. Rechargez votre wallet et payez via votre tableau de bord.`,
+        type: 'REPAYMENT_SCHEDULE_CREATED',
+        data: JSON.stringify({ projectId: project.id, monthly, months, total: totalNet })
       }
+    })
 
-      // Mettre à jour poche admin
-      const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
-      if (adminUser) {
-        const totalReturn = project.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
-        const baobabOnAllReturns = Math.round(totalReturn * baobabRate / 100)
-        const paydunyaOnAllReturns = Math.round(totalReturn * paydunyaRate / 100)
-        await tx.wallet.update({
-          where: { userId: adminUser.id },
-          data: {
-            commissionBalance: { increment: baobabOnAllReturns - paydunyaOnAllReturns },
-            escrowInvestors: { decrement: totalNetDistributed },
-            guaranteeBalance: { decrement: Math.round(project.raisedAmount * (fees.commission_guarantee || 2) / 100) }
-          }
-        })
-      }
-
-      // Projet terminé
-      await tx.project.update({ where: { id: project.id }, data: { status: 'COMPLETED' } })
-
-      // Notifier entrepreneur
-      await tx.notification.create({
+    // Notifier les investisseurs
+    for (const userId of uniqueInvestors) {
+      const invTotal = project.investments.filter((i: any) => i.userId === userId).reduce((s, i) => s + (i.expectedReturn||0), 0)
+      const invNet = Math.round(invTotal * (1 - baobabRate/100 - paydunyaRate/100))
+      await prisma.notification.create({
         data: {
-          userId: project.entrepreneurId,
-          title: 'Projet complete — remboursement effectue',
-          body: `Le projet "${project.title}" est termine. ${totalNetDistributed.toLocaleString()} FCFA ont ete distribues aux investisseurs. Votre score de reputation augmente.`,
-          type: 'PROJECT_COMPLETED',
+          userId: userId as string,
+          title: 'Remboursement en cours',
+          body: `Le projet "${project.title}" entre en phase de remboursement progressif. Vous recevrez ${Math.ceil(invNet/months).toLocaleString()} FCFA/mois pendant ${months} mois. Total attendu: ${invNet.toLocaleString()} FCFA.`,
+          type: 'REPAYMENT_STARTED',
+          data: JSON.stringify({ projectId: project.id, expectedNet: invNet })
+        }
+      })
+    }
+
+    // Notifier mentor
+    if (project.mentorId) {
+      await prisma.notification.create({
+        data: {
+          userId: project.mentorId,
+          title: 'Phase remboursement demarree',
+          body: `Le projet "${project.title}" que vous supervisez entre en phase de remboursement.`,
+          type: 'REPAYMENT_STARTED',
           data: JSON.stringify({ projectId: project.id })
         }
       })
-
-      // Notifier mentor si applicable
-      if (project.mentorId) {
-        await tx.notification.create({
-          data: {
-            userId: project.mentorId,
-            title: 'Projet mentor complete',
-            body: `Le projet "${project.title}" que vous avez mentoré est entierement rembourse.`,
-            type: 'PROJECT_COMPLETED',
-            data: JSON.stringify({ projectId: project.id })
-          }
-        })
-      }
-    })
+    }
 
     // Créer échéancier si pas encore fait
     try {
