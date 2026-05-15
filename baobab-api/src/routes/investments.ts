@@ -175,6 +175,133 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
+// Admin — remboursement global projet (tous investisseurs)
+router.post('/reimburse-project/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.projectId },
+      include: {
+        investments: { include: { user: { select: { id: true, firstName: true } } } },
+        entrepreneur: { select: { id: true, firstName: true, lastName: true } },
+        mentor: { select: { id: true, firstName: true } }
+      }
+    })
+    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
+    if (project.status !== 'FUNDED') { res.status(400).json({ success: false, message: 'Projet non eligible' }); return }
+
+    const fees = await getFees()
+    const baobabRate = fees.commission_baobab_return || 5
+    const paydunyaRate = fees.paydunya_payout || 3
+
+    await prisma.$transaction(async (tx) => {
+      let totalNetDistributed = 0
+
+      for (const inv of project.investments) {
+        const grossReturn = inv.expectedReturn || 0
+        const baobabOnReturn = Math.round(grossReturn * baobabRate / 100)
+        const paydunyaOnReturn = Math.round(grossReturn * paydunyaRate / 100)
+        const netReturn = grossReturn - baobabOnReturn - paydunyaOnReturn
+
+        // Créditer investisseur
+        await tx.wallet.update({
+          where: { userId: inv.userId },
+          data: { balance: { increment: netReturn }, totalEarned: { increment: netReturn - inv.amount }, escrowBalance: { decrement: inv.amount } }
+        })
+
+        // Commission BAOBAB sur retours
+        await tx.platformRevenue.create({
+          data: { type: 'COMMISSION_RETURN', amount: baobabOnReturn, projectId: project.id, description: `Commission retour 5% — ${project.title}` }
+        })
+        await tx.platformRevenue.create({
+          data: { type: 'PAYDUNYA_FEE', amount: -paydunyaOnReturn, projectId: project.id, description: `PayDunya Payout absorbe — ${project.title}` }
+        })
+
+        // Notifier investisseur
+        await tx.notification.create({
+          data: {
+            userId: inv.userId,
+            title: 'Remboursement recu',
+            body: `Vous avez recu ${netReturn.toLocaleString()} FCFA pour votre investissement dans "${project.title}". Gain net: +${(netReturn - inv.amount).toLocaleString()} FCFA.`,
+            type: 'REPAYMENT_RECEIVED',
+            data: JSON.stringify({ projectId: project.id, amount: netReturn, gain: netReturn - inv.amount })
+          }
+        })
+
+        totalNetDistributed += netReturn
+      }
+
+      // Mettre à jour poche admin
+      const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
+      if (adminUser) {
+        const totalReturn = project.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
+        const baobabOnAllReturns = Math.round(totalReturn * baobabRate / 100)
+        const paydunyaOnAllReturns = Math.round(totalReturn * paydunyaRate / 100)
+        await tx.wallet.update({
+          where: { userId: adminUser.id },
+          data: {
+            commissionBalance: { increment: baobabOnAllReturns - paydunyaOnAllReturns },
+            escrowInvestors: { decrement: totalNetDistributed },
+            guaranteeBalance: { decrement: Math.round(project.raisedAmount * (fees.commission_guarantee || 2) / 100) }
+          }
+        })
+      }
+
+      // Projet terminé
+      await tx.project.update({ where: { id: project.id }, data: { status: 'COMPLETED' } })
+
+      // Notifier entrepreneur
+      await tx.notification.create({
+        data: {
+          userId: project.entrepreneurId,
+          title: 'Projet complete — remboursement effectue',
+          body: `Le projet "${project.title}" est termine. ${totalNetDistributed.toLocaleString()} FCFA ont ete distribues aux investisseurs. Votre score de reputation augmente.`,
+          type: 'PROJECT_COMPLETED',
+          data: JSON.stringify({ projectId: project.id })
+        }
+      })
+
+      // Notifier mentor si applicable
+      if (project.mentorId) {
+        await tx.notification.create({
+          data: {
+            userId: project.mentorId,
+            title: 'Projet mentor complete',
+            body: `Le projet "${project.title}" que vous avez mentoré est entierement rembourse.`,
+            type: 'PROJECT_COMPLETED',
+            data: JSON.stringify({ projectId: project.id })
+          }
+        })
+      }
+    })
+
+    // Créer échéancier si pas encore fait
+    try {
+      const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } })
+      if (!existing) {
+        const fees2 = await getFees()
+        const totalGross = project.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
+        const totalNet = Math.round(totalGross * (1 - (fees2.commission_baobab_return||5)/100 - (fees2.paydunya_payout||3)/100))
+        const months = project.durationMonths || 12
+        const monthly = Math.ceil(totalNet / months)
+        const nextDue = new Date(); nextDue.setMonth(nextDue.getMonth() + 1)
+        const schedule = await prisma.repaymentSchedule.create({
+          data: { projectId: project.id, totalAmount: totalNet, monthlyAmount: monthly, totalMonths: months, remainingAmount: totalNet, nextDueDate: nextDue }
+        })
+        const paymentsData = Array.from({ length: months }, (_, i) => {
+          const due = new Date(); due.setMonth(due.getMonth() + i + 1)
+          return { scheduleId: schedule.id, projectId: project.id, amount: i === months-1 ? totalNet - monthly*(months-1) : monthly, monthNumber: i+1, dueDate: due }
+        })
+        await prisma.repaymentPayment.createMany({ data: paymentsData })
+        await prisma.notification.create({
+          data: { userId: project.entrepreneurId, title: 'Echeancier de remboursement cree', body: `Remboursez ${monthly.toLocaleString()} FCFA/mois pendant ${months} mois via votre wallet BAOBAB INVEST.`, type: 'REPAYMENT_SCHEDULE_CREATED', data: JSON.stringify({ projectId: project.id }) }
+        })
+      }
+    } catch(err) { console.error('Erreur echeancier:', err) }
+
+    successResponse(res, { totalDistributed: 0 }, 'Remboursements effectues et echeancier cree')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
 // Remboursement investisseur (déclenché par admin)
 router.post('/:investmentId/reimburse', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {

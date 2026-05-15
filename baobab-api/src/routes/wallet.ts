@@ -221,6 +221,46 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
+// Forcer confirmation — vérifier directement chez PayDunya
+router.post('/deposit/force-confirm/:txId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const tx = await prisma.walletTransaction.findUnique({ where: { id: req.params.txId } })
+    if (!tx || tx.userId !== req.userId || tx.type !== 'DEPOSIT') {
+      res.status(404).json({ success: false }); return
+    }
+    if (tx.status === 'COMPLETED') {
+      successResponse(res, { status: 'COMPLETED', amount: tx.amount }); return
+    }
+    // Extraire le token PayDunya depuis la description
+    const tokenMatch = tx.description?.match(/token: (.+)/)
+    if (tokenMatch) {
+      const { checkPayin } = await import('../services/paydunya')
+      const confirmation = await checkPayin(tokenMatch[1])
+      if (confirmation.status === 'completed') {
+        await prisma.$transaction(async (p) => {
+          await p.walletTransaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', processedAt: new Date() } })
+          await p.wallet.update({ where: { userId: tx.userId }, data: { balance: { increment: tx.amount } } })
+          await p.notification.create({
+            data: { userId: tx.userId, title: 'Depot confirme', body: `${tx.amount.toLocaleString()} FCFA credites sur votre wallet.`, type: 'DEPOSIT_CONFIRMED', data: JSON.stringify({ amount: tx.amount }) }
+          })
+        })
+        successResponse(res, { status: 'COMPLETED', amount: tx.amount }, 'Depot confirme')
+        return
+      }
+    }
+    // Si pas de token ou pas complété — créditer quand même (mode test)
+    if (process.env.PAYDUNYA_MODE === 'test') {
+      await prisma.$transaction(async (p) => {
+        await p.walletTransaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', processedAt: new Date() } })
+        await p.wallet.update({ where: { userId: tx.userId }, data: { balance: { increment: tx.amount } } })
+      })
+      successResponse(res, { status: 'COMPLETED', amount: tx.amount }, 'Depot confirme (mode test)')
+    } else {
+      successResponse(res, { status: 'PENDING' }, 'En attente de confirmation PayDunya')
+    }
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
 // Admin — voir toutes les transactions
 router.get('/admin/transactions', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {

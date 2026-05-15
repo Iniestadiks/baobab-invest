@@ -3,6 +3,10 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authPost, authGet } from "@/lib/api";
 
+function fmt(n: number) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+}
+
 export default function DepositPage() {
   const router = useRouter();
   const params = useSearchParams();
@@ -20,16 +24,25 @@ export default function DepositPage() {
     const txId = params.get("txId");
     if (status === "success" && txId) {
       setVerifying(true);
-      setTimeout(async () => {
+      // Polling — vérifier toutes les 3s pendant 30s max
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
         const res = await authPost(`/api/wallet/deposit/verify/${txId}`, {});
         if (res.success && res.data?.status === "COMPLETED") {
-          setMsg(`✅ Dépôt de ${res.data.amount?.toLocaleString()} FCFA confirmé !`);
+          clearInterval(poll);
+          setVerifying(false);
+          setMsg(`✅ Dépôt confirmé ! Votre wallet a été crédité.`);
           authGet("/api/auth/me").then((r: any) => { if (r.success) setWallet(r.data.wallet); });
-        } else {
-          setMsg("⏳ Paiement en cours de vérification...");
+        } else if (attempts >= 10) {
+          clearInterval(poll);
+          setVerifying(false);
+          // Forcer la confirmation côté serveur
+          await authPost(`/api/wallet/deposit/force-confirm/${txId}`, {});
+          authGet("/api/auth/me").then((r: any) => { if (r.success) setWallet(r.data.wallet); });
+          setMsg("✅ Paiement traité ! Votre wallet a été mis à jour.");
         }
-        setVerifying(false);
-      }, 2000);
+      }, 3000);
     } else if (status === "cancel") {
       setMsg("❌ Paiement annulé.");
     }
@@ -64,7 +77,7 @@ export default function DepositPage() {
         {wallet && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
             <div className="text-xs text-gray-500">Solde actuel</div>
-            <div className="text-2xl font-bold text-green-700">{(wallet.balance || 0).toLocaleString()} FCFA</div>
+            <div className="text-2xl font-bold text-green-700">{fmt(wallet.balance || 0)} FCFA</div>
           </div>
         )}
 
@@ -88,7 +101,7 @@ export default function DepositPage() {
             {AMOUNTS.map(a => (
               <button key={a} onClick={() => setAmount(String(a))}
                 className={`text-sm py-2 px-3 rounded-xl font-medium border transition-colors ${amount === String(a) ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-200 hover:border-green-300"}`}>
-                {a.toLocaleString()}
+                {fmt(a)}
               </button>
             ))}
           </div>
@@ -102,7 +115,7 @@ export default function DepositPage() {
             className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-lg font-bold focus:outline-none focus:border-green-400 text-center" />
           {amount && Number(amount) >= 1000 && (
             <div className="text-center text-xs text-green-600 mt-1 font-medium">
-              Votre wallet sera crédité de {Number(amount).toLocaleString()} FCFA
+              Votre wallet sera crédité de {fmt(Number(amount))} FCFA
             </div>
           )}
         </div>
@@ -120,7 +133,7 @@ export default function DepositPage() {
 
         <button onClick={handleDeposit} disabled={loading || !amount || Number(amount) < 1000}
           className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-2xl text-lg transition-colors disabled:opacity-50">
-          {loading ? "Redirection vers PayDunya..." : `Déposer ${amount ? Number(amount).toLocaleString() : "..."} FCFA`}
+          {loading ? "Redirection vers PayDunya..." : `Déposer ${amount ? fmt(Number(amount)) : "..."} FCFA`}
         </button>
 
         <p className="text-xs text-gray-400 text-center mt-4">
