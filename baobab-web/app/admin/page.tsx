@@ -127,20 +127,20 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
                 </div>
               </div>
               {tx.status === "PENDING" && (
-                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                  <button onClick={() => approve(tx.id)} disabled={processing === tx.id}
-                    className="flex-1 bg-green-600 text-white text-sm font-bold py-2 rounded-xl hover:bg-green-700 disabled:opacity-50">
-                    {processing === tx.id ? "..." : "✅ Valider"}
-                  </button>
-                  <button onClick={() => reject(tx.id)} disabled={processing === tx.id}
-                    className="flex-1 bg-red-100 text-red-700 text-sm font-bold py-2 rounded-xl hover:bg-red-200 disabled:opacity-50">
-                    ❌ Rejeter
-                  </button>
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  {tx.type === "DEPOSIT" ? (
+                    <div className="text-xs text-orange-600 bg-orange-50 rounded-xl p-3 flex items-center justify-between">
+                      <span>En attente confirmation PayDunya — webhook automatique</span>
+                      <button onClick={() => approve(tx.id)} disabled={processing === tx.id} className="bg-orange-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-orange-600 disabled:opacity-50 ml-2 flex-shrink-0">{processing === tx.id ? "..." : "Forcer"}</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={() => approve(tx.id)} disabled={processing === tx.id} className="flex-1 bg-green-600 text-white text-sm font-bold py-2 rounded-xl hover:bg-green-700 disabled:opacity-50">{processing === tx.id ? "..." : "Valider retrait"}</button>
+                      <button onClick={() => reject(tx.id)} disabled={processing === tx.id} className="flex-1 bg-red-100 text-red-700 text-sm font-bold py-2 rounded-xl hover:bg-red-200 disabled:opacity-50">Rejeter</button>
+                    </div>
+                  )}
                 </div>
               )}
-              {tx.status === "COMPLETED" && tx.processedAt && (
-                <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
-                  Traité le {new Date(tx.processedAt).toLocaleString("fr-FR")}
                   {tx.type === "WITHDRAWAL" && <span className="ml-2 text-orange-600">⚠️ TODO: Déclencher PayDunya Payout</span>}
                 </div>
               )}
