@@ -47,7 +47,7 @@ export default function EntrepreneurDashboard() {
       authGet("/api/auth/me"),
       authGet("/api/projects/my/projects"),
       authGet("/api/notifications"),
-    ]).then(([me, proj, notif]) => {
+    ]).then(async ([me, proj, notif]) => {
       if (me.success) {
         setUser(me.data);
         setWallet(me.data.wallet);
@@ -58,10 +58,10 @@ export default function EntrepreneurDashboard() {
         // Charger échéanciers pour projets FUNDED/IN_PROGRESS
         const funded = (proj.data || []).filter((p: any) => ['FUNDED','IN_PROGRESS','COMPLETED'].includes(p.status));
         const schedMap: any = {};
-        await Promise.all(funded.map(async (p: any) => {
-          const s = await authGet(\`/api/repayment/my/\${p.id}\`);
-          if (s.success && s.data) schedMap[p.id] = s.data;
-        }));
+        for (const fp of funded) {
+          const s = await authGet("/api/repayment/my/" + fp.id);
+          if (s.success && s.data) schedMap[fp.id] = s.data;
+        }
         setSchedules(schedMap);
       }
       if (notif.success) {

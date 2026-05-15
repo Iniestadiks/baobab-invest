@@ -241,7 +241,7 @@ export function generateProjectReport(res: Response, data: {
   row(doc, `Fonds garantie (${guaranteeRate}%)`, `-${Math.round(totalRaised * guaranteeRate/100).toLocaleString()} FCFA`)
   row(doc, 'CAGNOTTE NETTE', `${cagnotteNette.toLocaleString()} FCFA`, true)
   row(doc, 'Progression', `${Math.round((totalRaised / (data.project.goalAmount || 1)) * 100)}%`)
-  row(doc, 'Nombre d\'investisseurs', String(data.investments.length))
+  row(doc, "Nombre d investisseurs", String(data.investments.length))
 
   if (data.milestones.length > 0) {
     section(doc, 'JALONS')

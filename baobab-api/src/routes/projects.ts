@@ -183,7 +183,7 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
     // Vérifier KYC obligatoire
     const entrepreneur = await prisma.user.findUnique({ where: { id: req.userId } })
     if (!entrepreneur || entrepreneur.kycStatus !== 'VERIFIED') {
-      res.status(403).json({ success: false, message: 'Votre KYC doit etre verifie par un administrateur avant de soumettre un projet.' })
+      res.status(403).json({ success: false, message: "Votre KYC doit etre verifie par un administrateur avant de soumettre un projet." })
       return
     }
     const data = projectSchema.parse(req.body)
@@ -295,7 +295,7 @@ router.post('/:id/request-early-close', authenticate, async (req: AuthRequest, r
         data: JSON.stringify({ projectId: project.id })
       }))
     })
-    successResponse(res, {}, 'Demande de cloture anticipee envoyee a l administrateur')
+    successResponse(res, {}, "Demande de cloture anticipee envoyee")
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
