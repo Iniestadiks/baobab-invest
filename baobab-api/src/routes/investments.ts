@@ -376,3 +376,56 @@ router.patch('/savings-plan/:id/toggle', authenticate, async (req: AuthRequest, 
 })
 
 export default router
+
+// Investisseur — configurer épargne programmée
+router.post('/savings-config', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { amount, day } = req.body
+    if (!amount || amount < 1000) { res.status(400).json({ success: false, message: 'Montant minimum 1 000 FCFA' }); return }
+    if (!day || day < 1 || day > 28) { res.status(400).json({ success: false, message: 'Jour invalide (1-28)' }); return }
+    await prisma.wallet.update({
+      where: { userId: req.userId! },
+      data: { scheduledAmount: amount, scheduledDay: day }
+    })
+    await prisma.notification.create({
+      data: {
+        userId: req.userId!,
+        title: 'Epargne programmee configuree',
+        body: 'Votre epargne de ' + amount.toLocaleString() + ' FCFA sera deposee automatiquement le ' + day + ' de chaque mois.',
+        type: 'SAVINGS_CONFIGURED',
+        data: JSON.stringify({ amount, day })
+      }
+    })
+    successResponse(res, { amount, day }, 'Epargne programmee configuree')
+  } catch (e) { errorResponse(res) }
+})
+
+// Export CSV investissements admin
+router.get('/exports/admin', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const investments = await prisma.investment.findMany({
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+        project: { select: { title: true, sector: true, status: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    const rows = ['Date,Investisseur,Email,Telephone,Projet,Secteur,Montant,Retour attendu,Statut']
+    investments.forEach(i => {
+      rows.push([
+        new Date(i.createdAt).toLocaleDateString('fr-FR'),
+        (i.user.firstName + ' ' + i.user.lastName).replace(',', ' '),
+        i.user.email,
+        i.user.phone || '',
+        (i.project?.title || '').replace(',', ' '),
+        i.project?.sector || '',
+        i.amount,
+        i.expectedReturn || 0,
+        i.status
+      ].join(','))
+    })
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename="investissements-baobab.csv"')
+    res.send('\uFEFF' + rows.join('\n'))
+  } catch (e) { errorResponse(res) }
+})
