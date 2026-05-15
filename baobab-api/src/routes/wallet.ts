@@ -267,13 +267,13 @@ router.get('/admin/transactions', authenticate, requireAdmin, async (req: AuthRe
   try {
     const { status, type } = req.query
     const where: any = {}
-    if (status) where.status = status
+    if (status && status !== 'ALL') where.status = status
     if (type) where.type = type
     const txs = await prisma.walletTransaction.findMany({
       where,
       include: { user: { select: { firstName: true, lastName: true, email: true, phone: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 100
+      take: 200
     })
     successResponse(res, txs)
   } catch (e) { errorResponse(res) }

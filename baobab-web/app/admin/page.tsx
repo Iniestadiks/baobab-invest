@@ -38,7 +38,7 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
   const [txs, setTxs] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [processing, setProcessing] = React.useState<string | null>(null);
-  const [filter, setFilter] = React.useState<"ALL"|"PENDING"|"COMPLETED"|"REJECTED">("PENDING");
+  const [filter, setFilter] = React.useState<"ALL"|"PENDING"|"COMPLETED"|"REJECTED">("ALL");
 
   const load = () => {
     authGet("/api/wallet/admin/pending").then(res => {
@@ -526,6 +526,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   const fundedProjects = allProjects.filter((p: any) => p.status === "FUNDED" || p.status === "IN_PROGRESS");
   const activeNotFunded = allProjects.filter((p: any) => p.status === "ACTIVE");
   const completedProjects = allProjects.filter((p: any) => p.status === "COMPLETED");
+  const inProgressProjects = allProjects.filter((p: any) => p.status === "IN_PROGRESS");
   const [schedules, setSchedules] = React.useState<any[]>([]);
 
   React.useEffect(() => {
