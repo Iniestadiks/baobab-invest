@@ -141,8 +141,6 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
                   )}
                 </div>
               )}
-                  {tx.type === "WITHDRAWAL" && <span className="ml-2 text-orange-600">⚠️ TODO: Déclencher PayDunya Payout</span>}
-                </div>
               )}
             </div>
           ))}
