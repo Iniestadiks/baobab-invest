@@ -41,7 +41,7 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
   const [filter, setFilter] = React.useState<"ALL"|"PENDING"|"COMPLETED"|"REJECTED">("ALL");
 
   const load = () => {
-    authGet("/api/wallet/admin/pending").then(res => {
+    authGet("/api/wallet/admin/transactions").then(res => {
       if (res.success) setTxs(res.data);
     }).finally(() => setLoading(false));
   };
@@ -523,7 +523,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
     });
   }, []);
 
-  const fundedProjects = allProjects.filter((p: any) => p.status === "FUNDED" || p.status === "IN_PROGRESS");
+  const fundedProjects = allProjects.filter((p: any) => p.status === "FUNDED");
   const activeNotFunded = allProjects.filter((p: any) => p.status === "ACTIVE");
   const completedProjects = allProjects.filter((p: any) => p.status === "COMPLETED");
   const inProgressProjects = allProjects.filter((p: any) => p.status === "IN_PROGRESS");
