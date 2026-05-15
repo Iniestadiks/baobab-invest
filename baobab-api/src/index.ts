@@ -10,6 +10,7 @@ import supplierRoutes from './routes/suppliers'
 import feedRoutes from './routes/feed'
 import adminRoutes from './routes/admin'
 import notificationRoutes from './routes/notifications'
+import repaymentRouter from './routes/repayment'
 import messageRoutes from './routes/messages'
 import kycRoutes from './routes/kyc'
 import exportRoutes from './routes/exports'
@@ -35,6 +36,7 @@ app.use('/api/suppliers', supplierRoutes)
 app.use('/api/feed', feedRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/repayment', repaymentRouter)
 app.use('/api/messages', messageRoutes)
 app.use('/api/kyc', kycRoutes)
 app.use('/api/exports', exportRoutes)

@@ -71,7 +71,8 @@ router.post('/deposit', authenticate, async (req: AuthRequest, res: Response): P
 // Webhook PayDunya — appelé automatiquement après paiement
 router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> => {
   try {
-    const { data } = req.body
+    const body = req.body || {}
+    const data = body.data || body
     if (!data?.invoice?.token) { res.status(400).json({ success: false }); return }
 
     // Vérifier le paiement
