@@ -1293,6 +1293,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<any[]>([]);
   const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [userDetail, setUserDetail] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
@@ -1318,6 +1320,17 @@ export default function AdminPage() {
   }, []);
 
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 5000); };
+
+  const loadUserDetail = async (userId: string) => {
+    const [wallet, investments, projects, txs, notifs] = await Promise.all([
+      authGet("/api/admin/users/" + userId + "/wallet"),
+      authGet("/api/admin/users/" + userId + "/investments"),
+      authGet("/api/admin/users/" + userId + "/projects"),
+      authGet("/api/admin/users/" + userId + "/transactions"),
+      authGet("/api/admin/users/" + userId + "/notifications"),
+    ]);
+    setUserDetail({ wallet: wallet.data, investments: investments.data || [], projects: projects.data || [], txs: txs.data || [], notifs: notifs.data || [] });
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -1900,6 +1913,12 @@ export default function AdminPage() {
                             <Link href={`/messages?to=${u.id}`} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-lg border border-blue-200">💬</Link>
                           </div>
                           <button onClick={async () => {
+                            setSelectedUser(u);
+                            await loadUserDetail(u.id);
+                          }} className="text-xs bg-gray-800 text-white px-2 py-1 rounded-lg hover:bg-gray-900">
+                            🔍 Détail
+                          </button>
+                          <button onClick={async () => {
                             const newRole = prompt(`Changer rôle de ${u.firstName} (INVESTOR/ENTREPRENEUR/MENTOR/ADMIN):`);
                             if (!newRole) return;
                             const res = await authPatch(`/api/admin/users/${u.id}/role`, { role: newRole.toUpperCase() });
@@ -1914,6 +1933,96 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
+              {selectedUser && userDetail && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-end p-4 overflow-auto">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                    <div className="sticky top-0 bg-white p-5 border-b border-gray-100 flex items-center justify-between rounded-t-3xl">
+                      <div>
+                        <div className="font-bold text-gray-900 text-lg">{selectedUser.firstName} {selectedUser.lastName}</div>
+                        <div className="text-xs text-gray-500">{selectedUser.email} · {selectedUser.role}</div>
+                      </div>
+                      <button onClick={() => { setSelectedUser(null); setUserDetail(null); }} className="text-gray-400 hover:text-gray-600 text-2xl font-bold">×</button>
+                    </div>
+                    <div className="p-5 space-y-5">
+                      {/* Wallet complet */}
+                      <div className="bg-green-50 rounded-2xl p-4">
+                        <div className="font-bold text-gray-900 mb-3">💳 Wallet</div>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Solde disponible</div><div className="font-bold text-green-700 text-lg">{(userDetail.wallet?.balance||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total déposé</div><div className="font-bold">{(userDetail.wallet?.totalDeposited||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total retiré</div><div className="font-bold text-red-600">{(userDetail.wallet?.totalWithdrawn||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total investi</div><div className="font-bold text-blue-600">{(userDetail.wallet?.totalInvested||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total gagné</div><div className="font-bold text-purple-600">{(userDetail.wallet?.totalEarned||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">En séquestre</div><div className="font-bold text-orange-600">{(userDetail.wallet?.escrowBalance||0).toLocaleString()} FCFA</div></div>
+                        </div>
+                      </div>
+                      {/* Investissements */}
+                      {userDetail.investments.length > 0 && (
+                        <div>
+                          <div className="font-bold text-gray-900 mb-3">📊 Investissements ({userDetail.investments.length})</div>
+                          <div className="space-y-2">
+                            {userDetail.investments.map((inv: any) => (
+                              <div key={inv.id} className="bg-gray-50 rounded-xl p-3 text-xs flex justify-between items-center">
+                                <div>
+                                  <div className="font-semibold">{inv.project?.title}</div>
+                                  <div className="text-gray-400">{new Date(inv.createdAt).toLocaleDateString("fr-FR")}</div>
+                                  <div className="text-gray-500">Retour net attendu: {(inv.expectedReturn||0).toLocaleString()} FCFA</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-bold text-blue-700">{inv.amount.toLocaleString()} FCFA</div>
+                                  <div className={`text-xs px-2 py-0.5 rounded-full ${inv.status==="COMPLETED"?"bg-green-100 text-green-700":"bg-orange-100 text-orange-700"}`}>{inv.status}</div>
+                                  {inv.returnedAmount > 0 && <div className="text-green-600">Reçu: {inv.returnedAmount.toLocaleString()} FCFA</div>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Projets entrepreneur */}
+                      {userDetail.projects.length > 0 && (
+                        <div>
+                          <div className="font-bold text-gray-900 mb-3">🚀 Projets ({userDetail.projects.length})</div>
+                          <div className="space-y-2">
+                            {userDetail.projects.map((p: any) => (
+                              <div key={p.id} className="bg-blue-50 rounded-xl p-3 text-xs flex justify-between">
+                                <div>
+                                  <div className="font-semibold">{p.title}</div>
+                                  <div className="text-gray-400">{p.sector} · {p.status}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-bold">{(p.raisedAmount||0).toLocaleString()} FCFA</div>
+                                  <div className="text-gray-400">sur {(p.goalAmount||0).toLocaleString()}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Transactions */}
+                      {userDetail.txs.length > 0 && (
+                        <div>
+                          <div className="font-bold text-gray-900 mb-3">💳 Transactions ({userDetail.txs.length})</div>
+                          <div className="space-y-1">
+                            {userDetail.txs.map((tx: any) => (
+                              <div key={tx.id} className="flex justify-between text-xs p-2 bg-gray-50 rounded-lg">
+                                <div>
+                                  <span className={`px-1.5 py-0.5 rounded font-medium ${tx.type==="DEPOSIT"?"bg-green-100 text-green-700":"bg-red-100 text-red-700"}`}>{tx.type}</span>
+                                  <span className="text-gray-400 ml-2">{new Date(tx.createdAt).toLocaleDateString("fr-FR")}</span>
+                                  {tx.operator && <span className="text-gray-400 ml-1">· {tx.operator}</span>}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-bold ${tx.type==="DEPOSIT"?"text-green-700":"text-red-600"}`}>{tx.type==="DEPOSIT"?"+":"-"}{tx.amount.toLocaleString()} FCFA</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${tx.status==="COMPLETED"?"bg-green-100 text-green-600":tx.status==="PENDING"?"bg-orange-100 text-orange-600":"bg-red-100 text-red-600"}`}>{tx.status}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               {filteredUsers.length === 0 && (
                 <div className="text-center py-10 text-gray-400">
                   <div className="text-4xl mb-2">🔍</div>

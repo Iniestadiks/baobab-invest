@@ -599,3 +599,53 @@ router.patch('/milestones/:id/reject', authenticate, requireAdmin, async (req: A
     errorResponse(res)
   }
 })
+
+// Admin — détail complet d'un utilisateur
+router.get('/users/:id/wallet', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const wallet = await prisma.wallet.findUnique({ where: { userId: req.params.id } })
+    successResponse(res, wallet)
+  } catch (e) { errorResponse(res) }
+})
+
+router.get('/users/:id/investments', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const investments = await prisma.investment.findMany({
+      where: { userId: req.params.id },
+      include: { project: { select: { title: true, sector: true, status: true } } },
+      orderBy: { createdAt: 'desc' }
+    })
+    successResponse(res, investments)
+  } catch (e) { errorResponse(res) }
+})
+
+router.get('/users/:id/projects', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const projects = await prisma.project.findMany({
+      where: { entrepreneurId: req.params.id },
+      orderBy: { createdAt: 'desc' }
+    })
+    successResponse(res, projects)
+  } catch (e) { errorResponse(res) }
+})
+
+router.get('/users/:id/transactions', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const txs = await prisma.walletTransaction.findMany({
+      where: { userId: req.params.id },
+      orderBy: { createdAt: 'desc' }
+    })
+    successResponse(res, txs)
+  } catch (e) { errorResponse(res) }
+})
+
+router.get('/users/:id/notifications', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const notifs = await prisma.notification.findMany({
+      where: { userId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    })
+    successResponse(res, notifs)
+  } catch (e) { errorResponse(res) }
+})
