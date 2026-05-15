@@ -1458,6 +1458,7 @@ export default function AdminPage() {
   const filteredUsers = users.filter((u: any) =>
     (roleFilter2 === "ALL" || u.role === roleFilter2) &&
     (!search || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase()))
+  );
 
   const urgentActions = [
     ...projects.slice(0, 3).map(p => ({ type: "project", label: `Projet à valider : "${p.title}"`, id: p.id, color: "orange" })),

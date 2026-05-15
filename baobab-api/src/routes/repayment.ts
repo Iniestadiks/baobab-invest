@@ -229,3 +229,111 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
 })
 
 export default router
+
+// Entrepreneur — rembourser plusieurs mensualités d'avance ou tout rembourser
+router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { months } = req.body // months = 0 signifie TOUT rembourser
+    const schedule = await prisma.repaymentSchedule.findUnique({
+      where: { id: req.params.scheduleId },
+      include: {
+        project: {
+          include: {
+            investments: { include: { user: { select: { id: true, firstName: true } } } }
+          }
+        },
+        payments: { where: { status: 'PENDING' }, orderBy: { monthNumber: 'asc' } }
+      }
+    })
+
+    if (!schedule) { res.status(404).json({ success: false, message: 'Echeancier introuvable' }); return }
+    if (schedule.project.entrepreneurId !== req.userId) { res.status(403).json({ success: false, message: 'Non autorise' }); return }
+    if (schedule.payments.length === 0) { res.status(400).json({ success: false, message: 'Aucun paiement en attente' }); return }
+
+    // Determiner les paiements à effectuer
+    const paymentsToProcess = months === 0 ? schedule.payments : schedule.payments.slice(0, months)
+    const totalAmount = paymentsToProcess.reduce((s, p) => s + p.amount, 0)
+
+    // Verifier solde
+    const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId! } })
+    if (!wallet || wallet.balance < totalAmount) {
+      res.status(400).json({ success: false, message: 'Solde insuffisant. Disponible: ' + (wallet?.balance||0).toLocaleString() + ' FCFA — Requis: ' + totalAmount.toLocaleString() + ' FCFA' }); return
+    }
+
+    const fees = await getFees()
+    const baobabRate = fees.commission_baobab_return || 5
+    const totalInvested = schedule.project.investments.reduce((s, i) => s + i.amount, 0)
+    const isEarlyFull = months === 0 || paymentsToProcess.length === schedule.payments.length
+
+    await prisma.$transaction(async (tx) => {
+      // Débiter wallet entrepreneur
+      await tx.wallet.update({ where: { userId: req.userId! }, data: { balance: { decrement: totalAmount } } })
+
+      // Distribuer à chaque investisseur proportionnellement
+      for (const inv of schedule.project.investments) {
+        const proportion = totalInvested > 0 ? inv.amount / totalInvested : 0
+        const investorShare = Math.round(totalAmount * proportion)
+        if (investorShare <= 0) continue
+        await tx.wallet.update({
+          where: { userId: inv.userId },
+          data: { balance: { increment: investorShare }, totalEarned: { increment: investorShare } }
+        })
+        await tx.notification.create({
+          data: {
+            userId: inv.userId,
+            title: isEarlyFull ? 'Remboursement anticipe complet' : 'Remboursement anticipe partiel',
+            body: 'Vous avez recu ' + investorShare.toLocaleString() + ' FCFA (' + paymentsToProcess.length + ' mois) du projet "' + schedule.project.title + '".',
+            type: 'REPAYMENT_RECEIVED',
+            data: JSON.stringify({ projectId: schedule.projectId, amount: investorShare })
+          }
+        })
+      }
+
+      // Commission BAOBAB
+      const baobabFee = Math.round(totalAmount * baobabRate / 100)
+      await tx.platformRevenue.create({
+        data: { type: 'COMMISSION_RETURN', amount: baobabFee, projectId: schedule.projectId, description: 'Commission remboursement anticipe — ' + paymentsToProcess.length + ' mois' }
+      })
+
+      // Marquer paiements comme payés
+      for (const pay of paymentsToProcess) {
+        await tx.repaymentPayment.update({ where: { id: pay.id }, data: { status: 'PAID', paidAt: new Date() } })
+      }
+
+      // Mettre à jour l'échéancier
+      const newPaid = schedule.paidMonths + paymentsToProcess.length
+      const newRemaining = Math.max(0, schedule.remainingAmount - totalAmount)
+      const isCompleted = newPaid >= schedule.totalMonths
+
+      await tx.repaymentSchedule.update({
+        where: { id: schedule.id },
+        data: {
+          paidMonths: newPaid,
+          remainingAmount: newRemaining,
+          nextDueDate: isCompleted ? null : new Date(new Date().setMonth(new Date().getMonth() + 1)),
+          status: isCompleted ? 'COMPLETED' : 'ACTIVE'
+        }
+      })
+
+      // Score réputation +20 si remboursement anticipé complet
+      if (isEarlyFull) {
+        await tx.user.update({
+          where: { id: req.userId! },
+          data: { reputationScore: { increment: 20 } }
+        })
+        await tx.project.update({ where: { id: schedule.projectId }, data: { status: 'COMPLETED' } })
+        await tx.notification.create({
+          data: {
+            userId: req.userId!,
+            title: 'Felicitations ! Remboursement complet',
+            body: 'Vous avez rembourse entierement le projet "' + schedule.project.title + '" en avance. +20 points de reputation !',
+            type: 'PROJECT_COMPLETED',
+            data: JSON.stringify({ projectId: schedule.projectId })
+          }
+        })
+      }
+    })
+
+    successResponse(res, { monthsPaid: paymentsToProcess.length, totalPaid: totalAmount }, (isEarlyFull ? 'Remboursement complet effectue' : paymentsToProcess.length + ' mensualites payees en avance'))
+  } catch (e) { console.error(e); errorResponse(res) }
+})
