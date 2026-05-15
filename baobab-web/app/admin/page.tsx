@@ -1303,6 +1303,7 @@ export default function AdminPage() {
   const [msg, setMsg] = useState("");
   const [adminNote, setAdminNote] = useState("");
   const [search, setSearch] = useState("");
+  const [roleFilter2, setRoleFilter2] = useState("ALL");
   const [unread, setUnread] = useState(0);
   const [revenues, setRevenues] = useState<any>(null);
   const [globalStats, setGlobalStats] = useState<any>({
@@ -1454,9 +1455,9 @@ export default function AdminPage() {
 
   const logout = () => { localStorage.clear(); router.push("/"); };
 
-  const filteredUsers = users.filter(u =>
-    !search || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = users.filter((u: any) =>
+    (roleFilter2 === "ALL" || u.role === roleFilter2) &&
+    (!search || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase()))
 
   const urgentActions = [
     ...projects.slice(0, 3).map(p => ({ type: "project", label: `Projet à valider : "${p.title}"`, id: p.id, color: "orange" })),
@@ -1787,7 +1788,7 @@ export default function AdminPage() {
             <div className="flex gap-2 flex-wrap items-center">
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="🔍 Rechercher par nom, email, téléphone..." className="input-field text-sm flex-1 min-w-48" />
-              <select onChange={e => setSearch(e.target.value === "ALL" ? "" : e.target.value)}
+              <select onChange={e => setRoleFilter2(e.target.value)}
                 className="text-xs border border-gray-200 rounded-xl px-3 py-2 bg-white text-gray-600">
                 <option value="ALL">Tous les rôles</option>
                 <option value="INVESTOR">Investisseurs</option>
