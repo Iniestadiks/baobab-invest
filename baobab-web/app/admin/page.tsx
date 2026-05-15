@@ -775,6 +775,10 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
               <div className="flex justify-between text-xs text-gray-400">
                 <span>{Math.round((s.paidMonths / s.totalMonths) * 100)}% remboursé</span>
                 {s.nextDueDate && <span>Prochain : {new Date(s.nextDueDate).toLocaleDateString("fr-FR")}</span>}
+                  {/* Vérification retard */}
+                  {s.nextDueDate && new Date(s.nextDueDate) < new Date() && s.status === 'ACTIVE' && (
+                    <span className="text-red-600 font-bold">⚠️ EN RETARD</span>
+                  )}
               </div>
               {/* Détail paiements */}
               {s.payments && (
@@ -1058,6 +1062,10 @@ function FinancesTab({ authGet }: any) {
                   <div className="flex justify-between text-xs text-gray-400">
                     <span>{pct}% remboursé</span>
                     {s.nextDueDate && <span>Prochain : {new Date(s.nextDueDate).toLocaleDateString("fr-FR")}</span>}
+                  {/* Vérification retard */}
+                  {s.nextDueDate && new Date(s.nextDueDate) < new Date() && s.status === 'ACTIVE' && (
+                    <span className="text-red-600 font-bold">⚠️ EN RETARD</span>
+                  )}
                   </div>
                 </div>
               );

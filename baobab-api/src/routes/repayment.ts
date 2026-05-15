@@ -337,3 +337,193 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
     successResponse(res, { monthsPaid: paymentsToProcess.length, totalPaid: totalAmount }, (isEarlyFull ? 'Remboursement complet effectue' : paymentsToProcess.length + ' mensualites payees en avance'))
   } catch (e) { console.error(e); errorResponse(res) }
 })
+
+// Admin — vérifier les retards de paiement et envoyer alertes
+router.post('/check-delays', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const now = new Date()
+    const in7days = new Date(now.getTime() + 7*24*60*60*1000)
+    const in3days = new Date(now.getTime() + 3*24*60*60*1000)
+    const late7days = new Date(now.getTime() - 7*24*60*60*1000)
+    const late3days = new Date(now.getTime() - 3*24*60*60*1000)
+
+    const schedules = await prisma.repaymentSchedule.findMany({
+      where: { status: 'ACTIVE' },
+      include: {
+        project: {
+          include: {
+            investments: { select: { userId: true, amount: true } },
+            entrepreneur: { select: { id: true, firstName: true } }
+          }
+        },
+        payments: { where: { status: 'PENDING' }, orderBy: { monthNumber: 'asc' }, take: 1 }
+      }
+    })
+
+    let alerts = 0
+    const oneDayAgo = new Date(now.getTime() - 24*60*60*1000)
+
+    for (const sched of schedules) {
+      const nextPayment = sched.payments[0]
+      if (!nextPayment?.dueDate) continue
+      const dueDate = new Date(nextPayment.dueDate)
+      const entrepreneurId = sched.project.entrepreneurId
+
+      // Vérifier si une alerte récente existe déjà (éviter doublons)
+      const recentAlert = await prisma.notification.findFirst({
+        where: { userId: entrepreneurId, createdAt: { gte: oneDayAgo }, body: { contains: sched.project.title } }
+      })
+      if (recentAlert) continue
+
+      let title = ''
+      let body = ''
+      let scoreDecrement = 0
+      let notifyAdmin = false
+      let notifyInvestors = false
+
+      if (dueDate <= now && dueDate >= late3days) {
+        // Jour J — rappel urgent
+        title = 'Paiement mensualite en retard'
+        body = 'Votre mensualite de ' + nextPayment.amount.toLocaleString() + ' FCFA pour "' + sched.project.title + '" etait due le ' + dueDate.toLocaleDateString('fr-FR') + '. Payez maintenant pour eviter des penalites.'
+      } else if (dueDate < late3days && dueDate >= late7days) {
+        // J+3 — pénalité score
+        title = 'Retard paiement — penalite appliquee'
+        body = 'Votre paiement de ' + nextPayment.amount.toLocaleString() + ' FCFA est en retard de 3 jours. -10 points de reputation.'
+        scoreDecrement = 10
+        notifyInvestors = true
+      } else if (dueDate < late7days) {
+        // J+7 — alerte admin
+        title = 'Retard critique — 7 jours'
+        body = 'Votre paiement de ' + nextPayment.amount.toLocaleString() + ' FCFA est en retard de plus de 7 jours. L equipe BAOBAB INVEST intervient.'
+        scoreDecrement = 30
+        notifyAdmin = true
+        notifyInvestors = true
+      } else if (dueDate <= in3days) {
+        // J-3 — rappel
+        title = 'Rappel paiement dans 3 jours'
+        body = 'Votre mensualite de ' + nextPayment.amount.toLocaleString() + ' FCFA est due le ' + dueDate.toLocaleDateString('fr-FR') + '. Pensez a recharger votre wallet.'
+      } else if (dueDate <= in7days) {
+        // J-7 — avertissement
+        title = 'Mensualite due dans 7 jours'
+        body = 'Votre prochaine mensualite de ' + nextPayment.amount.toLocaleString() + ' FCFA est due le ' + dueDate.toLocaleDateString('fr-FR') + '.'
+      } else continue
+
+      // Notifier entrepreneur
+      await prisma.notification.create({
+        data: { userId: entrepreneurId, title, body, type: 'PAYMENT_REMINDER', data: JSON.stringify({ scheduleId: sched.id, projectId: sched.projectId }) }
+      })
+
+      // Pénalité score
+      if (scoreDecrement > 0) {
+        await prisma.user.update({ where: { id: entrepreneurId }, data: { reputationScore: { decrement: scoreDecrement } } })
+      }
+
+      // Notifier investisseurs
+      if (notifyInvestors) {
+        const investorIds = [...new Set(sched.project.investments.map(i => i.userId))]
+        await prisma.notification.createMany({
+          data: investorIds.map(userId => ({
+            userId: userId as string,
+            title: 'Retard remboursement projet',
+            body: 'L entrepreneur du projet "' + sched.project.title + '" est en retard de paiement. BAOBAB INVEST surveille la situation.',
+            type: 'PAYMENT_LATE',
+            data: JSON.stringify({ projectId: sched.projectId })
+          }))
+        })
+      }
+
+      // Notifier admin
+      if (notifyAdmin) {
+        const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+        await prisma.notification.createMany({
+          data: admins.map(a => ({
+            userId: a.id,
+            title: 'Retard critique — intervention requise',
+            body: 'Le projet "' + sched.project.title + '" est en retard de paiement depuis plus de 7 jours. Envisager le fonds de garantie.',
+            type: 'PAYMENT_CRITICAL',
+            data: JSON.stringify({ projectId: sched.projectId, scheduleId: sched.id })
+          }))
+        })
+      }
+
+      alerts++
+    }
+
+    successResponse(res, { alerts, checked: schedules.length }, alerts + ' alerte(s) envoyee(s)')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Admin — déclarer un projet FAILED et distribuer le fonds de garantie
+router.post('/project-failed/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { reason } = req.body
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.projectId },
+      include: {
+        investments: { include: { user: { select: { id: true, firstName: true } } } },
+        entrepreneur: { select: { id: true, firstName: true } }
+      }
+    })
+    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
+
+    const fees = await getFees()
+    const guaranteeRate = fees.commission_guarantee || 2
+    const totalInvested = project.investments.reduce((s, i) => s + i.amount, 0)
+    const guaranteeFund = Math.round(totalInvested * guaranteeRate / 100)
+
+    await prisma.$transaction(async (tx) => {
+      // Passer le projet en FAILED
+      await tx.project.update({ where: { id: project.id }, data: { status: 'FAILED' } })
+
+      // Distribuer le fonds de garantie proportionnellement
+      for (const inv of project.investments) {
+        const proportion = totalInvested > 0 ? inv.amount / totalInvested : 0
+        const guaranteeShare = Math.round(guaranteeFund * proportion)
+        if (guaranteeShare <= 0) continue
+
+        await tx.wallet.update({
+          where: { userId: inv.userId },
+          data: { balance: { increment: guaranteeShare } }
+        })
+
+        await tx.notification.create({
+          data: {
+            userId: inv.userId,
+            title: 'Projet echoue — remboursement garantie',
+            body: 'Le projet "' + project.title + '" a echoue. Vous recevez ' + guaranteeShare.toLocaleString() + ' FCFA du fonds de garantie (2% de votre investissement). Nous sommes desoles pour ce resultat.',
+            type: 'PROJECT_FAILED',
+            data: JSON.stringify({ projectId: project.id, guaranteeShare })
+          }
+        })
+      }
+
+      // Débiter le fonds de garantie du wallet admin
+      const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
+      if (adminUser) {
+        await tx.wallet.update({
+          where: { userId: adminUser.id },
+          data: { guaranteeBalance: { decrement: guaranteeFund } }
+        })
+      }
+
+      // Pénaliser l'entrepreneur -50 pts
+      await tx.user.update({
+        where: { id: project.entrepreneurId },
+        data: { reputationScore: { decrement: 50 } }
+      })
+
+      // Notifier l'entrepreneur
+      await tx.notification.create({
+        data: {
+          userId: project.entrepreneurId,
+          title: 'Projet declare en echec',
+          body: 'Votre projet "' + project.title + '" a ete declare en echec. Motif: ' + (reason || 'Non precise') + '. -50 points de reputation.',
+          type: 'PROJECT_FAILED',
+          data: JSON.stringify({ projectId: project.id })
+        }
+      })
+    })
+
+    successResponse(res, { guaranteeFund, investorsCount: project.investments.length }, 'Projet declare FAILED — ' + guaranteeFund.toLocaleString() + ' FCFA distribues depuis le fonds de garantie')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
