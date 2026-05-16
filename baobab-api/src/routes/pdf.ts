@@ -67,11 +67,15 @@ router.get('/report/project/:projectId', authenticate, async (req: AuthRequest, 
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
     if (project.entrepreneurId !== req.userId) { res.status(403).json({ success: false, message: 'Non autorisé' }); return }
 
+    const feesConfig = await prisma.platformConfig.findMany()
+    const feeMap: any = {}
+    feesConfig.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
     generateProjectReport(res, {
       entrepreneur: project.entrepreneur,
       project,
       milestones: project.milestones,
-      investors: project.investments.map(i => i.user)
+      investments: project.investments,
+      fees: feeMap
     })
   } catch (e) { console.error(e); res.status(500).json({ success: false, message: 'Erreur génération PDF' }) }
 })
