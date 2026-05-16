@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authenticate, requireAdmin } from '../middleware/auth'
 import { initPayin, checkPayin, initPayout } from '../services/paydunya'
+import { getFees } from '../config/fees'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -160,10 +161,21 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
       }
     })
 
+    // Calcul frais opérateur : BAOBAB envoie montant majoré pour que l'utilisateur reçoive le net demandé
+    const fees = await getFees()
+    const payoutRate = fees.paydunya_payout || 2
+    const grossAmount = Math.round(amount / (1 - payoutRate / 100)) // montant brut à envoyer
+    const payoutFee = grossAmount - amount // frais absorbés par BAOBAB
+    // Débiter le wallet admin du coût opérateur
+    const adminW = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
+    if (adminW && payoutFee > 0) {
+      await prisma.wallet.update({ where: { userId: adminW.id }, data: { balance: { decrement: payoutFee }, commissionBalance: { decrement: payoutFee } } })
+      await prisma.platformRevenue.create({ data: { type: 'PAYDUNYA_FEE', amount: -payoutFee, description: 'Frais operateur retrait ' + payoutRate + '% — ' + (phoneNumber || '') } })
+    }
     // Initier le payout PayDunya automatiquement
     try {
       const payoutRes = await initPayout({
-        amount,
+        amount: grossAmount,
         phoneNumber,
         operator,
         description: `Retrait BAOBAB INVEST — ${amount.toLocaleString()} FCFA`

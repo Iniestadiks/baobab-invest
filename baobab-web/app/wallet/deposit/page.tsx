@@ -72,7 +72,7 @@ export default function DepositPage() {
           ← Retour
         </button>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Déposer des fonds</h1>
-        <p className="text-gray-500 text-sm mb-6">Rechargez votre wallet via Mobile Money</p>
+        <p className="text-gray-500 text-sm mb-6">Rechargez votre wallet — les frais opérateur varient selon votre moyen de paiement</p>
 
         {wallet && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
@@ -114,8 +114,19 @@ export default function DepositPage() {
             placeholder="Ex: 15000" min="1000"
             className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-lg font-bold focus:outline-none focus:border-green-400 text-center" />
           {amount && Number(amount) >= 1000 && (
-            <div className="text-center text-xs text-green-600 mt-1 font-medium">
-              Votre wallet sera crédité de {fmt(Number(amount))} FCFA
+            <div className="mt-2 bg-gray-50 rounded-xl p-3 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Vous envoyez</span>
+                <span className="font-bold text-gray-900">{fmt(Number(amount))} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Frais opérateur (~1.5% - 3.25%)</span>
+                <span className="text-orange-600">- {fmt(Math.round(Number(amount) * 0.04))} FCFA max</span>
+              </div>
+              <div className="flex justify-between border-t border-gray-200 pt-1">
+                <span className="font-semibold text-gray-700">Wallet crédité (estimé)</span>
+                <span className="font-bold text-green-700">~{fmt(Math.round(Number(amount) * 0.96))} FCFA</span>
+              </div>
             </div>
           )}
         </div>
@@ -128,16 +139,16 @@ export default function DepositPage() {
               <span key={m} className="text-xs bg-white border border-gray-200 px-2.5 py-1 rounded-lg text-gray-600">{m}</span>
             ))}
           </div>
-          <div className="text-xs text-gray-400 mt-2">Sécurisé par PayDunya — Aucun frais pour vous</div>
+          <div className="text-xs text-gray-400 mt-2">Les frais opérateur Mobile Money sont prélevés par votre opérateur</div>
         </div>
 
         <button onClick={handleDeposit} disabled={loading || !amount || Number(amount) < 1000}
           className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-2xl text-lg transition-colors disabled:opacity-50">
-          {loading ? "Redirection vers PayDunya..." : `Déposer ${amount ? fmt(Number(amount)) : "..."} FCFA`}
+          {loading ? "Redirection vers le paiement..." : `Déposer ${amount ? fmt(Number(amount)) : "..."} FCFA`}
         </button>
 
         <p className="text-xs text-gray-400 text-center mt-4">
-          Vous serez redirigé vers la page de paiement PayDunya sécurisée
+          Vous serez redirigé vers notre page de paiement sécurisée
         </p>
       </div>
     </div>
