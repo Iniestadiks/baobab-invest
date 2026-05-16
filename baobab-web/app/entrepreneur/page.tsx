@@ -361,6 +361,72 @@ export default function EntrepreneurDashboard() {
           ))}
         </div>
 
+        {/* WALLET HERO + REMBOURSEMENTS EN COURS */}
+        {(Object.keys(schedules).length > 0 || true) && (
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            {/* Wallet card */}
+            <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-5 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10"></div>
+              <div className="text-xs font-medium text-green-200 mb-1">Mon Wallet</div>
+              <div className="text-3xl font-bold mb-1">{(wallet?.balance || 0).toLocaleString()} FCFA</div>
+              <div className="text-xs text-green-200">Solde disponible</div>
+              <Link href="/wallet/deposit" className="mt-3 inline-block bg-white text-green-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-green-50">
+                + Recharger
+              </Link>
+            </div>
+            {/* Score réputation */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="text-xs text-gray-500 mb-2">⭐ Score Réputation</div>
+              <div className="flex items-end gap-2 mb-2">
+                <div className={`text-4xl font-bold ${(user?.reputationScore||0) >= 70 ? 'text-green-600' : (user?.reputationScore||0) >= 40 ? 'text-orange-500' : 'text-red-500'}`}>
+                  {user?.reputationScore || 0}
+                </div>
+                <div className="text-gray-400 text-sm mb-1">/ 100</div>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+                <div className={`h-2 rounded-full ${(user?.reputationScore||0) >= 70 ? 'bg-green-500' : (user?.reputationScore||0) >= 40 ? 'bg-orange-400' : 'bg-red-400'}`}
+                  style={{width: Math.max(0, Math.min(100, user?.reputationScore||0)) + "%"}} />
+              </div>
+              <div className="text-xs text-gray-400">
+                {(user?.reputationScore||0) >= 70 ? '✅ Excellent — accès au refinancement' :
+                 (user?.reputationScore||0) >= 40 ? '⚠️ Moyen — remboursez à temps' :
+                 '❌ Faible — risque de blocage de compte'}
+              </div>
+            </div>
+            {/* Résumé remboursements */}
+            {Object.keys(schedules).length > 0 ? (
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5">
+                <div className="text-xs text-purple-600 font-semibold mb-2">📅 Remboursements en cours</div>
+                {Object.entries(schedules).map(([pid, sc]: [string, any]) => {
+                  const proj = projects.find(p => p.id === pid);
+                  const pct = Math.round(((sc.totalAmount - sc.remainingAmount) / sc.totalAmount) * 100);
+                  const nextPay = sc.payments?.find((pay: any) => pay.status === "PENDING");
+                  const isLate = nextPay && new Date(nextPay.dueDate) < new Date();
+                  return (
+                    <div key={pid} className="mb-2">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-medium text-gray-700 truncate">{proj?.title}</span>
+                        <span className={isLate ? "text-red-600 font-bold" : "text-purple-600"}>{sc.paidMonths}/{sc.totalMonths} mois</span>
+                      </div>
+                      <div className="bg-purple-200 rounded-full h-1.5">
+                        <div className="bg-purple-600 h-1.5 rounded-full" style={{width: pct + "%"}} />
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {isLate ? '⚠️ Paiement en retard !' : 'Prochain : ' + (nextPay ? new Date(nextPay.dueDate).toLocaleDateString('fr-FR') : 'Terminé')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex flex-col justify-center items-center text-center">
+                <div className="text-3xl mb-2">🚀</div>
+                <div className="text-sm font-bold text-blue-700">Aucun remboursement</div>
+                <div className="text-xs text-blue-500 mt-1">Soumettez un projet pour commencer</div>
+              </div>
+            )}
+          </div>
+        )}
         <div className="mb-8">
           <EntrepreneurCharts />
         </div>
