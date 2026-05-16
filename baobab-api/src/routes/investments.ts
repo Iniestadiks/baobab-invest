@@ -138,7 +138,20 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
         }
       })
 
-      // 4. Enregistrer commission BAOBAB 5%
+      // 4. Crediter wallet admin : BAOBAB 5% + garantie 2%
+      const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
+      if (adminUser) {
+        await tx.wallet.update({
+          where: { userId: adminUser.id },
+          data: {
+            balance: { increment: platformFee },
+            commissionBalance: { increment: platformFee },
+            guaranteeBalance: { increment: guaranteeFee },
+          }
+        })
+      }
+      await tx.platformRevenue.create({ data: { type: 'GUARANTEE_FEE', amount: guaranteeFee, projectId, description: 'Fonds garantie 2%' } })
+      // 4. Enregistrer commission BAOBAB 5% dans platformRevenue
       await tx.platformRevenue.create({
         data: {
           type: 'COMMISSION_COLLECTION',
@@ -154,7 +167,7 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
           type: 'PAYDUNYA_FEE',
           amount: -paydunyaPayin, // négatif = coût pour BAOBAB
           projectId,
-          description: `PayDunya Payin 3% absorbé — ${project.title}`,
+          description: `PayDunya Payin 4% absorbé — ${project.title}`,
         }
       })
 

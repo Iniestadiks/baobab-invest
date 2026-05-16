@@ -211,31 +211,44 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req: AuthRequest,
       return
     }
 
-    // Transaction atomique : approuver + créer le paiement fournisseur
-    await prisma.$transaction([
-      prisma.milestone.update({
+    // Transaction atomique avec calcul PayDunya Payout
+    const { getFees } = await import('../config/fees')
+    const fees = await getFees()
+    const payoutRate = fees.paydunya_payout || 2
+    const paydunyaPayout = Math.round(milestone.amount * payoutRate / 100)
+    const netSupplier = milestone.amount - paydunyaPayout
+
+    await prisma.$transaction(async (tx) => {
+      await tx.milestone.update({
         where: { id: req.params.id },
-        data: { status: 'APPROVED', adminNote: adminNote || 'Approuvé', paidAt: new Date() }
-      }),
-      ...(supplierId ? [prisma.milestonePayment.create({
-        data: {
-          milestoneId: milestone.id,
-          supplierId,
-          amount: milestone.amount,
-          status: 'COMPLETED',
-          paidAt: new Date(),
-        }
-      })] : []),
-      // Notifier l'entrepreneur
-      prisma.notification.create({
+        data: { status: 'APPROVED', adminNote: adminNote || 'Approuve', paidAt: new Date() }
+      })
+      if (supplierId) {
+        await tx.milestonePayment.create({
+          data: { milestoneId: milestone.id, supplierId, amount: netSupplier, status: 'COMPLETED', paidAt: new Date() }
+        })
+      }
+      // BAOBAB absorbe PayDunya Payout : debiter wallet admin
+      const adminU = await tx.user.findFirst({ where: { role: 'ADMIN' } })
+      if (adminU && paydunyaPayout > 0) {
+        await tx.wallet.update({
+          where: { userId: adminU.id },
+          data: { balance: { decrement: paydunyaPayout }, commissionBalance: { decrement: paydunyaPayout } }
+        })
+        await tx.platformRevenue.create({
+          data: { type: 'PAYDUNYA_FEE', amount: -paydunyaPayout, projectId: milestone.projectId,
+            description: 'PayDunya Payout ' + payoutRate + '% jalon ' + milestone.title }
+        })
+      }
+      await tx.notification.create({
         data: {
           userId: milestone.project.entrepreneurId,
-          title: '✅ Jalon approuvé !',
-          body: `Le jalon "${milestone.title}" a été approuvé. ${supplierId ? 'Le paiement a été envoyé directement au fournisseur.' : ''}`,
+          title: 'Jalon approuve !',
+          body: 'Le jalon ' + milestone.title + ' a ete approuve.' + (supplierId ? ' Paiement ' + netSupplier.toLocaleString() + ' FCFA envoye au fournisseur.' : ''),
           type: 'MILESTONE_APPROVED',
         }
-      }),
-    ])
+      })
+    })
 
     // Notifier les investisseurs
     const investments = await prisma.investment.findMany({

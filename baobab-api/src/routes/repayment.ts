@@ -214,6 +214,14 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
       }
 
       const baobabFee = Math.round(nextPayment.amount * baobabRate / 100)
+      // Crediter wallet admin de la commission retour BAOBAB
+      const adminRep = await tx.user.findFirst({ where: { role: 'ADMIN' } })
+      if (adminRep) {
+        await tx.wallet.update({
+          where: { userId: adminRep.id },
+          data: { balance: { increment: baobabFee }, commissionBalance: { increment: baobabFee } }
+        })
+      }
       await tx.platformRevenue.create({
         data: {
           type: 'COMMISSION_RETURN',
@@ -328,6 +336,13 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
 
       // Commission BAOBAB
       const baobabFee = Math.round(totalAmount * baobabRate / 100)
+      const adminAdv = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
+      if (adminAdv) {
+        await prisma.wallet.update({
+          where: { userId: adminAdv.id },
+          data: { balance: { increment: baobabFee }, commissionBalance: { increment: baobabFee } }
+        })
+      }
       await tx.platformRevenue.create({
         data: { type: 'COMMISSION_RETURN', amount: baobabFee, projectId: schedule.projectId, description: 'Commission remboursement anticipe — ' + paymentsToProcess.length + ' mois' }
       })
