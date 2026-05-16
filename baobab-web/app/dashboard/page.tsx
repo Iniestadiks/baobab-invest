@@ -521,11 +521,30 @@ export default function DashboardPage() {
                         {inv.project?.status === "FUNDED" && <span className="text-xs bg-purple-50 text-purple-600 border border-purple-200 px-3 py-2 rounded-xl">🎯 Remboursement à venir</span>}
                         {inv.project?.status === "COMPLETED" && <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl">✅ Remboursé</span>}
                       </div>
-                      {inv.returnedAmount > 0 && (
-                        <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800">
-                          ✅ Vous avez reçu <strong>{fmt(inv.returnedAmount)} FCFA</strong> sur ce projet
+                      {/* Détail remboursements reçus vs attendus */}
+                      <div className={`rounded-xl p-3 text-xs border ${inv.returnedAmount > 0 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-gray-600 font-medium">💸 Remboursements reçus</span>
+                          <span className="font-bold text-green-700">{fmt(inv.returnedAmount || 0)} FCFA</span>
                         </div>
-                      )}
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-gray-600">🎯 Total attendu</span>
+                          <span className="font-bold text-blue-700">{fmt(inv.expectedReturn || 0)} FCFA</span>
+                        </div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-gray-600">⏳ Reste à recevoir</span>
+                          <span className="font-bold text-orange-600">{fmt(Math.max(0, (inv.expectedReturn||0) - (inv.returnedAmount||0)))} FCFA</span>
+                        </div>
+                        {(inv.returnedAmount||0) > 0 && (
+                          <div className="bg-white rounded-lg h-2">
+                            <div className="bg-green-500 h-2 rounded-lg" style={{width: Math.min(100, Math.round(((inv.returnedAmount||0)/(inv.expectedReturn||1))*100)) + "%"}} />
+                          </div>
+                        )}
+                        <div className="text-gray-400 mt-1 text-center">
+                          {(inv.returnedAmount||0) === 0 ? "Aucun versement reçu pour l'instant" :
+                           Math.round(((inv.returnedAmount||0)/(inv.expectedReturn||1))*100) + "% du retour total reçu"}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
