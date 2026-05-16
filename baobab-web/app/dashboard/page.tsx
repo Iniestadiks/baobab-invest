@@ -103,8 +103,9 @@ export default function DashboardPage() {
   const projetsTermines = investments.filter(i => i.project?.status === "COMPLETED").length;
   const baobabRate = fees?.commission_baobab_return || 5;
   const paydunyaRate = fees?.paydunya_payout || 2;
-  const totalNetReturn = Math.round(totalExpected * (1 - baobabRate/100 - paydunyaRate/100));
-  const gainNet = totalNetReturn - totalInvested;
+  // totalExpected vient du backend qui a deja applique les frais
+  const totalNetReturn = totalExpected;
+  const gainNet = Math.max(0, totalNetReturn - totalInvested);
   const rendementMoyen = totalInvested > 0 ? ((gainNet / totalInvested) * 100).toFixed(1) : "0";
 
   const now = Date.now();
@@ -117,7 +118,7 @@ export default function DashboardPage() {
   let cumInv = 0, cumNet = 0;
   const chartData = sortedInv.map(inv => {
     cumInv += inv.amount;
-    const nr = Math.round((inv.expectedReturn||0) * (1 - baobabRate/100 - paydunyaRate/100));
+    const nr = inv.expectedReturn || 0;
     cumNet += nr;
     return { name: new Date(inv.createdAt).toLocaleDateString("fr-FR", { day:"numeric", month:"short" }), "Investi": cumInv, "Retour net": cumNet };
   });
@@ -405,15 +406,12 @@ export default function DashboardPage() {
               {repayments.length > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
                   <h3 className="font-bold text-green-900 mb-3 text-sm">💸 Derniers remboursements</h3>
-                  {repayments.slice(0,3).map((r: any, i: number) => {
-                    const d = r.data ? JSON.parse(r.data) : {};
-                    return (
-                      <div key={i} className="flex justify-between items-center py-2 border-b border-green-100 last:border-0">
-                        <div className="text-xs text-gray-600 line-clamp-1 flex-1">{r.title}</div>
-                        <div className="text-xs font-bold text-green-700 ml-2 flex-shrink-0">+{fmt(d.amount||0)} FCFA</div>
-                      </div>
-                    );
-                  })}
+                  {repayments.slice(0,3).map((r: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center py-2 border-b border-green-100 last:border-0">
+                      <div className="text-xs text-gray-600 line-clamp-1 flex-1">{r.projectTitle} M{r.monthNumber}</div>
+                      <div className="text-xs font-bold text-green-700 ml-2 flex-shrink-0">+{fmt(r.amount)} FCFA</div>
+                    </div>
+                  ))}
                   <button onClick={() => setActiveTab("repayments")} className="mt-2 text-xs text-green-600 hover:underline">Voir tout →</button>
                 </div>
               )}
@@ -585,21 +583,20 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {repayments.map((r: any, i: number) => {
-                    const d = r.data ? JSON.parse(r.data) : {};
-                    return (
-                      <div key={i} className="flex items-center justify-between p-4 bg-green-50 border border-green-100 rounded-2xl hover:bg-green-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-200 rounded-xl flex items-center justify-center text-green-700 font-bold text-sm flex-shrink-0">💸</div>
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm">{r.title}</div>
-                            <div className="text-xs text-gray-400 mt-0.5">{new Date(r.createdAt).toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric" })}</div>
-                          </div>
+                  {repayments.map((r: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-4 bg-green-50 border border-green-100 rounded-2xl hover:bg-green-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-green-200 rounded-xl flex items-center justify-center text-green-700 font-bold text-sm flex-shrink-0">
+                          M{r.monthNumber}
                         </div>
-                        <div className="text-green-700 font-bold text-sm flex-shrink-0">+{fmt(d.amount||0)} FCFA</div>
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">{r.projectTitle} — mois {r.monthNumber}/{r.totalMonths}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">{r.paidAt ? new Date(r.paidAt).toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric" }) : "—"}</div>
+                        </div>
                       </div>
-                    );
-                  })}
+                      <div className="text-green-700 font-bold text-sm flex-shrink-0">+{fmt(r.amount)} FCFA</div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

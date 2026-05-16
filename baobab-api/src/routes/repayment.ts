@@ -35,12 +35,49 @@ router.get('/admin/all', authenticate, async (req: AuthRequest, res: Response): 
 // Investisseur — voir les remboursements recus (AVANT /my/:projectId)
 router.get('/investor/received', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const notifications = await prisma.notification.findMany({
-      where: { userId: req.userId!, type: 'REPAYMENT_RECEIVED' },
-      orderBy: { createdAt: 'desc' }
+    // Trouver tous les investissements de cet investisseur
+    const investments = await prisma.investment.findMany({
+      where: { userId: req.userId! },
+      select: { id: true, amount: true, projectId: true, project: { select: { title: true } } }
     })
-    successResponse(res, notifications)
-  } catch (e) { errorResponse(res) }
+
+    const results = []
+
+    for (const inv of investments) {
+      // Trouver l'echéancier du projet
+      const schedule = await prisma.repaymentSchedule.findFirst({
+        where: { projectId: inv.projectId },
+        include: { payments: { where: { status: 'PAID' }, orderBy: { monthNumber: 'asc' } } }
+      })
+      if (!schedule || schedule.payments.length === 0) continue
+
+      // Calculer la part proportionnelle de cet investisseur
+      const totalInvested = await prisma.investment.aggregate({
+        where: { projectId: inv.projectId },
+        _sum: { amount: true }
+      })
+      const totalInvestedAmount = totalInvested._sum.amount || 1
+      const proportion = inv.amount / totalInvestedAmount
+
+      for (const payment of schedule.payments) {
+        const investorShare = Math.round(payment.amount * proportion)
+        results.push({
+          id: payment.id,
+          projectId: inv.projectId,
+          projectTitle: inv.project?.title,
+          monthNumber: payment.monthNumber,
+          totalMonths: schedule.totalMonths,
+          amount: investorShare,
+          paidAt: payment.paidAt,
+          createdAt: payment.paidAt
+        })
+      }
+    }
+
+    // Trier par date décroissante
+    results.sort((a, b) => new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime())
+    successResponse(res, results)
+  } catch (e) { console.error(e); errorResponse(res) }
 })
 
 // Creer l'echeancier pour un projet

@@ -19,17 +19,37 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response): Promise
     const fees = await getFees()
     const totalExpected = Math.round(totalExpectedBrut * (1 - (fees.commission_baobab_return||5)/100 - (fees.paydunya_payout||2)/100))
     const totalExpectedBrutRaw = totalExpectedBrut
-    const totalReturned = investments.reduce((s, i) => s + (i.returnedAmount || 0), 0)
     const guaranteeContrib = investments.reduce((s, i) => s + (i.guaranteeContribution || i.amount * 0.02), 0)
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
+
+    // Calculer le vrai total recu depuis les repaymentPayments
+    let totalReturned = 0
+    const totalInvestedAllProjects = await prisma.investment.groupBy({
+      by: ['projectId'], where: { project: { repaymentSchedules: { some: {} } } }, _sum: { amount: true }
+    })
+    const projectTotals: Record<string, number> = {}
+    totalInvestedAllProjects.forEach(p => { projectTotals[p.projectId] = p._sum.amount || 1 })
+
+    for (const inv of investments) {
+      const schedule = await prisma.repaymentSchedule.findFirst({
+        where: { projectId: inv.projectId },
+        include: { payments: { where: { status: "PAID" } } }
+      })
+      if (!schedule || schedule.payments.length === 0) continue
+      const totalProj = projectTotals[inv.projectId] || 1
+      const proportion = inv.amount / totalProj
+      const received = schedule.payments.reduce((s, p) => s + Math.round(p.amount * proportion), 0)
+      totalReturned += received
+    }
+
     res.json({
       success: true,
       data: {
         investments,
         totalInvested,
         totalExpected,
-        totalReturned: wallet?.totalEarned || totalReturned,
-        projectsFunded: investments.filter(i => i.project?.status === 'COMPLETED').length,
+        totalReturned,
+        projectsFunded: investments.filter(i => i.project?.status === "COMPLETED").length,
         guaranteeContrib,
         escrowBalance: wallet?.escrowBalance || 0,
       }
