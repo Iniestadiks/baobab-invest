@@ -250,6 +250,116 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-700">
         <strong>⚠️ Important :</strong> Ces taux s&apos;appliquent uniquement aux <strong>nouveaux investissements</strong>. Les investissements existants conservent leurs taux d&apos;origine.
       </div>
+
+      {/* SIMULATEUR EN TEMPS RÉEL */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <h3 className="font-bold text-gray-900 mb-4">🧮 Simulateur d&apos;impact en temps réel</h3>
+        <p className="text-xs text-gray-500 mb-4">Modifiez les taux ci-dessus pour voir l&apos;impact immédiat sur la rentabilité.</p>
+
+        {(() => {
+          const v = values;
+          const besoin = 100000;
+          const baobabClot = parseFloat(v.commission_baobab_collection || "5");
+          const mentor = parseFloat(v.commission_mentor || "2");
+          const garantie = parseFloat(v.commission_guarantee || "2");
+          const baobabRet = parseFloat(v.commission_baobab_return || "5");
+          const payinRate = parseFloat(v.paydunya_payin || "4");
+          const payoutRate = parseFloat(v.paydunya_payout || "2");
+          const retourMentor = parseFloat(v.return_min_with_mentor || "15");
+          const retourSansMentor = parseFloat(v.return_min_no_mentor || "17");
+          const totalFraisClot = baobabClot + mentor + garantie;
+          const goalAmount = Math.round(besoin / (1 - totalFraisClot / 100));
+          const baobabGainClot = Math.round(goalAmount * baobabClot / 100);
+          const mentorGain = Math.round(goalAmount * mentor / 100);
+          const garantieFond = Math.round(goalAmount * garantie / 100);
+          const payinCost = Math.round(goalAmount * payinRate / 100);
+          const retourBrut = Math.round(goalAmount * (1 + retourMentor / 100));
+          const echeancier = Math.round(retourBrut * (1 - baobabRet / 100 - payoutRate / 100));
+          const baobabGainRet = Math.round(retourBrut * baobabRet / 100);
+          const payoutCost = Math.round(retourBrut * payoutRate / 100);
+          const investNetReturn = echeancier;
+          const rendement = ((investNetReturn - goalAmount) / goalAmount * 100).toFixed(1);
+          const baobabNet = baobabGainClot + baobabGainRet - payinCost;
+          const rentable = baobabNet > 0 && investNetReturn > goalAmount;
+
+          return (
+            <div className="space-y-4">
+              <div className={`rounded-xl p-3 text-sm font-bold text-center ${rentable ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                {rentable ? "✅ Configuration rentable pour BAOBAB et les investisseurs" : "❌ Configuration non rentable — ajustez les taux"}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <div className="font-bold text-gray-700 text-sm mb-3">📊 Pour un besoin de 100 000 FCFA</div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Montant à lever</span>
+                    <span className="font-bold">{goalAmount.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Entrepreneur reçoit</span>
+                    <span className="font-bold text-green-700">100 000 FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">BAOBAB clôture {baobabClot}%</span>
+                    <span className="font-bold text-blue-700">+{baobabGainClot.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Mentor {mentor}%</span>
+                    <span className="font-bold text-purple-700">+{mentorGain.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Garantie {garantie}%</span>
+                    <span className="font-bold text-orange-700">+{garantieFond.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs border-t pt-2">
+                    <span className="text-gray-500">Frais opérateur Payin {payinRate}%</span>
+                    <span className="font-bold text-red-600">-{payinCost.toLocaleString()} FCFA</span>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <div className="font-bold text-gray-700 text-sm mb-3">💰 Remboursement (avec mentor)</div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Retour brut dû (+{retourMentor}%)</span>
+                    <span className="font-bold">{retourBrut.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">BAOBAB retour {baobabRet}%</span>
+                    <span className="font-bold text-blue-700">+{baobabGainRet.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Frais opérateur Payout {payoutRate}%</span>
+                    <span className="font-bold text-red-600">-{payoutCost.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs border-t pt-2">
+                    <span className="text-gray-500">Investisseurs reçoivent net</span>
+                    <span className="font-bold text-green-700">{investNetReturn.toLocaleString()} FCFA</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Rendement investisseur</span>
+                    <span className={`font-bold ${parseFloat(rendement) > 0 ? "text-green-700" : "text-red-600"}`}>+{rendement}%</span>
+                  </div>
+                </div>
+              </div>
+              <div className={`rounded-xl p-4 ${baobabNet > 0 ? "bg-blue-50 border border-blue-200" : "bg-red-50 border border-red-200"}`}>
+                <div className="font-bold text-gray-900 mb-2 text-sm">🏦 Bilan net BAOBAB</div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="text-center">
+                    <div className="text-gray-500">Revenus</div>
+                    <div className="font-bold text-green-700">+{(baobabGainClot + baobabGainRet).toLocaleString()} FCFA</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-500">Coûts opérateur</div>
+                    <div className="font-bold text-red-600">-{(payinCost + payoutCost).toLocaleString()} FCFA</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-500">Bilan NET</div>
+                    <div className={`font-bold text-lg ${baobabNet > 0 ? "text-green-700" : "text-red-600"}`}>{baobabNet > 0 ? "+" : ""}{baobabNet.toLocaleString()} FCFA</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
     </div>
   );
 }
