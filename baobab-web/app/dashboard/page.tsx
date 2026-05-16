@@ -528,21 +528,21 @@ export default function DashboardPage() {
                           <span className="font-bold text-green-700">{fmt(inv.returnedAmount || 0)} FCFA</span>
                         </div>
                         <div className="flex justify-between items-center mb-1.5">
-                          <span className="text-gray-600">🎯 Total attendu</span>
-                          <span className="font-bold text-blue-700">{fmt(inv.expectedReturn || 0)} FCFA</span>
+                          <span className="text-gray-600">🎯 Total net attendu</span>
+                          <span className="font-bold text-blue-700">{fmt(nr)} FCFA</span>
                         </div>
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-gray-600">⏳ Reste à recevoir</span>
-                          <span className="font-bold text-orange-600">{fmt(Math.max(0, (inv.expectedReturn||0) - (inv.returnedAmount||0)))} FCFA</span>
+                          <span className="font-bold text-orange-600">{fmt(Math.max(0, nr - (inv.returnedAmount||0)))} FCFA</span>
                         </div>
                         {(inv.returnedAmount||0) > 0 && (
                           <div className="bg-white rounded-lg h-2">
-                            <div className="bg-green-500 h-2 rounded-lg" style={{width: Math.min(100, Math.round(((inv.returnedAmount||0)/(inv.expectedReturn||1))*100)) + "%"}} />
+                            <div className="bg-green-500 h-2 rounded-lg" style={{width: Math.min(100, Math.round(((inv.returnedAmount||0)/nr)*100)) + "%"}} />
                           </div>
                         )}
                         <div className="text-gray-400 mt-1 text-center">
-                          {(inv.returnedAmount||0) === 0 ? "Aucun versement reçu pour l'instant" :
-                           Math.round(((inv.returnedAmount||0)/(inv.expectedReturn||1))*100) + "% du retour total reçu"}
+                          {(inv.returnedAmount||0) === 0 ? "Aucun versement reçu pour l instant" :
+                           Math.round(((inv.returnedAmount||0)/nr)*100) + "% du retour total reçu"}
                         </div>
                       </div>
                     </div>
