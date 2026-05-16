@@ -5,7 +5,7 @@ import { useRequireRole } from "@/hooks/useRequireRole";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { authGet } from "@/lib/api";
+import { authGet, authPost } from "@/lib/api";
 import EntrepreneurCharts from "./charts";
 
 const LEVEL_NAMES = ["", "🌱 Graine", "🌿 Pousse", "🌳 Baobab", "🏅 Grand Baobab"];
@@ -36,6 +36,27 @@ export default function EntrepreneurDashboard() {
   const [unread, setUnread] = useState(0);
   const [notifCollapsed, setNotifCollapsed] = useState(false);
   const [showAllNotifs, setShowAllNotifs] = useState(false);
+  const [flashMsg, setFlashMsg] = useState("");
+  const flash = (msg: string) => { setFlashMsg(msg); setTimeout(() => setFlashMsg(""), 4000); };
+  const loadData = async () => {
+    const [me, proj, notif] = await Promise.all([
+      authGet("/api/auth/me"),
+      authGet("/api/projects/my/projects"),
+      authGet("/api/notifications"),
+    ]);
+    if (me.success) { setUser(me.data); setWallet(me.data.wallet); }
+    if (proj.success) {
+      setProjects(proj.data || []);
+      const funded = (proj.data || []).filter((p: any) => ["FUNDED","IN_PROGRESS","COMPLETED"].includes(p.status));
+      const schedMap: any = {};
+      for (const fp of funded) {
+        const s = await authGet("/api/repayment/my/" + fp.id);
+        if (s.success && s.data) schedMap[fp.id] = s.data;
+      }
+      setSchedules(schedMap);
+    }
+    if (notif.success) { setNotifications(notif.data.notifications?.slice(0, 5) || []); setUnread(notif.data.unreadCount || 0); }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -152,6 +173,11 @@ export default function EntrepreneurDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {flashMsg && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-xl text-sm font-medium animate-bounce">
+          {flashMsg}
+        </div>
+      )}
       {user?.kycStatus !== "VERIFIED" && (
         <div className="bg-orange-50 border border-orange-300 rounded-2xl p-4 mx-6 mt-4 flex items-center justify-between">
           <div>
