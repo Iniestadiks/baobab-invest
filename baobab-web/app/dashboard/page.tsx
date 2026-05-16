@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [flashMsg, setFlashMsg] = useState("");
   const [savingsAmount, setSavingsAmount] = useState("");
+  const [searchInv, setSearchInv] = useState("");
   const [savingsDay, setSavingsDay] = useState("");
 
   const flash = (msg: string) => { setFlashMsg(msg); setTimeout(() => setFlashMsg(""), 4000); };
@@ -427,13 +428,30 @@ export default function DashboardPage() {
               <h2 className="font-bold text-gray-900 text-lg">Mes investissements ({investments.length})</h2>
               <button onClick={exportCSV} className="text-xs border border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-600 px-3 py-2 rounded-xl">📥 CSV</button>
             </div>
+            <div className="flex gap-2">
+              <input value={searchInv} onChange={e => setSearchInv(e.target.value)} placeholder="🔍 Rechercher un projet..."
+                className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm flex-1 focus:outline-none focus:border-green-400" />
+              <select onChange={e => setSearchInv(e.target.value === "ALL" ? "" : e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white text-gray-600 focus:outline-none focus:border-green-400">
+                <option value="ALL">Tous les statuts</option>
+                <option value="ACTIVE">En ligne</option>
+                <option value="FUNDED">Financé</option>
+                <option value="IN_PROGRESS">En remboursement</option>
+                <option value="COMPLETED">Terminé</option>
+              </select>
+            </div>
             {investments.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="text-5xl mb-3">🌱</div>
                 <h3 className="font-bold text-gray-900 mb-2">Aucun investissement</h3>
                 <Link href="/projects" className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 inline-block mt-2">Explorer les projets →</Link>
               </div>
-            ) : investments.map(inv => {
+            ) : investments.filter(inv =>
+              !searchInv ||
+              inv.project?.title?.toLowerCase().includes(searchInv.toLowerCase()) ||
+              inv.project?.sector?.toLowerCase().includes(searchInv.toLowerCase()) ||
+              inv.project?.status === searchInv
+            ).map(inv => {
               const nr = Math.round((inv.expectedReturn||0) * (1 - baobabRate/100 - paydunyaRate/100));
               const gainNet = nr - inv.amount;
               const rendement = inv.amount > 0 ? ((gainNet/inv.amount)*100).toFixed(1) : "0";
@@ -485,15 +503,23 @@ export default function DashboardPage() {
                       <div>
                         <div className="flex justify-between text-xs text-gray-400 mb-1">
                           <span>Progression collecte</span>
-                          <span>{pct}% · {fmt(inv.project?.raisedAmount||0)} / {fmt(inv.project?.goalAmount||0)} FCFA</span>
+                          <span className={inv.project?.status === "FUNDED" || inv.project?.status === "IN_PROGRESS" || inv.project?.status === "COMPLETED" ? "text-green-600 font-bold" : ""}>
+                            {inv.project?.status === "FUNDED" || inv.project?.status === "IN_PROGRESS" || inv.project?.status === "COMPLETED" ? "100% · Financé ✅" : pct + "% · " + fmt(inv.project?.raisedAmount||0) + " / " + fmt(inv.project?.goalAmount||0) + " FCFA"}
+                          </span>
                         </div>
                         <div className="bg-gray-200 rounded-full h-2">
-                          <div className={`h-2 rounded-full ${pct >= 100 ? "bg-green-500" : "bg-orange-400"}`} style={{width: pct+"%"}} />
+                          <div className="h-2 rounded-full bg-green-500" style={{width: (inv.project?.status === "FUNDED" || inv.project?.status === "IN_PROGRESS" || inv.project?.status === "COMPLETED" ? 100 : pct)+"%"}} />
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button onClick={() => downloadPDF(`/api/pdf/certificate/${inv.id}`, `certificat-${inv.id.substring(0,8)}.pdf`)} className="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 rounded-xl hover:bg-blue-100 font-medium">📄 Certificat PDF</button>
                         <Link href={`/projects/${inv.projectId}`} className="text-xs bg-green-50 text-green-600 border border-green-200 px-3 py-2 rounded-xl hover:bg-green-100 font-medium">🔍 Voir le projet</Link>
+                        {inv.project?.entrepreneurId && (
+                          <Link href={`/messages?to=${inv.project.entrepreneurId}`} className="text-xs bg-purple-50 text-purple-600 border border-purple-200 px-3 py-2 rounded-xl hover:bg-purple-100 font-medium">💬 Contacter</Link>
+                        )}
+                        {inv.project?.entrepreneurId && (
+                          <Link href={`/auth/profile/${inv.project.entrepreneurId}`} className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-2 rounded-xl hover:bg-indigo-100 font-medium">👤 Profil porteur</Link>
+                        )}
                         {inv.project?.status === "FUNDED" && <span className="text-xs bg-purple-50 text-purple-600 border border-purple-200 px-3 py-2 rounded-xl">🎯 Remboursement à venir</span>}
                         {inv.project?.status === "COMPLETED" && <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl">✅ Remboursé</span>}
                       </div>
