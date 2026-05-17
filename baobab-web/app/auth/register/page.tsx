@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { GeoSelector } from "@/hooks/useGeo";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -47,6 +48,10 @@ export default function RegisterPage() {
     firstName: "", lastName: "", email: "",
     phone: "", password: "", confirmPassword: "",
     role: "INVESTOR", country: "SN", city: "",
+  });
+  const [geo, setGeo] = useState({
+    country: "Senegal", countryCode: "SN", indicatif: "+221",
+    state: "", stateCode: "", city: ""
   });
 
   const handleChange = (
@@ -216,34 +221,17 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          {/* Pays + Ville */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-600 mb-1 block">
-                Pays *
-              </label>
-              <select
-                name="country" value={form.country}
-                onChange={handleChange} className="input-field"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600 mb-1 block">
-                Ville
-              </label>
-              <input
-                name="city" value={form.city}
-                onChange={handleChange} placeholder="Dakar"
-                className="input-field"
-              />
-            </div>
-          </div>
+          {/* Pays + Région + Ville */}
+          <GeoSelector value={geo} onChange={v => {
+            setGeo(v);
+            setForm(f => ({ ...f, country: v.countryCode, city: v.city }));
+          }} />
+          {/* Indicatif auto */}
+          {geo.indicatif && (
+            <p className="text-xs text-green-600 -mt-1">
+              📞 Indicatif détecté : <strong>{geo.indicatif}</strong> — pensez à l&apos;inclure dans votre numéro
+            </p>
+          )}
 
           {/* Mot de passe */}
           <div>
