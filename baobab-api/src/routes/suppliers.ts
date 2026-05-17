@@ -24,16 +24,23 @@ const supplierSchema = z.object({
 // Enregistrer un fournisseur (public)
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
   try {
-    const data = supplierSchema.parse(req.body)
+    const { password, confirmPassword, ...rest } = req.body
+    const data = supplierSchema.parse(rest)
     const existing = await prisma.supplier.findFirst({
       where: { OR: [{ email: data.email }, { phone: data.phone }] }
     })
     if (existing) {
-      res.status(400).json({ success: false, message: 'Email ou téléphone déjà enregistré' })
+      res.status(400).json({ success: false, message: 'Email ou telephone deja enregistre' })
       return
     }
-    const supplier = await prisma.supplier.create({ data })
-    successResponse(res, supplier, 'Demande d\'enregistrement soumise — en attente de vérification KYB', 201)
+    if (!password || password.length < 6) {
+      res.status(400).json({ success: false, message: 'Mot de passe minimum 6 caracteres' })
+      return
+    }
+    const bcrypt = await import('bcryptjs')
+    const hashedPassword = await bcrypt.default.hash(password, 10)
+    const supplier = await prisma.supplier.create({ data: { ...data, password: hashedPassword } })
+    successResponse(res, { id: supplier.id, companyName: supplier.companyName, email: supplier.email }, 'Demande soumise — en attente de verification KYB', 201)
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ success: false, message: error.errors[0].message })

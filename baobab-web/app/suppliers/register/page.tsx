@@ -29,7 +29,7 @@ export default function SupplierRegisterPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
-    companyName: "", contactName: "", email: "", phone: "",
+    companyName: "", contactName: "", email: "", phone: "", password: "", confirmPassword: "",
     sector: "", city: "", country: "SN",
     rccmNumber: "", nineaNumber: "",
     mobileMoneyNumber: "", mobileMoneyProvider: "WAVE",
@@ -131,6 +131,14 @@ export default function SupplierRegisterPage() {
                 <div>
                   <label className="text-xs font-semibold text-gray-600 mb-1 block">Téléphone *</label>
                   <input name="phone" value={form.phone} onChange={handleChange} placeholder="221771234567" required className="input-field" />
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Mot de passe *</label>
+                  <input name="password" type="password" value={form.password} onChange={handleChange} placeholder="Minimum 6 caractères" required className="input-field" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Confirmer le mot de passe *</label>
+                  <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="Répétez votre mot de passe" required className="input-field" />
+                </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
