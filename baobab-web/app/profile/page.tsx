@@ -1,4 +1,5 @@
 "use client";
+import { GeoSelector } from "@/hooks/useGeo";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -21,6 +22,7 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState("");
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", city: "", country: "", bio: "" });
+  const [geo, setGeo] = useState({ country: "", countryCode: "", indicatif: "", state: "", stateCode: "", city: "" });
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,6 +38,14 @@ export default function ProfilePage() {
           city: res.data.city || "",
           country: res.data.country || "",
           bio: res.data.bio || "",
+        });
+        setGeo({
+          country: res.data.country || "",
+          countryCode: res.data.countryCode || res.data.country || "",
+          indicatif: res.data.indicatif || "",
+          state: res.data.region || "",
+          stateCode: "",
+          city: res.data.city || "",
         });
       }
     }).finally(() => setLoading(false));
@@ -142,21 +152,16 @@ export default function ProfilePage() {
               </div>
             ))}
           </div>
-          {[
-            { key: "phone", label: "Téléphone", placeholder: "+221 77 000 00 00" },
-            { key: "city", label: "Ville", placeholder: "Dakar" },
-            { key: "country", label: "Pays", placeholder: "Sénégal" },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-xs text-gray-500 mb-1 block">{f.label}</label>
-              <input
-                value={form[f.key as keyof typeof form]}
-                onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                placeholder={f.placeholder}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-400"
-              />
-            </div>
-          ))}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Téléphone</label>
+            <input value={form.phone} onChange={e => setForm(prev => ({...prev, phone: e.target.value}))}
+              placeholder="+221 77 000 00 00"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
+          </div>
+          <GeoSelector value={geo} onChange={v => {
+            setGeo(v);
+            setForm(f => ({ ...f, country: v.countryCode, city: v.city }));
+          }} />
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Bio / Présentation</label>
             <textarea
