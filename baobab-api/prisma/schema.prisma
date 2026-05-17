@@ -173,6 +173,8 @@ model Supplier {
   verifiedAt      DateTime?
   isPremium       Boolean        @default(false)
   rating          Float          @default(0)
+  password       String?        // Mot de passe hashé (optionnel — set par admin)
+  lastLoginAt    DateTime?
   totalPayments   Float          @default(0)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt

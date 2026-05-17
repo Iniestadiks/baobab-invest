@@ -10,7 +10,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   PENDING_REVIEW: { label: "En validation", color: "text-orange-700", bg: "bg-orange-100", border: "border-orange-300" },
   ACTIVE:         { label: "En ligne",      color: "text-green-700",  bg: "bg-green-100",  border: "border-green-300" },
   FUNDED:         { label: "Finance",       color: "text-blue-700",   bg: "bg-blue-100",   border: "border-blue-300" },
-  IN_PROGRESS:    { label: "En cours",      color: "text-purple-700", bg: "bg-purple-100", border: "border-purple-300" },
+  IN_PROGRESS:    { label: "En cours",      color: "text-green-700", bg: "bg-green-100", border: "border-green-300" },
   COMPLETED:      { label: "Termine",       color: "text-emerald-700",bg: "bg-emerald-100",border: "border-emerald-300" },
 };
 
@@ -77,7 +77,7 @@ export default function MentorDashboard() {
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
         <p className="text-gray-500 font-medium">Chargement...</p>
       </div>
     </div>
@@ -113,11 +113,11 @@ export default function MentorDashboard() {
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-purple-600 rounded-xl flex items-center justify-center"><span className="text-white font-bold text-sm">B</span></div>
+            <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center"><span className="text-white font-bold text-sm">B</span></div>
             <span className="font-bold text-gray-900 hidden sm:block">BAOBAB INVEST</span>
           </Link>
           <div className="flex items-center gap-3">
-            <span className="text-xs bg-purple-50 text-purple-600 px-2.5 py-1 rounded-full font-medium hidden sm:block">Mentor</span>
+            <span className="text-xs bg-green-50 text-green-600 px-2.5 py-1 rounded-full font-medium hidden sm:block">Mentor</span>
             <div className="relative">
               <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="relative p-2 hover:bg-gray-100 rounded-xl">
                 <span className="text-xl">🔔</span>
@@ -130,7 +130,7 @@ export default function MentorDashboard() {
                     <button onClick={() => setShowNotifPanel(false)} className="text-gray-400">X</button>
                   </div>
                   {notifications.map(n => (
-                    <div key={n.id} className={`p-3 border-b border-gray-50 text-xs ${!n.isRead ? "bg-purple-50" : ""}`}>
+                    <div key={n.id} className={`p-3 border-b border-gray-50 text-xs ${!n.isRead ? "bg-green-50" : ""}`}>
                       <div className="font-medium text-gray-900">{n.title}</div>
                       <div className="text-gray-500 mt-0.5 line-clamp-2">{n.body}</div>
                     </div>
@@ -139,7 +139,7 @@ export default function MentorDashboard() {
               )}
             </div>
             <Link href="/profile" className="flex items-center gap-1.5 hover:bg-gray-100 px-2 py-1.5 rounded-xl">
-              <div className="w-7 h-7 bg-gradient-to-br from-purple-500 to-purple-700 rounded-lg flex items-center justify-center text-white font-bold text-xs">{user?.firstName?.[0]}{user?.lastName?.[0]}</div>
+              <div className="w-7 h-7 bg-gradient-to-br from-green-500 to-green-700 rounded-lg flex items-center justify-center text-white font-bold text-xs">{user?.firstName?.[0]}{user?.lastName?.[0]}</div>
               <span className="text-sm text-gray-700 hidden sm:block font-medium">{user?.firstName}</span>
             </Link>
             <button onClick={() => { localStorage.clear(); router.push("/"); }} className="text-xs text-gray-400 hover:text-red-500 hidden sm:block">Deconnexion</button>
@@ -148,36 +148,36 @@ export default function MentorDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="bg-gradient-to-br from-purple-700 to-purple-900 rounded-3xl p-6 mb-6 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-3xl p-6 mb-6 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-purple-200 text-sm">Bonjour, {user?.firstName}</p>
+                <p className="text-green-200 text-sm">Bonjour, {user?.firstName}</p>
                 <h1 className="text-2xl font-bold">Espace Mentor</h1>
               </div>
               <div className="text-right">
-                <div className="text-xs text-purple-200">Score reputation</div>
+                <div className="text-xs text-green-200">Score reputation</div>
                 <div className={`text-3xl font-bold ${score >= 80 ? "text-green-300" : score >= 60 ? "text-yellow-300" : "text-red-300"}`}>{score}/100</div>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <div className="text-purple-200 text-xs mb-1">Solde wallet</div>
+                <div className="text-green-200 text-xs mb-1">Solde wallet</div>
                 <div className="text-2xl font-bold">{fmt(wallet?.balance || 0)} FCFA</div>
                 <Link href="/wallet/withdraw" className="mt-2 inline-block bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg">Retirer</Link>
               </div>
               <div>
-                <div className="text-purple-200 text-xs mb-1">Projets parraine</div>
+                <div className="text-green-200 text-xs mb-1">Projets parraine</div>
                 <div className="text-2xl font-bold">{projects.length}</div>
-                <div className="text-xs text-purple-300">{activeProjects.length}/5 actifs</div>
+                <div className="text-xs text-green-300">{activeProjects.length}/5 actifs</div>
               </div>
               <div>
-                <div className="text-purple-200 text-xs mb-1">Commissions estimees</div>
+                <div className="text-green-200 text-xs mb-1">Commissions estimees</div>
                 <div className="text-2xl font-bold">{fmt(totalCommission)} FCFA</div>
               </div>
               <div>
-                <div className="text-purple-200 text-xs mb-1">Projets termines</div>
+                <div className="text-green-200 text-xs mb-1">Projets termines</div>
                 <div className="text-2xl font-bold">{completedProjects.length}</div>
               </div>
             </div>
@@ -188,7 +188,7 @@ export default function MentorDashboard() {
           {[
             { icon: "⚡", label: "Decisions en attente", value: pendingProjects.length + " projet(s)", color: pendingProjects.length > 0 ? "text-orange-700 bg-orange-50" : "text-gray-600 bg-gray-50" },
             { icon: "🟢", label: "Projets actifs", value: activeProjects.length + "/5", color: "text-green-700 bg-green-50" },
-            { icon: "💰", label: "Ma commission", value: (fees?.commission_mentor || 2) + "% a la cloture", color: "text-purple-700 bg-purple-50" },
+            { icon: "💰", label: "Ma commission", value: (fees?.commission_mentor || 2) + "% a la cloture", color: "text-green-700 bg-green-50" },
             { icon: "🏆", label: "Taux succes", value: projects.length > 0 ? Math.round((completedProjects.length/projects.length)*100) + "%" : "N/A", color: "text-blue-700 bg-blue-50" },
           ].map(s => (
             <div key={s.label} className={`rounded-2xl p-4 ${s.color}`}>
@@ -202,7 +202,7 @@ export default function MentorDashboard() {
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
           {TABS.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all relative ${activeTab === tab.id ? "bg-purple-600 text-white shadow-sm" : "bg-white text-gray-600 border border-gray-200 hover:border-purple-300 hover:text-purple-600"}`}>
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all relative ${activeTab === tab.id ? "bg-green-600 text-white shadow-sm" : "bg-white text-gray-600 border border-gray-200 hover:border-green-300 hover:text-green-600"}`}>
               <span>{tab.icon}</span><span>{tab.label}</span>
               {tab.badge && tab.badge > 0 && <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${activeTab === tab.id ? "bg-white/30 text-white" : "bg-gray-100 text-gray-600"}`}>{tab.badge}</span>}
               {tab.alert && activeTab !== tab.id && <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></span>}
@@ -244,8 +244,8 @@ export default function MentorDashboard() {
                   {activeProjects.map(p => {
                     const pct = Math.round(((p.raisedAmount||0)/(p.goalAmount||1))*100);
                     return (
-                      <div key={p.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-2 hover:bg-purple-50 transition-colors">
-                        <div className={`w-2 h-10 rounded-full flex-shrink-0 ${p.status === "IN_PROGRESS" ? "bg-purple-500" : p.status === "FUNDED" ? "bg-blue-500" : "bg-green-500"}`}></div>
+                      <div key={p.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-2 hover:bg-green-50 transition-colors">
+                        <div className={`w-2 h-10 rounded-full flex-shrink-0 ${p.status === "IN_PROGRESS" ? "bg-green-500" : p.status === "FUNDED" ? "bg-blue-500" : "bg-green-500"}`}></div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-gray-900 text-sm truncate">{p.title}</div>
                           <div className="bg-gray-200 rounded-full h-1.5 mt-1"><div className="bg-green-500 h-1.5 rounded-full" style={{width: Math.min(100,pct)+"%"}}></div></div>
@@ -259,9 +259,9 @@ export default function MentorDashboard() {
                   })}
                 </div>
               )}
-              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5">
-                <h3 className="font-bold text-purple-900 mb-4">Votre role de Mentor / Garant</h3>
-                <div className="space-y-2 text-xs text-purple-700">
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
+                <h3 className="font-bold text-green-900 mb-4">Votre role de Mentor / Garant</h3>
+                <div className="space-y-2 text-xs text-green-700">
                   <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Votre identite est publiquement engagee sur chaque projet parraine</span></div>
                   <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Vous percevez {fees?.commission_mentor || 2}% du montant leve a la cloture</span></div>
                   <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Maximum 5 projets simultanes autorise</span></div>
@@ -272,16 +272,16 @@ export default function MentorDashboard() {
             <div className="space-y-4">
               <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="font-bold text-gray-900 mb-3 text-sm">Mon Wallet</h3>
-                <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-4 text-white mb-3">
-                  <div className="text-xs text-purple-200 mb-1">Solde disponible</div>
+                <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-4 text-white mb-3">
+                  <div className="text-xs text-green-200 mb-1">Solde disponible</div>
                   <div className="text-2xl font-bold">{fmt(wallet?.balance || 0)} FCFA</div>
                 </div>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center mb-3">
                   <div className="text-xs text-gray-500">Commissions estimees</div>
                   <div className="font-bold text-yellow-700 text-lg">{fmt(totalCommission)} FCFA</div>
                 </div>
-                <Link href="/wallet/withdraw" className="block text-center bg-purple-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-purple-700 mb-2">Retirer mes gains</Link>
-                <Link href="/wallet/deposit" className="block text-center border border-purple-200 text-purple-600 text-sm font-bold py-2.5 rounded-xl hover:bg-purple-50">Deposer des fonds</Link>
+                <Link href="/wallet/withdraw" className="block text-center bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700 mb-2">Retirer mes gains</Link>
+                <Link href="/wallet/deposit" className="block text-center border border-green-200 text-green-600 text-sm font-bold py-2.5 rounded-xl hover:bg-green-50">Deposer des fonds</Link>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="font-bold text-gray-900 mb-3 text-sm">Score de reputation</h3>
@@ -299,7 +299,7 @@ export default function MentorDashboard() {
                     { href: "/messages",      icon: "💬", label: "Messagerie",      color: "bg-blue-50 text-blue-700 border-blue-200" },
                     { href: "/projects",      icon: "🔍", label: "Voir les projets",color: "bg-green-50 text-green-700 border-green-200" },
                     { href: "/wallet/history",icon: "📜", label: "Historique wallet",color: "bg-gray-50 text-gray-700 border-gray-200" },
-                    { href: "/academy",       icon: "📚", label: "Academie Baobab", color: "bg-purple-50 text-purple-700 border-purple-200" },
+                    { href: "/academy",       icon: "📚", label: "Academie Baobab", color: "bg-green-50 text-green-700 border-green-200" },
                     { href: "/referral",      icon: "🌳", label: "Parrainer un ami",color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
                     { href: "/profile",       icon: "👤", label: "Mon profil",      color: "bg-gray-50 text-gray-700 border-gray-200" },
                   ].map(l => (
@@ -334,7 +334,7 @@ export default function MentorDashboard() {
                 <div key={p.id} className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${isPending ? "border-orange-300" : s.border}`}>
                   <button onClick={() => setExpandedProjects(prev => ({...prev, [p.id]: !prev[p.id]}))} className="w-full p-5 text-left hover:bg-gray-50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-12 rounded-full flex-shrink-0 ${isPending ? "bg-orange-400" : p.status === "IN_PROGRESS" ? "bg-purple-500" : p.status === "COMPLETED" ? "bg-emerald-500" : "bg-green-500"}`}></div>
+                      <div className={`w-2 h-12 rounded-full flex-shrink-0 ${isPending ? "bg-orange-400" : p.status === "IN_PROGRESS" ? "bg-green-500" : p.status === "COMPLETED" ? "bg-emerald-500" : "bg-green-500"}`}></div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           {isPending && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">Action requise</span>}
@@ -383,12 +383,12 @@ export default function MentorDashboard() {
 
         {activeTab === "wallet" && (
           <div className="space-y-5 max-w-2xl">
-            <div className="bg-gradient-to-br from-purple-600 to-purple-900 rounded-3xl p-6 text-white relative overflow-hidden">
+            <div className="bg-gradient-to-br from-green-600 to-green-900 rounded-3xl p-6 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-              <div className="text-sm text-purple-200 mb-1">Solde disponible</div>
+              <div className="text-sm text-green-200 mb-1">Solde disponible</div>
               <div className="text-4xl font-bold mb-4">{fmt(wallet?.balance || 0)} FCFA</div>
               <div className="flex gap-3">
-                <Link href="/wallet/withdraw" className="flex-1 bg-white text-purple-700 text-sm font-bold py-2.5 rounded-xl text-center hover:bg-purple-50">Retirer</Link>
+                <Link href="/wallet/withdraw" className="flex-1 bg-white text-green-700 text-sm font-bold py-2.5 rounded-xl text-center hover:bg-green-50">Retirer</Link>
                 <Link href="/wallet/deposit" className="flex-1 bg-white/20 text-white text-sm font-bold py-2.5 rounded-xl text-center hover:bg-white/30 border border-white/30">Deposer</Link>
               </div>
             </div>
@@ -397,7 +397,7 @@ export default function MentorDashboard() {
               <div className="space-y-3">
                 {[
                   { label: "Solde disponible",    value: fmt(wallet?.balance||0) + " FCFA",          color: "text-green-700" },
-                  { label: "Total gagne",          value: fmt(wallet?.totalEarned||0) + " FCFA",      color: "text-purple-700" },
+                  { label: "Total gagne",          value: fmt(wallet?.totalEarned||0) + " FCFA",      color: "text-green-700" },
                   { label: "Total retire",          value: fmt(wallet?.totalWithdrawn||0) + " FCFA",  color: "text-red-600" },
                   { label: "Commissions en attente",value: fmt(totalCommission) + " FCFA",             color: "text-yellow-700" },
                 ].map(s => (
@@ -416,11 +416,11 @@ export default function MentorDashboard() {
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <h2 className="font-bold text-gray-900 mb-4">Mes rapports</h2>
               <div className="space-y-3">
-                <button onClick={downloadPDF} className="w-full border-2 border-purple-200 rounded-2xl p-4 text-left hover:bg-purple-50 transition-colors">
+                <button onClick={downloadPDF} className="w-full border-2 border-green-200 rounded-2xl p-4 text-left hover:bg-green-50 transition-colors">
                   <div className="font-bold text-gray-900 text-sm mb-1">Rapport mentor complet (PDF)</div>
                   <div className="text-xs text-gray-400">Tous vos projets, commissions et statistiques</div>
                 </button>
-                <button onClick={exportCSV} className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl hover:bg-purple-700 text-sm">Exporter statistiques (CSV)</button>
+                <button onClick={exportCSV} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 text-sm">Exporter statistiques (CSV)</button>
               </div>
             </div>
           </div>
