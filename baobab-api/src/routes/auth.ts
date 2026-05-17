@@ -30,14 +30,14 @@ router.post('/login', async (req, res): Promise<void> => {
 // Register
 router.post('/register', async (req, res): Promise<void> => {
   try {
-    const { email, password, firstName, lastName, phone, role } = req.body
+    const { email, password, firstName, lastName, phone, role, country, city, region, countryCode, indicatif } = req.body
     if (!email || !password || !firstName || !lastName) { res.status(400).json({ success: false, message: 'Champs obligatoires manquants' }); return }
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) { res.status(409).json({ success: false, message: 'Email déjà utilisé' }); return }
     const hashed = await bcrypt.hash(password, 10)
     const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase()
     const user = await prisma.user.create({
-      data: { email, password: hashed, firstName, lastName, phone, role: role || 'INVESTOR', referralCode }
+      data: { email, password: hashed, firstName, lastName, phone, role: role || 'INVESTOR', referralCode, country: country || 'SN', city: city || '', region: region || '', countryCode: countryCode || 'SN', indicatif: indicatif || '+221' }
     })
     await prisma.wallet.create({ data: { userId: user.id, balance: 0 } })
     const accessToken = generateAccessToken(user.id, user.role)
@@ -60,7 +60,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
     successResponse(res, {
       id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName,
       role: user.role, kycStatus: user.kycStatus, profileImageUrl: user.profileImageUrl, level: user.level,
-      phone: user.phone, city: user.city, country: user.country,
+      phone: user.phone, city: user.city, country: user.country, region: user.region, countryCode: user.countryCode, indicatif: user.indicatif,
       totalInvested: user.totalInvested, reputationScore: user.reputationScore,
       wallet: user.wallet
     })
@@ -84,10 +84,10 @@ router.post('/refresh', async (req, res): Promise<void> => {
 // Update profile
 router.patch('/profile', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, phone, city, country, bio } = req.body
+    const { firstName, lastName, phone, city, country, bio, region, countryCode, indicatif } = req.body
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data: { firstName, lastName, phone, city, country, bio }
+      data: { firstName, lastName, phone, city, country, bio, region, countryCode, indicatif }
     })
     successResponse(res, user, 'Profil mis à jour')
   } catch (e) { errorResponse(res) }
