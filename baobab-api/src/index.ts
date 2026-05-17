@@ -18,6 +18,7 @@ import walletRoutes from './routes/wallet'
 import configRoutes from './routes/config'
 import referralRoutes from './routes/referral'
 import pdfRoutes from './routes/pdf'
+import geoRoutes from './routes/geo'
 
 const app = express()
 
@@ -44,6 +45,7 @@ app.use('/api/wallet', walletRoutes)
 app.use('/api/config', configRoutes)
 app.use('/api/referral', referralRoutes)
 app.use('/api/pdf', pdfRoutes)
+app.use('/api/geo', geoRoutes)
 
 app.listen(config.port, () => {
   console.log(`🌳 BAOBAB INVEST API démarrée sur le port ${config.port}`)
