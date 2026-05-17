@@ -65,7 +65,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       prisma.project.findMany({
         where, orderBy, skip, take: Number(limit),
         select: {
-          id: true, title: true, description: true, sector: true,
+          id: true, title: true, description: true, sector: true, subSector: true,
           city: true, country: true, goalAmount: true, raisedAmount: true,
           minimumInvestment: true, expectedReturn: true, durationMonths: true,
           status: true, riskLevel: true, coverImageUrl: true, pitchVideoUrl: true,
@@ -420,7 +420,7 @@ export default router
 
 // Debug route — à supprimer en production
 router.get('/debug/pending', async (req, res) => {
-  const projects = await prisma.project.findMany({ where: { status: 'PENDING_REVIEW' } })
+  const projects = await prisma.project.findMany({ where: { status: 'PENDING_REVIEW' }, orderBy: { createdAt: 'asc' } })
   res.json({ count: projects.length, ids: projects.map(p => ({ id: p.id, title: p.title })) })
 })
 

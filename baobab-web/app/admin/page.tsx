@@ -1830,22 +1830,31 @@ export default function AdminPage() {
         {/* PROJETS À VALIDER */}
         {tab === "projects" && (
           <div className="space-y-5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-xl font-bold text-gray-900">📋 Projets à valider ({projects.length})</h2>
-              <div className="text-sm text-gray-500">Délai de réponse : 48h ouvrées</div>
+              <div className="text-sm text-gray-500">Ordre d&apos;arrivée · Délai : 48h ouvrées</div>
+            </div>
+            {/* Filtres secteur */}
+            <div className="flex flex-wrap gap-2">
+              {["Tous", "AGRICULTURE", "COMMERCE", "TRANSPORT", "TECH", "RESTAURATION", "ARTISANAT", "SANTE", "EDUCATION", "ENERGIE", "SERVICES", "AUTRE"].map(s => (
+                <button key={s} onClick={() => setSectorFilter(s)}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${sectorFilter === s ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                  {s === "Tous" ? "Tous les secteurs" : s}
+                </button>
+              ))}
             </div>
             {projects.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="text-5xl mb-3">✅</div>
                 <p className="text-gray-500 font-medium">Aucun projet en attente de validation</p>
               </div>
-            ) : projects.map((p: any) => (
+            ) : projects.filter((p: any) => sectorFilter === 'Tous' || p.sector === sectorFilter).map((p: any) => (
               <div key={p.id} className="bg-white rounded-2xl border border-orange-200 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">⏳ En attente</span>
-                      <span className="text-xs text-gray-400">{RISK_LABELS[p.riskLevel]} · {p.sector}</span>
+                      <span className="text-xs text-gray-400">{RISK_LABELS[p.riskLevel]} · {p.sector}{p.subSector ? ' → ' + p.subSector : ''}</span>
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg">{p.title}</h3>
                     <div className="text-sm text-gray-500 mt-0.5">
