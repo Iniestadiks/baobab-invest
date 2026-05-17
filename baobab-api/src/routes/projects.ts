@@ -10,6 +10,7 @@ const projectSchema = z.object({
   title: z.string().min(5, 'Titre trop court'),
   description: z.string().min(50, 'Description trop courte (min 50 caractères)'),
   sector: z.enum(['AGRICULTURE','COMMERCE','TECH','ARTISANAT','EDUCATION','SANTE','SERVICES','ENERGIE','TRANSPORT','AUTRE']),
+  subSector: z.string().optional(),
   city: z.string(),
   country: z.string().default('SN'),
   goalAmount: z.number().min(100000, 'Montant minimum 100 000 FCFA'),
@@ -185,6 +186,21 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
     if (!entrepreneur || entrepreneur.kycStatus !== 'VERIFIED') {
       res.status(403).json({ success: false, message: "Votre KYC doit etre verifie par un administrateur avant de soumettre un projet." })
       return
+    }
+    // Vérifier limite sous-secteur (max 3 projets actifs par sous-secteur et ville)
+    if (req.body.subSector && req.body.city) {
+      const { MAX_ACTIVE_PER_SUBSECTOR } = await import('../config/taxonomy')
+      const existingCount = await prisma.project.count({
+        where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: { in: ['ACTIVE','FUNDED','IN_PROGRESS'] } }
+      })
+      if (existingCount >= MAX_ACTIVE_PER_SUBSECTOR) {
+        const existing = await prisma.project.findMany({
+          where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: { in: ['ACTIVE','FUNDED'] } },
+          select: { id: true, title: true, raisedAmount: true, goalAmount: true }
+        })
+        res.status(409).json({ success: false, message: `Slots complets : ${MAX_ACTIVE_PER_SUBSECTOR} projets de ce type sont deja actifs dans votre zone. Investissez dans ceux en cours !`, data: { projects: existing } })
+        return
+      }
     }
     const data = projectSchema.parse(req.body)
     const score = calculateBankabilityScore({ ...data, description: data.description })
