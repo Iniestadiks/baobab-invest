@@ -206,7 +206,7 @@ export default function EntrepreneurDashboard() {
             <span className="font-bold text-gray-900 hidden sm:block">BAOBAB INVEST</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/projects/submit" className="bg-green-600 text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-xl hover:bg-green-700 transition-colors">
+            <Link href="/projects/new" className="bg-green-600 text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-xl hover:bg-green-700 transition-colors">
               + Nouveau projet
             </Link>
             <div className="relative">
@@ -402,7 +402,7 @@ export default function EntrepreneurDashboard() {
                 <h3 className="font-bold text-gray-900 mb-3 text-sm">⚡ Actions rapides</h3>
                 <div className="space-y-2">
                   {[
-                    { href: "/projects/submit", icon: "🚀", label: "Nouveau projet", color: "bg-green-50 text-green-700 border-green-200" },
+                    { href: "/projects/new", icon: "🚀", label: "Nouveau projet", color: "bg-green-50 text-green-700 border-green-200" },
                     { href: "/messages", icon: "💬", label: "Messagerie", color: "bg-blue-50 text-blue-700 border-blue-200" },
                     { href: "/suppliers", icon: "🏪", label: "Fournisseurs", color: "bg-purple-50 text-purple-700 border-purple-200" },
                     { href: "/kyc", icon: "🪪", label: "Vérification KYC", color: "bg-orange-50 text-orange-700 border-orange-200" },
@@ -465,7 +465,7 @@ export default function EntrepreneurDashboard() {
               <h2 className="font-bold text-gray-900 text-lg">Mes projets ({visibleProjects.length})</h2>
               <div className="flex gap-2">
                 <button onClick={exportCSV} className="text-xs border border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-600 px-3 py-2 rounded-xl">📥 CSV</button>
-                <Link href="/projects/submit" className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-green-700">+ Nouveau</Link>
+                <Link href="/projects/new" className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-green-700">+ Nouveau</Link>
               </div>
             </div>
 
@@ -474,7 +474,7 @@ export default function EntrepreneurDashboard() {
                 <div className="text-5xl mb-3">🌱</div>
                 <h3 className="font-bold text-gray-900 mb-2">Aucun projet</h3>
                 <p className="text-gray-500 text-sm mb-4">Soumettez votre premier projet pour commencer.</p>
-                <Link href="/projects/submit" className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 inline-block">+ Soumettre</Link>
+                <Link href="/projects/new" className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 inline-block">+ Soumettre</Link>
               </div>
             ) : visibleProjects.map((p: any) => {
               const s = STATUS_CONFIG[p.status] || STATUS_CONFIG.DRAFT;
