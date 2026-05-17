@@ -119,6 +119,9 @@ model User {
   profileImageUrl   String?
   bio               String?
   city              String?
+  region          String?
+  countryCode     String?  @default("SN")
+  indicatif       String?  @default("+221")
   country           String     @default("SN")
   level             Int        @default(1)
   reputationScore      Int      @default(100)
