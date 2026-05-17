@@ -165,3 +165,49 @@ router.get('/by-email/:email', async (req: Request, res: Response): Promise<void
     errorResponse(res)
   }
 })
+
+// Auth fournisseur — login
+router.post('/auth/login', async (req: any, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body
+    if (!email || !password) { res.status(400).json({ success: false, message: 'Email et mot de passe requis' }); return }
+    const supplier = await prisma.supplier.findUnique({ where: { email } })
+    if (!supplier) { res.status(404).json({ success: false, message: 'Compte fournisseur introuvable' }); return }
+    if (!supplier.password) { res.status(400).json({ success: false, message: 'Mot de passe non configuré — contactez BAOBAB INVEST' }); return }
+    const bcrypt = await import('bcryptjs')
+    const valid = await bcrypt.default.compare(password, supplier.password)
+    if (!valid) { res.status(401).json({ success: false, message: 'Mot de passe incorrect' }); return }
+    await prisma.supplier.update({ where: { id: supplier.id }, data: { lastLoginAt: new Date() } })
+    const jwt = await import('jsonwebtoken')
+    const token = jwt.default.sign({ supplierId: supplier.id, email: supplier.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' })
+    res.json({ success: true, data: { token, supplier: { id: supplier.id, companyName: supplier.companyName, email: supplier.email, isVerified: supplier.isVerified, mobileMoneyProvider: supplier.mobileMoneyProvider, mobileMoneyNumber: supplier.mobileMoneyNumber } } })
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Admin — définir mot de passe fournisseur
+router.post('/:id/set-password', authenticate, requireAdmin, async (req: any, res: Response): Promise<void> => {
+  try {
+    const { password } = req.body
+    if (!password || password.length < 6) { res.status(400).json({ success: false, message: 'Mot de passe minimum 6 caractères' }); return }
+    const bcrypt = await import('bcryptjs')
+    const hashed = await bcrypt.default.hash(password, 10)
+    await prisma.supplier.update({ where: { id: req.params.id }, data: { password: hashed } })
+    res.json({ success: true, message: 'Mot de passe défini avec succès' })
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Fournisseur connecté — ses paiements
+router.get('/my-payments', async (req: any, res: Response): Promise<void> => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1]
+    if (!token) { res.status(401).json({ success: false, message: 'Non autorisé' }); return }
+    const jwt = await import('jsonwebtoken')
+    const decoded: any = jwt.default.verify(token, process.env.JWT_SECRET || 'secret')
+    const payments = await prisma.milestonePayment.findMany({
+      where: { supplierId: decoded.supplierId },
+      include: { milestone: { include: { project: { select: { title: true } } } } },
+      orderBy: { createdAt: 'desc' }
+    })
+    res.json({ success: true, data: payments })
+  } catch (e) { res.status(401).json({ success: false, message: 'Token invalide' }) }
+})
