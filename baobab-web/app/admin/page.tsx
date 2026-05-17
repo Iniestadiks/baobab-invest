@@ -2200,6 +2200,16 @@ export default function AdminPage() {
                       ✅ Vérifié le {s.verifiedAt ? new Date(s.verifiedAt).toLocaleDateString("fr-FR") : "—"}
                     </div>
                   )}
+                  {/* Bouton définir mot de passe */}
+                  <button onClick={async () => {
+                    const pwd = prompt("Définir le mot de passe pour " + s.companyName + " (min 6 caractères) :");
+                    if (!pwd || pwd.length < 6) { flash("❌ Mot de passe trop court"); return; }
+                    const res = await authPost(`/api/suppliers/${s.id}/set-password`, { password: pwd });
+                    if (res.success) flash("✅ Mot de passe défini pour " + s.companyName);
+                    else flash("❌ " + res.message);
+                  }} className="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-2 rounded-xl text-sm border border-blue-200 transition-colors">
+                    🔑 Définir mot de passe
+                  </button>
                   {!s.isVerified && (
                     <div className="space-y-2">
                       <button onClick={() => verifySupplier(s.id)}
