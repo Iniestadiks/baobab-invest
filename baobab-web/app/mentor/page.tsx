@@ -128,16 +128,47 @@ export default function MentorDashboard() {
               </button>
               {showNotifPanel && (
                 <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 max-h-96 overflow-y-auto">
-                  <div className="p-4 border-b flex justify-between items-center">
-                    <span className="font-bold text-gray-900">Notifications</span>
-                    <button onClick={() => setShowNotifPanel(false)} className="text-gray-400">X</button>
+                  <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900">Notifications</span>
+                      {unread > 0 && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{unread}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {unread > 0 && (
+                        <button onClick={async () => {
+                          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
+                            method: "PATCH", headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }
+                          });
+                          setNotifications((prev: any[]) => prev.map(n => ({...n, isRead: true})));
+                          setUnread(0);
+                        }} className="text-xs text-green-600 hover:underline">Tout lire</button>
+                      )}
+                      <button onClick={() => setShowNotifPanel(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+                    </div>
                   </div>
-                  {notifications.map(n => (
-                    <div key={n.id} className={`p-3 border-b border-gray-50 text-xs ${!n.isRead ? "bg-green-50" : ""}`}>
-                      <div className="font-medium text-gray-900">{n.title}</div>
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-gray-400 text-sm">Aucune notification</div>
+                  ) : notifications.map((n: any) => (
+                    <div key={n.id} onClick={async () => {
+                      if (!n.isRead) {
+                        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${n.id}/read`, {
+                          method: "PATCH", headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }
+                        });
+                        setNotifications((prev: any[]) => prev.map(x => x.id === n.id ? {...x, isRead: true} : x));
+                        setUnread((prev: number) => Math.max(0, prev - 1));
+                      }
+                    }} className={`p-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors text-xs ${!n.isRead ? "bg-green-50" : ""}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-medium text-gray-900">{n.title}</div>
+                        {!n.isRead && <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0 mt-1"></div>}
+                      </div>
                       <div className="text-gray-500 mt-0.5 line-clamp-2">{n.body}</div>
                     </div>
                   ))}
+                  <div className="p-3 text-center border-t border-gray-100">
+                    <button onClick={() => { setShowNotifPanel(false); router.push("/notifications"); }}
+                      className="text-xs text-green-600 hover:underline font-medium">Voir toutes →</button>
+                  </div>
                 </div>
               )}
             </div>
