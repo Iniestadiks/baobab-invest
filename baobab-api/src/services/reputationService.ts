@@ -117,13 +117,16 @@ export async function addReputationPoints(
       data: { userId, type, points, description, projectId }
     })
 
-    // Mettre à jour les points et le niveau
+    // Score sur 100 : proportionnel au niveau et aux points
+    const scoreByLevel: Record<number, number> = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 }
+    const baseScore = scoreByLevel[newLevel.level] || 20
+    const reputationScore = Math.min(100, baseScore)
     await prisma.user.update({
       where: { id: userId },
       data: {
         reputationPoints: newPoints,
         level: newLevel.level,
-        reputationScore: Math.min(100, Math.round(newPoints / 10))
+        reputationScore
       }
     })
 
