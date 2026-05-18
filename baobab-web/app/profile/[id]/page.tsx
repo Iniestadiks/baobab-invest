@@ -27,7 +27,7 @@ export default function PublicProfilePage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="text-4xl animate-bounce">👤</div></div>;
   if (!user) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-400">Profil introuvable</p></div>;
 
-  const levelLabel = ["🌱 Graine","🌿 Jeune Baobab","🌳 Baobab","🏅 Grand Baobab"][user.level - 1] || "🌱 Graine";
+  const levelLabel = ["🌱 Graine","🌿 Pousse","🌳 Arbre","🌲 Baobab","🏆 Grand Baobab"][user.level - 1] || "🌱 Graine";
 
   return (
     <div className="min-h-screen bg-gray-50">

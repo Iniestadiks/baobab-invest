@@ -116,8 +116,12 @@ router.get("/user/:id", async (req: any, res: Response): Promise<void> => {
       select: {
         firstName: true, lastName: true, city: true, country: true,
         reputationPoints: true, reputationScore: true, level: true,
-        profileImageUrl: true, role: true,
-        userBadges: { orderBy: { awardedAt: "desc" } }
+        profileImageUrl: true, role: true, kycStatus: true,
+        bio: true, createdAt: true,
+        userBadges: { orderBy: { awardedAt: "desc" } },
+        reputationEvents: { orderBy: { createdAt: "desc" }, take: 10 },
+        projectsOwned: { where: { status: { in: ["ACTIVE","FUNDED","IN_PROGRESS","COMPLETED"] } }, select: { id: true, title: true, status: true, raisedAmount: true, goalAmount: true, sector: true } },
+        investments: { select: { amount: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 5 }
       }
     })
     if (!user) { res.status(404).json({ success: false }); return }
