@@ -302,6 +302,7 @@ export default function MentorDashboard() {
                     { href: "/wallet/history",icon: "📜", label: "Historique wallet",color: "bg-gray-50 text-gray-700 border-gray-200" },
                     { href: "/academy",       icon: "📚", label: "Academie Baobab", color: "bg-green-50 text-green-700 border-green-200" },
                     { href: "/referral",      icon: "🌳", label: "Parrainer un ami",color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                    { href: "/leaderboard",   icon: "🏆", label: "Classement",    color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
                     { href: "/profile",       icon: "👤", label: "Mon profil",      color: "bg-gray-50 text-gray-700 border-gray-200" },
                   ].map(l => (
                     <Link key={l.href} href={l.href} className={`flex items-center gap-3 p-2.5 rounded-xl border text-xs font-medium hover:opacity-80 ${l.color}`}>
