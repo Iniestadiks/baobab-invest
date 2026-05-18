@@ -53,7 +53,7 @@ export default function InvestmentsPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link href="/dashboard" className="text-gray-400 hover:text-green-600">← Dashboard</Link>
+          <Link href="/dashboard/redirect" className="text-gray-400 hover:text-green-600">← Dashboard</Link>
           <span className="font-bold text-green-600">Mes Investissements</span>
         </div>
       </nav>

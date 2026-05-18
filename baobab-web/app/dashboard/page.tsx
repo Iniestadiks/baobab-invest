@@ -1,5 +1,6 @@
 "use client";
 import { ReputationWidget } from "@/components/ReputationWidget";
+import { useRoleRedirect } from "@/hooks/useRoleRedirect";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -25,6 +26,7 @@ function getNextLevel(t: number) { const i = LEVELS.findIndex(l => t >= l.min &&
 export default function DashboardPage() {
   const { config: fees } = usePlatformConfig();
   const router = useRouter();
+  useRoleRedirect(["INVESTOR"]);
   const [user, setUser] = useState<any>(null);
   const [wallet, setWallet] = useState<any>(null);
   const [investments, setInvestments] = useState<any[]>([]);

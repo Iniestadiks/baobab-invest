@@ -27,6 +27,21 @@ function Avatar({ user, size = "md" }: { user: any, size?: "sm"|"md"|"lg" }) {
   );
 }
 
+function DashboardLink() {
+  const [href, setHref] = useState("/dashboard");
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      const role = JSON.parse(user).role;
+      if (role === "ENTREPRENEUR") setHref("/entrepreneur");
+      else if (role === "MENTOR") setHref("/mentor");
+      else if (role === "ADMIN") setHref("/admin");
+      else setHref("/dashboard");
+    }
+  }, []);
+  return <Link href={href} className="text-xs text-green-600 hover:underline font-medium">Mon espace →</Link>;
+}
+
 export default function LeaderboardPage() {
   const [role, setRole] = useState("INVESTOR");
   const [period, setPeriod] = useState("all");
@@ -53,7 +68,7 @@ export default function LeaderboardPage() {
             <span className="font-bold text-gray-900">BAOBAB INVEST</span>
           </Link>
           <span className="text-sm font-bold text-gray-700">🏆 Classement</span>
-          <Link href="/dashboard" className="text-xs text-green-600 hover:underline">Mon espace →</Link>
+          <DashboardLink />
         </div>
       </nav>
 

@@ -70,7 +70,7 @@ export default function ProjectsPage() {
             <span className="font-bold text-green-600">BAOBAB INVEST</span>
           </Link>
           <div className="flex gap-3">
-            <Link href="/dashboard" className="text-gray-600 hover:text-green-600 font-medium px-4 py-2 rounded-xl transition-colors">Dashboard</Link>
+            <Link href="/dashboard/redirect" className="text-gray-600 hover:text-green-600 font-medium px-4 py-2 rounded-xl transition-colors">Dashboard</Link>
             <Link href="/auth/login" className="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2 rounded-xl transition-colors">Connexion</Link>
           </div>
         </div>

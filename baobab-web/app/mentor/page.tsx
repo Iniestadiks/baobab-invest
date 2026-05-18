@@ -1,4 +1,5 @@
 "use client";
+import { useRoleRedirect } from "@/hooks/useRoleRedirect";
 import { ReputationWidget } from "@/components/ReputationWidget";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ function fmt(n: number) { return Math.round(n).toString().replace(/\B(?=(\d{3})+
 
 export default function MentorDashboard() {
   const router = useRouter();
+  useRoleRedirect(["MENTOR"]);
   const { config: fees } = usePlatformConfig();
   const [user, setUser] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);

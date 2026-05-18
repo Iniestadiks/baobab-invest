@@ -1,4 +1,5 @@
 "use client";
+import { useRoleRedirect } from "@/hooks/useRoleRedirect";
 import { ReputationWidget } from "@/components/ReputationWidget";
 import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 import React, { useEffect, useState, useCallback } from "react";
@@ -45,6 +46,7 @@ function CountdownTimer({ endDate }: { endDate: string }) {
 
 export default function EntrepreneurDashboard() {
   const router = useRouter();
+  useRoleRedirect(["ENTREPRENEUR"]);
   const { fees } = usePlatformConfig();
   const [user, setUser] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
