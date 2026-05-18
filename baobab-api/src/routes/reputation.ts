@@ -34,61 +34,56 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response): Promise
 // GET /api/reputation/leaderboard — Classement public
 router.get("/leaderboard", async (req: any, res: Response): Promise<void> => {
   try {
-    const { role = "INVESTOR", period = "all" } = req.query
-    const now = new Date()
-    const where: any = { role: String(role) }
-    if (period === "month") {
-      where.createdAt = { gte: new Date(now.getFullYear(), now.getMonth(), 1) }
-    } else if (period === "year") {
-      where.createdAt = { gte: new Date(now.getFullYear(), 0, 1) }
-    }
-
-    let users: any[] = []
+    const role = String(req.query.role || "INVESTOR")
+    const baseWhere: any = { kycStatus: "VERIFIED", role: role }
+    
     if (role === "INVESTOR") {
-      users = await prisma.user.findMany({
-        where: { role: "INVESTOR", kycStatus: "VERIFIED" },
+      const users = await prisma.user.findMany({
+        where: baseWhere,
         select: {
           id: true, firstName: true, lastName: true, city: true, country: true,
-          reputationPoints: true, reputationScore: true, level: true,
-          profileImageUrl: true,
+          reputationPoints: true, reputationScore: true, level: true, profileImageUrl: true,
           userBadges: { select: { badge: true, label: true, icon: true }, take: 3 },
           investments: { select: { amount: true } }
         },
         orderBy: { reputationPoints: "desc" },
         take: 10
       })
-      users = users.map(u => ({ ...u, totalInvested: u.investments.reduce((s: number, i: any) => s + i.amount, 0), investments: undefined }))
-    } else if (role === "ENTREPRENEUR") {
-      users = await prisma.user.findMany({
-        where: { role: "ENTREPRENEUR", kycStatus: "VERIFIED" },
-        select: {
-          id: true, firstName: true, lastName: true, city: true, country: true,
-          reputationPoints: true, reputationScore: true, level: true,
-          profileImageUrl: true,
-          userBadges: { select: { badge: true, label: true, icon: true }, take: 3 },
-          projects: { select: { status: true, raisedAmount: true }, where: { status: { in: ["COMPLETED", "FUNDED", "IN_PROGRESS"] } } }
-        },
-        orderBy: { reputationPoints: "desc" },
-        take: 10
-      })
+      const result = users.map(u => ({ ...u, totalInvested: u.investments.reduce((s, i) => s + i.amount, 0), investments: undefined }))
+      res.json({ success: true, data: result }); return
     }
 
-    } else if (role === "MENTOR") {
-      users = await prisma.user.findMany({
-        where: { role: "MENTOR", kycStatus: "VERIFIED" },
+    if (role === "ENTREPRENEUR") {
+      const users = await prisma.user.findMany({
+        where: baseWhere,
         select: {
           id: true, firstName: true, lastName: true, city: true, country: true,
-          reputationPoints: true, reputationScore: true, level: true,
-          profileImageUrl: true,
+          reputationPoints: true, reputationScore: true, level: true, profileImageUrl: true,
           userBadges: { select: { badge: true, label: true, icon: true }, take: 3 },
-          projects: { select: { status: true }, where: { status: { in: ["COMPLETED","FUNDED","IN_PROGRESS"] } } }
+          projectsOwned: { select: { status: true, raisedAmount: true } }
         },
         orderBy: { reputationPoints: "desc" },
         take: 10
       })
+      res.json({ success: true, data: users }); return
     }
-    res.json({ success: true, data: users })
-  } catch(e) { res.status(500).json({ success: false }) }
+
+    if (role === "MENTOR") {
+      const users = await prisma.user.findMany({
+        where: baseWhere,
+        select: {
+          id: true, firstName: true, lastName: true, city: true, country: true,
+          reputationPoints: true, reputationScore: true, level: true, profileImageUrl: true,
+          userBadges: { select: { badge: true, label: true, icon: true }, take: 3 }
+        },
+        orderBy: { reputationPoints: "desc" },
+        take: 10
+      })
+      res.json({ success: true, data: users }); return
+    }
+
+    res.json({ success: true, data: [] })
+  } catch(e) { console.error(e); res.status(500).json({ success: false }) }
 })
 
 // GET /api/reputation/rankings/month — Classement mensuel actuel
