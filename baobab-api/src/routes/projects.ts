@@ -190,15 +190,28 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
     // Vérifier limite sous-secteur (max 3 projets actifs par sous-secteur et ville)
     if (req.body.subSector && req.body.city) {
       const { MAX_ACTIVE_PER_SUBSECTOR } = await import('../config/taxonomy')
-      const existingCount = await prisma.project.count({
-        where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: { in: ['ACTIVE','FUNDED','IN_PROGRESS'] } }
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      // Compter les projets actifs SAUF ceux en retard depuis +30j avec moins de 20% collecté
+      const activeProjects = await prisma.project.findMany({
+        where: {
+          sector: req.body.sector,
+          subSector: req.body.subSector,
+          city: { contains: req.body.city, mode: 'insensitive' },
+          status: { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS'] }
+        },
+        select: { id: true, title: true, raisedAmount: true, goalAmount: true, createdAt: true, status: true }
       })
-      if (existingCount >= MAX_ACTIVE_PER_SUBSECTOR) {
-        const existing = await prisma.project.findMany({
-          where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: { in: ['ACTIVE','FUNDED'] } },
-          select: { id: true, title: true, raisedAmount: true, goalAmount: true }
+      // Filtrer : exclure les projets actifs depuis +30j avec moins de 20% collecté (slots libérés)
+      const validActive = activeProjects.filter(p => {
+        const isStale = p.status === 'ACTIVE' && p.createdAt < thirtyDaysAgo && p.raisedAmount < p.goalAmount * 0.2
+        return !isStale
+      })
+      if (validActive.length >= MAX_ACTIVE_PER_SUBSECTOR) {
+        res.status(409).json({
+          success: false,
+          message: `Slots complets : ${MAX_ACTIVE_PER_SUBSECTOR} projets de ce type sont deja actifs dans votre zone. Investissez dans ceux en cours !`,
+          data: { projects: validActive.map(p => ({ id: p.id, title: p.title, raisedAmount: p.raisedAmount, goalAmount: p.goalAmount })) }
         })
-        res.status(409).json({ success: false, message: `Slots complets : ${MAX_ACTIVE_PER_SUBSECTOR} projets de ce type sont deja actifs dans votre zone. Investissez dans ceux en cours !`, data: { projects: existing } })
         return
       }
     }
