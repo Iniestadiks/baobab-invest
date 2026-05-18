@@ -646,3 +646,30 @@ router.get('/mentor/my-projects', authenticate, requireRole(['MENTOR']), async (
     errorResponse(res)
   }
 })
+
+// Admin — changer statut projet (promotion waitlist, annulation)
+router.patch('/:id/status', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body
+    const allowed = ['PENDING_REVIEW', 'ACTIVE', 'CANCELLED', 'WAITLISTED']
+    if (!allowed.includes(status)) {
+      res.status(400).json({ success: false, message: 'Statut invalide' }); return
+    }
+    const project = await prisma.project.update({
+      where: { id: req.params.id },
+      data: { status },
+      select: { id: true, title: true, entrepreneurId: true, status: true }
+    })
+    // Notifier l'entrepreneur
+    const messages: Record<string, string> = {
+      'PENDING_REVIEW': 'Votre projet a ete promu et est en attente de validation.',
+      'CANCELLED': 'Votre projet a ete retire de la liste d attente.',
+    }
+    if (messages[status]) {
+      await prisma.notification.create({
+        data: { userId: project.entrepreneurId, title: 'Mise a jour de votre projet', body: messages[status], type: 'PROJECT_STATUS_UPDATED', data: JSON.stringify({ projectId: project.id }) }
+      })
+    }
+    successResponse(res, project, 'Statut mis a jour')
+  } catch (e) { errorResponse(res) }
+})

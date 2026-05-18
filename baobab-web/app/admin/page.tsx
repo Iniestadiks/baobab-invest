@@ -13,6 +13,7 @@ const TABS = [
   { id: "users", label: "👥 Utilisateurs" },
   { id: "kyc", label: "🪪 KYC" },
   { id: "suppliers", label: "🏪 Fournisseurs" },
+  { id: "waitlist", label: "⏳ Liste d'attente" },
   { id: "milestones", label: "🏗️ Jalons" },
   { id: "reimburse", label: "💰 Remboursements" },
   { id: "finances", label: "💵 Finances BAOBAB" },
@@ -1456,8 +1457,9 @@ export default function AdminPage() {
     // Vérification automatique des projets inactifs
     // Vérification inactive — uniquement via bouton manuel dans Vue générale
     try {
-      const [pendingProj, allProj, usrs, suppl, notif, mils, rev, txs] = await Promise.all([
+      const [pendingProj, waitlistProj, allProj, usrs, suppl, notif, mils, rev, txs] = await Promise.all([
         authGet("/api/projects?status=PENDING_REVIEW&limit=50"),
+        authGet("/api/projects?status=WAITLISTED&limit=50"),
         authGet("/api/projects?limit=100"),
         authGet("/api/admin/users"),
         authGet("/api/suppliers/admin/all"),
@@ -1473,6 +1475,7 @@ export default function AdminPage() {
       const supplList = suppl.data || [];
 
       setProjects(pendingList);
+      setWaitlistedProjects(waitlistProj.data?.projects || []);
       setAllProjects(allProjList);
       setUsers(userList);
       setSuppliers(supplList);
@@ -2298,6 +2301,70 @@ export default function AdminPage() {
 
         {/* JALONS */}
         {tab === "milestones" && <MilestonesTab flash={flash} authPatch={authPatch} />}
+
+        {/* LISTE D'ATTENTE */}
+        {tab === "waitlist" && (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">⏳ Liste d&apos;attente ({waitlistedProjects.length})</h2>
+              <p className="text-sm text-gray-500">Promotion automatique dès qu&apos;un slot se libère</p>
+            </div>
+            {waitlistedProjects.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                <div className="text-5xl mb-3">✅</div>
+                <p className="text-gray-500 font-medium">Aucun projet en liste d&apos;attente</p>
+              </div>
+            ) : waitlistedProjects.map((p: any, idx: number) => {
+              const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
+              return (
+                <div key={p.id} className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-orange-100 text-orange-700 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0">
+                        #{idx + 1}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">⏳ En attente</span>
+                          <span className="text-xs text-gray-400">{p.sector}{p.subSector ? " → " + p.subSector : ""} · {p.city}</span>
+                          <span className="text-xs text-gray-400">{days}j en attente</span>
+                        </div>
+                        <h3 className="font-bold text-gray-900">{p.title}</h3>
+                        <div className="text-sm text-gray-500">Par {p.entrepreneur?.firstName} {p.entrepreneur?.lastName}</div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-bold text-green-700">{p.goalAmount?.toLocaleString()} FCFA</div>
+                      <div className="text-xs text-gray-400">{p.durationMonths} mois · +{p.expectedReturn}%</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
+                    <a href={"/projects/" + p.id} target="_blank" rel="noreferrer"
+                      className="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 font-medium">
+                      🔍 Voir le projet
+                    </a>
+                    <button onClick={async () => {
+                      if (!confirm("Promouvoir ce projet en PENDING_REVIEW ?")) return;
+                      const res = await authPatch("/api/projects/" + p.id + "/status", { status: "PENDING_REVIEW" });
+                      if (res.success) { flash("✅ Projet promu !"); loadData(); }
+                      else flash("❌ " + res.message);
+                    }} className="text-xs bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100 font-medium">
+                      ⬆️ Promouvoir manuellement
+                    </button>
+                    <button onClick={async () => {
+                      if (!confirm("Supprimer ce projet de la liste d'attente ?")) return;
+                      const res = await authPatch("/api/projects/" + p.id + "/status", { status: "CANCELLED" });
+                      if (res.success) { flash("Projet retiré"); loadData(); }
+                      else flash("❌ " + res.message);
+                    }} className="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 font-medium">
+                      🗑️ Retirer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {tab === "milestones_unused" && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
