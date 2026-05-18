@@ -1421,6 +1421,10 @@ export default function AdminPage() {
   const [kycUsers, setKycUsers] = useState<any[]>([]);
   const [msg, setMsg] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [sectorFilter, setSectorFilter] = React.useState("Tous");
+  const [geoFilter, setGeoFilter] = React.useState({country: "", city: ""});
+  const [urgencyFilter, setUrgencyFilter] = React.useState("all");
+  const [waitlistedProjects, setWaitlistedProjects] = React.useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [roleFilter2, setRoleFilter2] = useState("ALL");
   const [unread, setUnread] = useState(0);
