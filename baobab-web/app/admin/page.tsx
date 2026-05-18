@@ -1834,26 +1834,80 @@ export default function AdminPage() {
               <h2 className="text-xl font-bold text-gray-900">📋 Projets à valider ({projects.length})</h2>
               <div className="text-sm text-gray-500">Ordre d&apos;arrivée · Délai : 48h ouvrées</div>
             </div>
-            {/* Filtres secteur */}
-            <div className="flex flex-wrap gap-2">
-              {["Tous", "AGRICULTURE", "COMMERCE", "TRANSPORT", "TECH", "RESTAURATION", "ARTISANAT", "SANTE", "EDUCATION", "ENERGIE", "SERVICES", "AUTRE"].map(s => (
-                <button key={s} onClick={() => setSectorFilter(s)}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${sectorFilter === s ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                  {s === "Tous" ? "Tous les secteurs" : s}
-                </button>
-              ))}
+            {/* Filtres secteur + géographie */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+              <div>
+                <div className="text-xs font-semibold text-gray-500 mb-2">Secteur</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {["Tous","AGRICULTURE","COMMERCE","TRANSPORT","TECH","RESTAURATION","ARTISANAT","SANTE","EDUCATION","ENERGIE","SERVICES","AUTRE"].map(s => (
+                    <button key={s} onClick={() => setSectorFilter(s)}
+                      className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${sectorFilter === s ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                      {s === "Tous" ? "Tous" : s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 mb-1">Pays</div>
+                  <input value={geoFilter.country} onChange={e => setGeoFilter(g => ({...g, country: e.target.value}))}
+                    placeholder="Ex: SN, CI, CM..." className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 mb-1">Ville</div>
+                  <input value={geoFilter.city} onChange={e => setGeoFilter(g => ({...g, city: e.target.value}))}
+                    placeholder="Ex: Dakar, Abidjan..." className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 mb-1">Urgence</div>
+                  <select value={urgencyFilter} onChange={e => setUrgencyFilter(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400">
+                    <option value="all">Tous</option>
+                    <option value="urgent">🔴 Urgent (+7j)</option>
+                    <option value="warning">🟡 Attention (4-7j)</option>
+                    <option value="normal">🟢 Normal (-3j)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="text-xs text-gray-400">
+                {(() => {
+                  const filtered = projects.filter((p: any) => {
+                    const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
+                    const sectorOk = sectorFilter === "Tous" || p.sector === sectorFilter;
+                    const countryOk = !geoFilter.country || p.country?.toLowerCase().includes(geoFilter.country.toLowerCase());
+                    const cityOk = !geoFilter.city || p.city?.toLowerCase().includes(geoFilter.city.toLowerCase());
+                    const urgOk = urgencyFilter === "all" || (urgencyFilter === "urgent" && days > 7) || (urgencyFilter === "warning" && days >= 4 && days <= 7) || (urgencyFilter === "normal" && days < 4);
+                    return sectorOk && countryOk && cityOk && urgOk;
+                  });
+                  return `${filtered.length} projet(s) correspondent aux filtres`;
+                })()}
+              </div>
             </div>
             {projects.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="text-5xl mb-3">✅</div>
                 <p className="text-gray-500 font-medium">Aucun projet en attente de validation</p>
               </div>
-            ) : projects.filter((p: any) => sectorFilter === 'Tous' || p.sector === sectorFilter).map((p: any) => (
+            ) : projects.filter((p: any) => {
+                const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
+                const sectorOk = sectorFilter === 'Tous' || p.sector === sectorFilter;
+                const countryOk = !geoFilter.country || p.country?.toLowerCase().includes(geoFilter.country.toLowerCase());
+                const cityOk = !geoFilter.city || p.city?.toLowerCase().includes(geoFilter.city.toLowerCase());
+                const urgOk = urgencyFilter === 'all' || (urgencyFilter === 'urgent' && days > 7) || (urgencyFilter === 'warning' && days >= 4 && days <= 7) || (urgencyFilter === 'normal' && days < 4);
+                return sectorOk && countryOk && cityOk && urgOk;
+              }).map((p: any) => (
               <div key={p.id} className="bg-white rounded-2xl border border-orange-200 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">⏳ En attente</span>
+                      {(() => {
+                        const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
+                        return days > 7
+                          ? <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">🔴 Urgent — {days}j d&apos;attente</span>
+                          : days >= 4
+                          ? <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">🟡 {days}j d&apos;attente</span>
+                          : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">🟢 {days}j d&apos;attente</span>
+                      })()}
                       <span className="text-xs text-gray-400">{RISK_LABELS[p.riskLevel]} · {p.sector}{p.subSector ? ' → ' + p.subSector : ''}</span>
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg">{p.title}</h3>
@@ -2262,7 +2316,14 @@ export default function AdminPage() {
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">⏳ En attente</span>
+                      {(() => {
+                        const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
+                        return days > 7
+                          ? <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">🔴 Urgent — {days}j d&apos;attente</span>
+                          : days >= 4
+                          ? <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">🟡 {days}j d&apos;attente</span>
+                          : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">🟢 {days}j d&apos;attente</span>
+                      })()}
                       <span className="text-xs text-gray-400">{m.project?.title}</span>
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg">{m.title}</h3>
