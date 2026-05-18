@@ -46,7 +46,7 @@ router.get("/leaderboard", async (req: any, res: Response): Promise<void> => {
     let users: any[] = []
     if (role === "INVESTOR") {
       users = await prisma.user.findMany({
-        where: { role: "INVESTOR" },
+        where: { role: "INVESTOR", kycStatus: "VERIFIED" },
         select: {
           id: true, firstName: true, lastName: true, city: true, country: true,
           reputationPoints: true, reputationScore: true, level: true,
@@ -60,7 +60,7 @@ router.get("/leaderboard", async (req: any, res: Response): Promise<void> => {
       users = users.map(u => ({ ...u, totalInvested: u.investments.reduce((s: number, i: any) => s + i.amount, 0), investments: undefined }))
     } else if (role === "ENTREPRENEUR") {
       users = await prisma.user.findMany({
-        where: { role: "ENTREPRENEUR" },
+        where: { role: "ENTREPRENEUR", kycStatus: "VERIFIED" },
         select: {
           id: true, firstName: true, lastName: true, city: true, country: true,
           reputationPoints: true, reputationScore: true, level: true,
@@ -73,6 +73,20 @@ router.get("/leaderboard", async (req: any, res: Response): Promise<void> => {
       })
     }
 
+    } else if (role === "MENTOR") {
+      users = await prisma.user.findMany({
+        where: { role: "MENTOR", kycStatus: "VERIFIED" },
+        select: {
+          id: true, firstName: true, lastName: true, city: true, country: true,
+          reputationPoints: true, reputationScore: true, level: true,
+          profileImageUrl: true,
+          userBadges: { select: { badge: true, label: true, icon: true }, take: 3 },
+          projects: { select: { status: true }, where: { status: { in: ["COMPLETED","FUNDED","IN_PROGRESS"] } } }
+        },
+        orderBy: { reputationPoints: "desc" },
+        take: 10
+      })
+    }
     res.json({ success: true, data: users })
   } catch(e) { res.status(500).json({ success: false }) }
 })
