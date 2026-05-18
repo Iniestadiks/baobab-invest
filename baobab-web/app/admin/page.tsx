@@ -1399,19 +1399,41 @@ function FinancesTab({ authGet }: any) {
   );
 }
 
-function CountrySelect({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+function AdminGeoFilter({ value, onChange }: { value: {country: string, city: string}, onChange: (v: any) => void }) {
+  const API = process.env.NEXT_PUBLIC_API_URL;
   const [countries, setCountries] = React.useState<any[]>([]);
+  const [states, setStates] = React.useState<any[]>([]);
+  const [cities, setCities] = React.useState<string[]>([]);
+  const [selState, setSelState] = React.useState('');
+  React.useEffect(() => { fetch('/countries.json').then(r=>r.json()).then(setCountries); }, []);
   React.useEffect(() => {
-    fetch('/countries.json').then(r => r.json()).then(setCountries);
-  }, []);
+    if (!value.country) { setStates([]); setCities([]); setSelState(''); return; }
+    fetch(`${API}/api/geo/states/${value.country}`).then(r=>r.json()).then(d=>setStates(d.data||[]));
+    setCities([]); setSelState('');
+  }, [value.country]);
+  React.useEffect(() => {
+    if (!value.country || !selState) { setCities([]); return; }
+    fetch(`${API}/api/geo/cities/${value.country}/${selState}`).then(r=>r.json()).then(d=>setCities(d.data||[]));
+  }, [selState]);
+  const cls = 'w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400 bg-white';
   return (
-    <select value={value} onChange={e => onChange(e.target.value)}
-      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400 bg-white">
-      <option value="">Tous les pays</option>
-      {countries.map((c: any) => (
-        <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
-      ))}
-    </select>
+    <div className='grid grid-cols-3 gap-2'>
+      <div><div className='text-xs font-semibold text-gray-500 mb-1'>Pays</div>
+        <select value={value.country} onChange={e => { onChange({country: e.target.value, city: ''}); setSelState(''); }} className={cls}>
+          <option value=''>Tous les pays</option>
+          {countries.map((c:any) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+        </select></div>
+      <div><div className='text-xs font-semibold text-gray-500 mb-1'>Région</div>
+        <select value={selState} onChange={e => { setSelState(e.target.value); onChange({...value, city: ''}); }} className={cls} disabled={!states.length}>
+          <option value=''>Toutes les régions</option>
+          {states.map((s:any) => <option key={s.code} value={s.code}>{s.name}</option>)}
+        </select></div>
+      <div><div className='text-xs font-semibold text-gray-500 mb-1'>Ville</div>
+        <select value={value.city} onChange={e => onChange({...value, city: e.target.value})} className={cls} disabled={!cities.length}>
+          <option value=''>Toutes les villes</option>
+          {cities.map((c:string) => <option key={c} value={c}>{c}</option>)}
+        </select></div>
+    </div>
   );
 }
 
@@ -1871,15 +1893,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <div className="text-xs font-semibold text-gray-500 mb-1">Pays</div>
-                  <CountrySelect value={geoFilter.country} onChange={v => setGeoFilter(g => ({...g, country: v, city: ""}))} />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-gray-500 mb-1">Ville</div>
-                  <input value={geoFilter.city} onChange={e => setGeoFilter(g => ({...g, city: e.target.value}))}
-                    placeholder="Ex: Dakar, Abidjan..." className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400" />
-                </div>
+                <AdminGeoFilter value={geoFilter} onChange={v => setGeoFilter(v)} />
                 <div>
                   <div className="text-xs font-semibold text-gray-500 mb-1">Urgence</div>
                   <select value={urgencyFilter} onChange={e => setUrgencyFilter(e.target.value)}
