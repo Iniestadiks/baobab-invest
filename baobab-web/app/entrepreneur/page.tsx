@@ -1,4 +1,5 @@
 "use client";
+import { ReputationWidget } from "@/components/ReputationWidget";
 import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";

@@ -127,6 +127,10 @@ model User {
   level             Int        @default(1)
   reputationScore      Int      @default(100)
   savingsPlans        SavingsPlan[]
+  reputationPoints   Int              @default(0)
+  reputationEvents   ReputationEvent[]
+  userBadges         UserBadge[]
+  monthlyRankings    MonthlyRanking[]
   sentMessages        Message[] @relation("SentMessages")
   walletTransactions  WalletTransaction[]
   receivedMessages    Message[] @relation("ReceivedMessages")
@@ -510,4 +514,44 @@ model RepaymentPayment {
   schedule     RepaymentSchedule @relation(fields: [scheduleId], references: [id])
   project      Project   @relation(fields: [projectId], references: [id])
   @@map("repayment_payments")
+}
+
+model ReputationEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  points      Int
+  description String?
+  projectId   String?
+  createdAt   DateTime @default(now())
+  @@map("reputation_events")
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     String
+  label     String?
+  icon      String?
+  awardedAt DateTime @default(now())
+  projectId String?
+  @@unique([userId, badge])
+  @@map("user_badges")
+}
+
+model MonthlyRanking {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String
+  month       Int
+  year        Int
+  score       Float    @default(0)
+  rank        Int?
+  rewardBadge String?
+  createdAt   DateTime @default(now())
+  @@unique([userId, role, month, year])
+  @@map("monthly_rankings")
 }

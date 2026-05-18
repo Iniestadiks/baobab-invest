@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import prisma from '../config/database'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import { getFees } from '../config/fees'
+import { addReputationPoints, awardBadge, checkAndAwardBadges, REPUTATION_POINTS } from '../services/reputationService'
 import { successResponse, errorResponse } from '../utils/helpers'
 
 const router = Router()

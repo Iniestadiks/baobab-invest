@@ -19,7 +19,9 @@ import configRoutes from './routes/config'
 import referralRoutes from './routes/referral'
 import pdfRoutes from './routes/pdf'
 import geoRoutes from './routes/geo'
+import reputationRoutes from './routes/reputation'
 import { checkAndPromoteWaitlist } from './jobs/waitlistPromotion'
+import { computeMonthlyRankings } from './jobs/monthlyRankings'
 
 const app = express()
 
@@ -47,9 +49,20 @@ app.use('/api/config', configRoutes)
 app.use('/api/referral', referralRoutes)
 app.use('/api/pdf', pdfRoutes)
 app.use('/api/geo', geoRoutes)
+app.use('/api/reputation', reputationRoutes)
 
 // Cron toutes les heures — promotion liste d'attente
 setInterval(checkAndPromoteWaitlist, 60 * 60 * 1000)
+
+// Cron mensuel — classements (1er du mois à 8h)
+const scheduleMonthlyRankings = () => {
+  const now = new Date()
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 8, 0, 0)
+  const delay = next.getTime() - now.getTime()
+  setTimeout(() => { computeMonthlyRankings(); setInterval(computeMonthlyRankings, 30 * 24 * 60 * 60 * 1000) }, delay)
+  console.log('[CRON] Classement mensuel prévu le', next.toLocaleDateString())
+}
+scheduleMonthlyRankings()
 checkAndPromoteWaitlist() // Lancer au démarrage
 
 app.listen(config.port, () => {

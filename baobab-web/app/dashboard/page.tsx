@@ -1,4 +1,5 @@
 "use client";
+import { ReputationWidget } from "@/components/ReputationWidget";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
