@@ -1399,6 +1399,22 @@ function FinancesTab({ authGet }: any) {
   );
 }
 
+function CountrySelect({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+  const [countries, setCountries] = React.useState<any[]>([]);
+  React.useEffect(() => {
+    fetch('/countries.json').then(r => r.json()).then(setCountries);
+  }, []);
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)}
+      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400 bg-white">
+      <option value="">Tous les pays</option>
+      {countries.map((c: any) => (
+        <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   useRequireRole(["ADMIN"]);
@@ -1857,8 +1873,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <div className="text-xs font-semibold text-gray-500 mb-1">Pays</div>
-                  <input value={geoFilter.country} onChange={e => setGeoFilter(g => ({...g, country: e.target.value}))}
-                    placeholder="Ex: SN, CI, CM..." className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400" />
+                  <CountrySelect value={geoFilter.country} onChange={v => setGeoFilter(g => ({...g, country: v, city: ""}))} />
                 </div>
                 <div>
                   <div className="text-xs font-semibold text-gray-500 mb-1">Ville</div>
@@ -1870,9 +1885,9 @@ export default function AdminPage() {
                   <select value={urgencyFilter} onChange={e => setUrgencyFilter(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-green-400">
                     <option value="all">Tous</option>
-                    <option value="urgent">🔴 Urgent (+7j)</option>
-                    <option value="warning">🟡 Attention (4-7j)</option>
-                    <option value="normal">🟢 Normal (-3j)</option>
+                    <option value="urgent">🔴 Urgent — +7j sans réponse</option>
+                    <option value="warning">🟡 Attention — 4 à 7j</option>
+                    <option value="normal">🟢 Normal — moins de 3j</option>
                   </select>
                 </div>
               </div>
@@ -1881,7 +1896,7 @@ export default function AdminPage() {
                   const filtered = projects.filter((p: any) => {
                     const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
                     const sectorOk = sectorFilter === "Tous" || p.sector === sectorFilter;
-                    const countryOk = !geoFilter.country || p.country?.toLowerCase().includes(geoFilter.country.toLowerCase());
+                    const countryOk = !geoFilter.country || p.country === geoFilter.country || p.country?.toLowerCase().includes(geoFilter.country.toLowerCase());
                     const cityOk = !geoFilter.city || p.city?.toLowerCase().includes(geoFilter.city.toLowerCase());
                     const urgOk = urgencyFilter === "all" || (urgencyFilter === "urgent" && days > 7) || (urgencyFilter === "warning" && days >= 4 && days <= 7) || (urgencyFilter === "normal" && days < 4);
                     return sectorOk && countryOk && cityOk && urgOk;
@@ -1898,7 +1913,7 @@ export default function AdminPage() {
             ) : projects.filter((p: any) => {
                 const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
                 const sectorOk = sectorFilter === 'Tous' || p.sector === sectorFilter;
-                const countryOk = !geoFilter.country || p.country?.toLowerCase().includes(geoFilter.country.toLowerCase());
+                const countryOk = !geoFilter.country || p.country === geoFilter.country || p.country?.toLowerCase().includes(geoFilter.country.toLowerCase());
                 const cityOk = !geoFilter.city || p.city?.toLowerCase().includes(geoFilter.city.toLowerCase());
                 const urgOk = urgencyFilter === 'all' || (urgencyFilter === 'urgent' && days > 7) || (urgencyFilter === 'warning' && days >= 4 && days <= 7) || (urgencyFilter === 'normal' && days < 4);
                 return sectorOk && countryOk && cityOk && urgOk;
@@ -1910,10 +1925,10 @@ export default function AdminPage() {
                       {(() => {
                         const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
                         return days > 7
-                          ? <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">🔴 Urgent — {days}j d&apos;attente</span>
+                          ? <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">🔴 Urgent — {days}j sans réponse</span>
                           : days >= 4
-                          ? <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">🟡 {days}j d&apos;attente</span>
-                          : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">🟢 {days}j d&apos;attente</span>
+                          ? <span className="text-xs bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full">🟡 Attention — {days}j</span>
+                          : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">🟢 Normal — {days}j</span>
                       })()}
                       <span className="text-xs text-gray-400">{RISK_LABELS[p.riskLevel]} · {p.sector}{p.subSector ? ' → ' + p.subSector : ''}</span>
                     </div>
@@ -2390,10 +2405,10 @@ export default function AdminPage() {
                       {(() => {
                         const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
                         return days > 7
-                          ? <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">🔴 Urgent — {days}j d&apos;attente</span>
+                          ? <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">🔴 Urgent — {days}j sans réponse</span>
                           : days >= 4
-                          ? <span className="text-xs bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">🟡 {days}j d&apos;attente</span>
-                          : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">🟢 {days}j d&apos;attente</span>
+                          ? <span className="text-xs bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full">🟡 Attention — {days}j</span>
+                          : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">🟢 Normal — {days}j</span>
                       })()}
                       <span className="text-xs text-gray-400">{m.project?.title}</span>
                     </div>
