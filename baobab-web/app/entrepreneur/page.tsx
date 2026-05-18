@@ -15,6 +15,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   IN_PROGRESS:    { label: "En cours",      color: "text-purple-700", bg: "bg-purple-100", border: "border-purple-300" },
   COMPLETED:      { label: "Terminé",       color: "text-emerald-700",bg: "bg-emerald-100",border: "border-emerald-300" },
   FAILED:         { label: "Échoué",        color: "text-red-700",    bg: "bg-red-100",    border: "border-red-300" },
+  WAITLISTED:     { label: "Liste d'attente", color: "text-yellow-700", bg: "bg-yellow-100", border: "border-yellow-300" },
   CANCELLED:      { label: "Annulé",        color: "text-gray-600",   bg: "bg-gray-100",   border: "border-gray-200" },
 };
 const COUNTRY_FLAGS: Record<string, string> = { SN:"🇸🇳", CI:"🇨🇮", CM:"🇨🇲", ML:"🇲🇱", BF:"🇧🇫", GN:"🇬🇳" };
