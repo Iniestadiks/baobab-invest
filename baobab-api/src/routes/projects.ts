@@ -207,10 +207,29 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         return !isStale
       })
       if (validActive.length >= MAX_ACTIVE_PER_SUBSECTOR) {
-        res.status(409).json({
-          success: false,
-          message: `Slots complets : ${MAX_ACTIVE_PER_SUBSECTOR} projets de ce type sont deja actifs dans votre zone. Investissez dans ceux en cours !`,
-          data: { projects: validActive.map(p => ({ id: p.id, title: p.title, raisedAmount: p.raisedAmount, goalAmount: p.goalAmount })) }
+        // Compter position dans la liste d'attente
+        const waitlistCount = await prisma.project.count({
+          where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: 'WAITLISTED' }
+        })
+        // Sauvegarder en liste d'attente au lieu de rejeter
+        const data = projectSchema.parse(req.body)
+        const score = calculateBankabilityScore({ ...data, description: data.description })
+        const waitlistedProject = await prisma.project.create({
+          data: { ...data, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED' }
+        })
+        // Notifier l'entrepreneur
+        await prisma.notification.create({
+          data: { userId: req.userId!, title: 'Projet en liste d attente', body: `Votre projet "${waitlistedProject.title}" est en position ${waitlistCount + 1} dans la liste d attente. Vous serez notifié dès qu un slot se libère.`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id, position: waitlistCount + 1 }) }
+        })
+        // Notifier l'admin
+        const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+        await prisma.notification.createMany({
+          data: admins.map(a => ({ userId: a.id, title: 'Nouveau projet en liste d attente', body: `"${waitlistedProject.title}" — ${req.body.sector} / ${req.body.subSector} — ${req.body.city} (position ${waitlistCount + 1})`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id }) }))
+        })
+        res.status(202).json({
+          success: true,
+          message: `Slots complets. Votre projet a ete place en position ${waitlistCount + 1} dans la liste d attente. Vous serez notifie automatiquement des qu un slot se libere.`,
+          data: { project: waitlistedProject, position: waitlistCount + 1, activeProjects: validActive.map(p => ({ id: p.id, title: p.title, raisedAmount: p.raisedAmount, goalAmount: p.goalAmount })) }
         })
         return
       }

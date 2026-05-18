@@ -36,6 +36,7 @@ enum ProjectStatus {
   COMPLETED
   FAILED
   CANCELLED
+  WAITLISTED
 }
 
 enum TransactionType {
@@ -219,6 +220,7 @@ model Project {
   title               String
   description         String
   sector              ProjectSector @default(AUTRE)
+  subSector          String?
   city                String
   country             String        @default("SN")
   goalAmount          Float

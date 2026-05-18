@@ -19,6 +19,7 @@ import configRoutes from './routes/config'
 import referralRoutes from './routes/referral'
 import pdfRoutes from './routes/pdf'
 import geoRoutes from './routes/geo'
+import { checkAndPromoteWaitlist } from './jobs/waitlistPromotion'
 
 const app = express()
 
@@ -46,6 +47,10 @@ app.use('/api/config', configRoutes)
 app.use('/api/referral', referralRoutes)
 app.use('/api/pdf', pdfRoutes)
 app.use('/api/geo', geoRoutes)
+
+// Cron toutes les heures — promotion liste d'attente
+setInterval(checkAndPromoteWaitlist, 60 * 60 * 1000)
+checkAndPromoteWaitlist() // Lancer au démarrage
 
 app.listen(config.port, () => {
   console.log(`🌳 BAOBAB INVEST API démarrée sur le port ${config.port}`)
