@@ -12,13 +12,12 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     const API = process.env.NEXT_PUBLIC_API_URL;
-    fetch(`${API}/api/auth/profile/${id}`)
+    fetch(`${API}/api/reputation/user/${id}`)
       .then(r => r.json())
       .then(d => {
         if (d.success) {
-          // La route retourne soit { user, projects } soit directement les données user
-          if (d.data.user) { setUser(d.data.user); setProjects(d.data.projects || []); }
-          else { setUser(d.data); setProjects(d.data.projects || []); }
+          setUser(d.data);
+          setProjects(d.data.projectsOwned || d.data.projects || []);
         }
       })
       .finally(() => setLoading(false));

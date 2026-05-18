@@ -102,17 +102,6 @@ router.patch('/avatar', authenticate, async (req: AuthRequest, res: Response): P
   } catch (e) { errorResponse(res) }
 })
 
-// Profil public
-router.get('/profile/:userId', async (req, res): Promise<void> => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.params.userId },
-      select: { id: true, firstName: true, lastName: true, city: true, bio: true, role: true, reputationScore: true, createdAt: true, level: true, profileImageUrl: true }
-    })
-    if (!user) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return }
-    successResponse(res, user)
-  } catch (e) { errorResponse(res) }
-})
 
 // Profil public d'un utilisateur
 router.get('/profile/:userId', async (req, res): Promise<void> => {
@@ -122,7 +111,7 @@ router.get('/profile/:userId', async (req, res): Promise<void> => {
       select: {
         id: true, firstName: true, lastName: true, role: true,
         city: true, country: true, bio: true, profileImageUrl: true,
-        reputationScore: true, level: true, kycStatus: true, createdAt: true
+        reputationScore: true, reputationPoints: true, level: true, kycStatus: true, createdAt: true
       }
     })
     if (!user) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return }
