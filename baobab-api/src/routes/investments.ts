@@ -4,7 +4,6 @@ import { authenticate, AuthRequest } from '../middleware/auth'
 import { getFees } from '../config/fees'
 import { addReputationPoints, awardBadge, checkAndAwardBadges, REPUTATION_POINTS } from '../services/reputationService'
 import { successResponse, errorResponse } from '../utils/helpers'
-
 const router = Router()
 
 // Stats investisseur
@@ -17,20 +16,14 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response): Promise
     })
     const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
     const totalExpectedBrut = investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
-    const fees = await getFees()
-    const totalExpected = Math.round(totalExpectedBrut * (1 - (fees.commission_baobab_return||5)/100 - (fees.paydunya_payout||2)/100))
-    const totalExpectedBrutRaw = totalExpectedBrut
     const guaranteeContrib = investments.reduce((s, i) => s + (i.guaranteeContribution || i.amount * 0.02), 0)
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
-
-    // Calculer le vrai total recu depuis les repaymentPayments
     let totalReturned = 0
     const totalInvestedAllProjects = await prisma.investment.groupBy({
       by: ['projectId'], where: { project: { repaymentSchedules: { some: {} } } }, _sum: { amount: true }
     })
     const projectTotals: Record<string, number> = {}
     totalInvestedAllProjects.forEach(p => { projectTotals[p.projectId] = p._sum.amount || 1 })
-
     for (const inv of investments) {
       const schedule = await prisma.repaymentSchedule.findFirst({
         where: { projectId: inv.projectId },
@@ -42,13 +35,12 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response): Promise
       const received = schedule.payments.reduce((s, p) => s + Math.round(p.amount * proportion), 0)
       totalReturned += received
     }
-
     res.json({
       success: true,
       data: {
         investments,
         totalInvested,
-        totalExpected,
+        totalExpected: totalExpectedBrut,
         totalReturned,
         projectsFunded: investments.filter(i => i.project?.status === "COMPLETED").length,
         guaranteeContrib,
@@ -63,330 +55,151 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
   try {
     const { amount } = req.body
     const { projectId } = req.params
-
-    // Validation montant
     if (!amount || amount < 5000) {
       res.status(400).json({ success: false, message: 'Montant minimum : 5 000 FCFA' }); return
     }
-
-    // Vérification KYC
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
     if (!user || user.kycStatus !== 'VERIFIED') {
-      res.status(403).json({ success: false, message: 'KYC requis avant d\'investir' }); return
+      res.status(403).json({ success: false, message: "KYC requis avant d'investir" }); return
     }
-
-    // Vérification projet
     const project = await prisma.project.findUnique({ where: { id: projectId } })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
     if (!['ACTIVE', 'FUNDED'].includes(project.status)) {
-      res.status(400).json({ success: false, message: 'Ce projet n\'accepte plus d\'investissements' }); return
+      res.status(400).json({ success: false, message: "Ce projet n'accepte plus d'investissements" }); return
     }
-
-    // Vérification solde wallet
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
     if (!wallet || wallet.balance < amount) {
       res.status(400).json({ success: false, message: `Solde insuffisant. Disponible : ${wallet?.balance?.toLocaleString() || 0} FCFA` }); return
     }
 
-    // ============================================
-    // CALCUL DES COMMISSIONS (taux dynamiques depuis PlatformConfig)
-    // ============================================
+    // CALCUL DES COMMISSIONS — NOUVELLE STRATÉGIE FINANCIÈRE
     const fees = await getFees()
-    const platformFee   = Math.round(amount * fees.commission_baobab_collection / 100)
-    const mentorFee     = project.mentorId ? Math.round(amount * fees.commission_mentor / 100) : 0
-    const payinFee      = Math.round(amount * fees.payin_recovery / 100)
     const withInsurance = req.body.withInsurance !== false  // true par défaut
-    const guaranteeFee  = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
+    const platformFee         = Math.round(amount * fees.commission_baobab_collection / 100)
+    const payinFee            = Math.round(amount * fees.payin_recovery / 100)
+    const mentorFee           = project.mentorId ? Math.round(amount * fees.commission_mentor / 100) : 0
+    const guaranteeFee        = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
     const reinvestedGuarantee = withInsurance ? 0 : Math.round(amount * fees.commission_guarantee / 100)
-    const netToProject  = amount - platformFee - payinFee - mentorFee - guaranteeFee + reinvestedGuarantee
-    const sharePercent  = amount / project.goalAmount
+    const sharePercent        = amount / project.goalAmount
+    const minRate             = fees.return_min
+    const returnRate          = Math.max(project.expectedReturn || 0, minRate)
+    const expectedReturn      = Math.round(amount * (1 + returnRate / 100))
 
-    // Taux de retour minimum selon config
-    const minRate    = fees.return_min
-    const returnRate = Math.max(project.expectedReturn || 0, minRate)
-    const expectedReturn = Math.round(amount * (1 + returnRate / 100))
-
-    // Transaction atomique
     await prisma.$transaction(async (tx) => {
-
-      // 1. Débiter wallet investisseur → escrow
+      // 1. Débiter wallet investisseur
       await tx.wallet.update({
         where: { userId: req.userId! },
-        data: {
-          balance: { decrement: amount },
-          escrowBalance: { increment: amount },
-          totalInvested: { increment: amount },
-        }
+        data: { balance: { decrement: amount }, escrowBalance: { increment: amount }, totalInvested: { increment: amount } }
       })
-
       // 2. Créer l'investissement
       await tx.investment.create({
-        data: {
-          userId: req.userId!,
-          projectId,
-          amount,
-          status: 'PENDING',
-          expectedReturn,
-          guaranteeContribution: guaranteeFee,
-          sharePercent,
-        }
+        data: { userId: req.userId!, projectId, amount, status: 'PENDING', expectedReturn, guaranteeContribution: guaranteeFee, sharePercent }
       })
-
       // 3. Mettre à jour le projet
       const newRaised = project.raisedAmount + amount
       const newStatus = newRaised >= project.goalAmount ? 'FUNDED' : project.status
       await tx.project.update({
         where: { id: projectId },
-        data: {
-          raisedAmount: { increment: amount },
-          investorCount: { increment: 1 },
-          status: newStatus,
-        }
+        data: { raisedAmount: { increment: amount }, investorCount: { increment: 1 }, status: newStatus }
       })
-
-      // 4. Crediter wallet admin : BAOBAB 5% + garantie 2%
+      // 4. Créditer wallet admin : BAOBAB 5% + Payin 4%
       const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
       if (adminUser) {
         await tx.wallet.update({
           where: { userId: adminUser.id },
           data: {
-            balance: { increment: platformFee },
-            commissionBalance: { increment: platformFee + payinFee },
             balance: { increment: platformFee + payinFee },
+            commissionBalance: { increment: platformFee + payinFee },
             guaranteeBalance: { increment: guaranteeFee },
           }
         })
       }
-      await tx.platformRevenue.create({ data: { type: 'GUARANTEE_FEE', amount: guaranteeFee, projectId, description: 'Fonds garantie 2%' } })
-      // 4. Enregistrer commission BAOBAB 5% dans platformRevenue
-      await tx.platformRevenue.create({
-        data: {
-          type: 'COMMISSION_COLLECTION',
-          amount: platformFee,
-          projectId,
-          description: `Commission clôture 5% — ${project.title}`,
-        }
-      })
-
-      // 4b. Enregistrer coût PayDunya Payin (absorbé par BAOBAB)
-      await tx.platformRevenue.create({
-        data: {
-          type: 'PAYDUNYA_FEE',
-          amount: -paydunyaPayin, // négatif = coût pour BAOBAB
-          projectId,
-          description: `PayDunya Payin 4% absorbé — ${project.title}`,
-        }
-      })
-
-      // 5. Créditer mentor 2% si applicable
-      if (project.mentorId && mentorFee > 0) {
-        await tx.wallet.update({
-          where: { userId: project.mentorId },
-          data: { balance: { increment: mentorFee } }
-        })
-        await tx.platformRevenue.create({
-          data: {
-            type: 'MENTOR_COMMISSION',
-            amount: mentorFee,
-            projectId,
-            description: `Commission mentor 2% — ${project.title}`,
-          }
-        })
+      await tx.platformRevenue.create({ data: { type: 'COMMISSION_COLLECTION', amount: platformFee, projectId, description: `Commission collecte 5% — ${project.title}` } })
+      await tx.platformRevenue.create({ data: { type: 'PAYIN_RECOVERY', amount: payinFee, projectId, description: `Récupération Payin 4% — ${project.title}` } })
+      if (guaranteeFee > 0) {
+        await tx.platformRevenue.create({ data: { type: 'GUARANTEE_FEE', amount: guaranteeFee, projectId, description: `Assurance 2% — ${project.title}` } })
       }
-
+      // 5. Créditer mentor 2%
+      if (project.mentorId && mentorFee > 0) {
+        await tx.wallet.update({ where: { userId: project.mentorId }, data: { balance: { increment: mentorFee } } })
+        await tx.platformRevenue.create({ data: { type: 'MENTOR_COMMISSION', amount: mentorFee, projectId, description: `Commission mentor 2% — ${project.title}` } })
+      }
       // 6. Notification entrepreneur
       await tx.notification.create({
-        data: {
-          userId: project.entrepreneurId,
-          title: '💰 Nouvel investissement !',
-          body: `${user.firstName} a investi ${amount.toLocaleString()} FCFA dans "${project.title}"`,
-          type: 'INVESTMENT',
-          data: { projectId, amount }
-        }
+        data: { userId: project.entrepreneurId, title: '💰 Nouvel investissement !', body: `${user.firstName} a investi ${amount.toLocaleString()} FCFA dans "${project.title}"`, type: 'INVESTMENT', data: { projectId, amount } }
       })
     })
 
-    successResponse(res, {
-      expectedReturn,
-      returnRate,
-      fees: { platform: platformFee, mentor: mentorFee, guarantee: guaranteeFee }
-    }, `Investissement de ${amount.toLocaleString()} FCFA effectué !`)
+    // Points de réputation investisseur
+    const invCount = await prisma.investment.count({ where: { userId: req.userId! } })
+    if (invCount === 1) await addReputationPoints(req.userId!, 'FIRST_INVESTMENT', REPUTATION_POINTS.FIRST_INVESTMENT, 'Premier investissement effectué', projectId)
+    else await addReputationPoints(req.userId!, 'INVESTMENT_MADE', REPUTATION_POINTS.INVESTMENT_MADE, 'Nouvel investissement effectué', projectId)
+    if (amount >= 1000000) await addReputationPoints(req.userId!, 'INVESTMENT_1M', REPUTATION_POINTS.INVESTMENT_1M, 'Investissement > 1 000 000 FCFA', projectId)
+    else if (amount >= 500000) await addReputationPoints(req.userId!, 'INVESTMENT_500K', REPUTATION_POINTS.INVESTMENT_500K, 'Investissement > 500 000 FCFA', projectId)
+    else if (amount >= 100000) await addReputationPoints(req.userId!, 'INVESTMENT_100K', REPUTATION_POINTS.INVESTMENT_100K, 'Investissement > 100 000 FCFA', projectId)
+    else if (amount >= 50000) await addReputationPoints(req.userId!, 'INVESTMENT_50K', REPUTATION_POINTS.INVESTMENT_50K, 'Investissement > 50 000 FCFA', projectId)
+    await checkAndAwardBadges(req.userId!, 'INVESTOR')
 
+    successResponse(res, {
+      expectedReturn, returnRate,
+      withInsurance,
+      fees: { platform: platformFee, payin: payinFee, mentor: mentorFee, guarantee: guaranteeFee },
+      sharePercent: (sharePercent * 100).toFixed(4) + '%'
+    }, `Investissement de ${amount.toLocaleString()} FCFA effectué !`)
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
-// Admin — remboursement global projet (tous investisseurs)
+// Admin — remboursement global projet
 router.post('/reimburse-project/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const project = await prisma.project.findUnique({
       where: { id: req.params.projectId },
-      include: {
-        investments: { include: { user: { select: { id: true, firstName: true } } } },
-        entrepreneur: { select: { id: true, firstName: true, lastName: true } },
-        mentor: { select: { id: true, firstName: true } }
-      }
+      include: { investments: { include: { user: { select: { id: true, firstName: true } } } }, entrepreneur: { select: { id: true, firstName: true, lastName: true } }, mentor: { select: { id: true, firstName: true } } }
     })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
     if (!['FUNDED', 'IN_PROGRESS'].includes(project.status)) { res.status(400).json({ success: false, message: 'Projet non eligible' }); return }
-
-    const fees = await getFees()
-    const baobabRate = fees.commission_baobab_return || 5
-    const paydunyaRate = fees.paydunya_payout || 3
-
-    // Passer projet en IN_PROGRESS (remboursement en cours)
     await prisma.project.update({ where: { id: project.id }, data: { status: 'IN_PROGRESS' } })
-
-    // Notifier tous les acteurs
-    const uniqueInvestors = [...new Set(project.investments.map((i: any) => i.userId))]
-    const totalNet = Math.round(project.investments.reduce((s, i) => s + (i.expectedReturn||0), 0) * (1 - baobabRate/100 - paydunyaRate/100))
+    const fees = await getFees()
+    const netAmount = (project as any).netAmount || project.goalAmount
+    const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
+    const totalGross = Math.round(netAmount * (1 + returnRate / 100))
     const months = project.durationMonths || 12
-    const monthly = Math.ceil(totalNet / months)
-
-    // Notifier l entrepreneur
+    const monthly = Math.ceil(totalGross / months)
+    const uniqueInvestors = [...new Set(project.investments.map((i: any) => i.userId))]
     await prisma.notification.create({
-      data: {
-        userId: project.entrepreneurId,
-        title: 'Echeancier de remboursement active',
-        body: `Votre projet "${project.title}" est entre en phase de remboursement. Vous devez rembourser ${monthly.toLocaleString()} FCFA/mois pendant ${months} mois. Total: ${totalNet.toLocaleString()} FCFA. Rechargez votre wallet et payez via votre tableau de bord.`,
-        type: 'REPAYMENT_SCHEDULE_CREATED',
-        data: JSON.stringify({ projectId: project.id, monthly, months, total: totalNet })
-      }
+      data: { userId: project.entrepreneurId, title: 'Echéancier activé', body: `Remboursez ${monthly.toLocaleString()} FCFA/mois pendant ${months} mois. Total: ${totalGross.toLocaleString()} FCFA.`, type: 'REPAYMENT_SCHEDULE_CREATED', data: JSON.stringify({ projectId: project.id, monthly, months, total: totalGross }) }
     })
-
-    // Notifier les investisseurs
     for (const userId of uniqueInvestors) {
-      const invTotal = project.investments.filter((i: any) => i.userId === userId).reduce((s, i) => s + (i.expectedReturn||0), 0)
-      const invNet = Math.round(invTotal * (1 - baobabRate/100 - paydunyaRate/100))
+      const inv = project.investments.filter((i: any) => i.userId === userId)
+      const invShare = inv.reduce((s: number, i: any) => s + (i.amount / project.goalAmount), 0)
+      const invNet = Math.round(totalGross * invShare)
       await prisma.notification.create({
-        data: {
-          userId: userId as string,
-          title: 'Remboursement en cours',
-          body: `Le projet "${project.title}" entre en phase de remboursement progressif. Vous recevrez ${Math.ceil(invNet/months).toLocaleString()} FCFA/mois pendant ${months} mois. Total attendu: ${invNet.toLocaleString()} FCFA.`,
-          type: 'REPAYMENT_STARTED',
-          data: JSON.stringify({ projectId: project.id, expectedNet: invNet })
-        }
+        data: { userId: userId as string, title: 'Remboursement en cours', body: `Le projet "${project.title}" entre en remboursement. Vous recevrez ~${Math.ceil(invNet/months).toLocaleString()} FCFA/mois.`, type: 'REPAYMENT_STARTED', data: JSON.stringify({ projectId: project.id }) }
       })
     }
-
-    // Notifier mentor
-    if (project.mentorId) {
-      await prisma.notification.create({
-        data: {
-          userId: project.mentorId,
-          title: 'Phase remboursement demarree',
-          body: `Le projet "${project.title}" que vous supervisez entre en phase de remboursement.`,
-          type: 'REPAYMENT_STARTED',
-          data: JSON.stringify({ projectId: project.id })
-        }
-      })
-    }
-
     // Créer échéancier si pas encore fait
-    try {
-      const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } })
-      if (!existing) {
-        const fees2 = await getFees()
-        const totalGross = project.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
-        const totalNet = Math.round(totalGross * (1 - (fees2.commission_baobab_return||5)/100 - (fees2.paydunya_payout||3)/100))
-        const months = project.durationMonths || 12
-        const monthly = Math.ceil(totalNet / months)
-        const nextDue = new Date(); nextDue.setMonth(nextDue.getMonth() + 1)
-        const schedule = await prisma.repaymentSchedule.create({
-          data: { projectId: project.id, totalAmount: totalNet, monthlyAmount: monthly, totalMonths: months, remainingAmount: totalNet, nextDueDate: nextDue }
-        })
-        const paymentsData = Array.from({ length: months }, (_, i) => {
-          const due = new Date(); due.setMonth(due.getMonth() + i + 1)
-          return { scheduleId: schedule.id, projectId: project.id, amount: i === months-1 ? totalNet - monthly*(months-1) : monthly, monthNumber: i+1, dueDate: due }
-        })
-        await prisma.repaymentPayment.createMany({ data: paymentsData })
-        await prisma.notification.create({
-          data: { userId: project.entrepreneurId, title: 'Echeancier de remboursement cree', body: `Remboursez ${monthly.toLocaleString()} FCFA/mois pendant ${months} mois via votre wallet BAOBAB INVEST.`, type: 'REPAYMENT_SCHEDULE_CREATED', data: JSON.stringify({ projectId: project.id }) }
-        })
-      }
-    } catch(err) { console.error('Erreur echeancier:', err) }
-
-    successResponse(res, { totalDistributed: 0 }, 'Remboursements effectues et echeancier cree')
+    const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } })
+    if (!existing) {
+      const gracePeriod = (project as any).gracePeriodMonths || 0
+      const nextDue = new Date(); nextDue.setMonth(nextDue.getMonth() + 1 + gracePeriod)
+      const schedule = await prisma.repaymentSchedule.create({
+        data: { projectId: project.id, totalAmount: totalGross, monthlyAmount: monthly, totalMonths: months, remainingAmount: totalGross, nextDueDate: nextDue, status: 'ACTIVE' }
+      })
+      const paymentsData = Array.from({ length: months }, (_, i) => {
+        const due = new Date(); due.setMonth(due.getMonth() + i + 1 + gracePeriod)
+        return { scheduleId: schedule.id, projectId: project.id, amount: i === months-1 ? totalGross - monthly*(months-1) : monthly, monthNumber: i+1, dueDate: due, status: 'PENDING' }
+      })
+      await prisma.repaymentPayment.createMany({ data: paymentsData })
+    }
+    successResponse(res, {}, 'Projet en remboursement — échéancier créé')
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
-// Remboursement investisseur (déclenché par admin)
-router.post('/:investmentId/reimburse', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const investment = await prisma.investment.findUnique({
-      where: { id: req.params.investmentId },
-      include: { project: true }
-    })
-    if (!investment) { res.status(404).json({ success: false, message: 'Investissement introuvable' }); return }
-
-    const returnAmount = investment.expectedReturn || investment.amount
-    // Commission BAOBAB sur retours 5%
-    const baobabOnReturn = Math.round(returnAmount * 0.05)
-    // PayDunya Payout 2% absorbé par BAOBAB
-    const paydunyaPayout = Math.round(returnAmount * 0.02)
-    const netReturn = returnAmount - baobabOnReturn - paydunyaPayout
-
-    await prisma.$transaction(async (tx) => {
-      // Créditer investisseur
-      await tx.wallet.update({
-        where: { userId: investment.userId },
-        data: {
-          balance: { increment: netReturn },
-          escrowBalance: { decrement: investment.amount },
-          totalEarned: { increment: netReturn - investment.amount }
-        }
-      })
-
-      // Mettre à jour investissement
-      await tx.investment.update({
-        where: { id: investment.id },
-        data: { status: 'COMPLETED', returnedAmount: netReturn }
-      })
-
-      // Commission BAOBAB sur retours
-      await tx.platformRevenue.create({
-        data: {
-          type: 'COMMISSION_RETURN',
-          amount: baobabOnReturn,
-          projectId: investment.projectId,
-          description: `Commission retours 5% — ${investment.project.title}`,
-        }
-      })
-
-      // Coût PayDunya Payout absorbé
-      await tx.platformRevenue.create({
-        data: {
-          type: 'PAYDUNYA_FEE',
-          amount: -paydunyaPayout,
-          projectId: investment.projectId,
-          description: `PayDunya Payout 2% absorbé — ${investment.project.title}`,
-        }
-      })
-
-      // Notification investisseur
-      await tx.notification.create({
-        data: {
-          userId: investment.userId,
-          title: '🎉 Remboursement reçu !',
-          body: `Vous avez reçu ${netReturn.toLocaleString()} FCFA pour votre investissement dans "${investment.project.title}"`,
-          type: 'REIMBURSEMENT',
-          data: { projectId: investment.projectId, amount: netReturn }
-        }
-      })
-    })
-
-    successResponse(res, { netReturn, baobabOnReturn, paydunyaPayout }, 'Remboursement effectué')
-  } catch (e) { console.error(e); errorResponse(res) }
-})
-
-// Plans d'épargne programmée
+// Plans d'épargne
 router.get('/savings-plans', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
-    successResponse(res, {
-      scheduledAmount: wallet?.scheduledAmount || 0,
-      scheduledDay: wallet?.scheduledDay || null,
-      isActive: (wallet?.scheduledAmount || 0) > 0,
-    })
+    successResponse(res, { scheduledAmount: wallet?.scheduledAmount || 0, scheduledDay: wallet?.scheduledDay || null, isActive: (wallet?.scheduledAmount || 0) > 0 })
   } catch (e) { errorResponse(res) }
 })
 
@@ -395,77 +208,39 @@ router.post('/savings-plan', authenticate, async (req: AuthRequest, res: Respons
     const { amount, day } = req.body
     if (!amount || amount < 1000) { res.status(400).json({ success: false, message: 'Montant minimum 1000 FCFA' }); return }
     if (!day || day < 1 || day > 28) { res.status(400).json({ success: false, message: 'Jour invalide (1-28)' }); return }
-    const wallet = await prisma.wallet.update({
-      where: { userId: req.userId! },
-      data: { scheduledAmount: amount, scheduledDay: day }
-    })
-    successResponse(res, { scheduledAmount: wallet.scheduledAmount, scheduledDay: wallet.scheduledDay }, 'Plan epargne active')
+    const wallet = await prisma.wallet.update({ where: { userId: req.userId! }, data: { scheduledAmount: amount, scheduledDay: day } })
+    successResponse(res, { scheduledAmount: wallet.scheduledAmount, scheduledDay: wallet.scheduledDay }, 'Plan épargne activé')
   } catch (e) { errorResponse(res) }
 })
 
-router.patch('/savings-plan/:id/toggle', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
-    const newAmount = wallet?.scheduledAmount ? 0 : (wallet?.scheduledAmount || 0)
-    await prisma.wallet.update({
-      where: { userId: req.userId! },
-      data: { scheduledAmount: newAmount }
-    })
-    successResponse(res, {}, newAmount > 0 ? 'Plan activé' : 'Plan suspendu')
-  } catch (e) { errorResponse(res) }
-})
-
-export default router
-
-// Investisseur — configurer épargne programmée
 router.post('/savings-config', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { amount, day } = req.body
     if (!amount || amount < 1000) { res.status(400).json({ success: false, message: 'Montant minimum 1 000 FCFA' }); return }
     if (!day || day < 1 || day > 28) { res.status(400).json({ success: false, message: 'Jour invalide (1-28)' }); return }
-    await prisma.wallet.update({
-      where: { userId: req.userId! },
-      data: { scheduledAmount: amount, scheduledDay: day }
-    })
+    await prisma.wallet.update({ where: { userId: req.userId! }, data: { scheduledAmount: amount, scheduledDay: day } })
     await prisma.notification.create({
-      data: {
-        userId: req.userId!,
-        title: 'Epargne programmee configuree',
-        body: 'Votre epargne de ' + amount.toLocaleString() + ' FCFA sera deposee automatiquement le ' + day + ' de chaque mois.',
-        type: 'SAVINGS_CONFIGURED',
-        data: JSON.stringify({ amount, day })
-      }
+      data: { userId: req.userId!, title: 'Épargne programmée configurée', body: `Votre épargne de ${amount.toLocaleString()} FCFA sera déposée automatiquement le ${day} de chaque mois.`, type: 'SAVINGS_CONFIGURED', data: JSON.stringify({ amount, day }) }
     })
-    successResponse(res, { amount, day }, 'Epargne programmee configuree')
+    successResponse(res, { amount, day }, 'Épargne programmée configurée')
   } catch (e) { errorResponse(res) }
 })
 
-// Export CSV investissements admin
+// Export CSV
 router.get('/exports/admin', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const investments = await prisma.investment.findMany({
-      include: {
-        user: { select: { firstName: true, lastName: true, email: true, phone: true } },
-        project: { select: { title: true, sector: true, status: true } }
-      },
+      include: { user: { select: { firstName: true, lastName: true, email: true, phone: true } }, project: { select: { title: true, sector: true, status: true } } },
       orderBy: { createdAt: 'desc' }
     })
     const rows = ['Date,Investisseur,Email,Telephone,Projet,Secteur,Montant,Retour attendu,Statut']
     investments.forEach(i => {
-      rows.push([
-        new Date(i.createdAt).toLocaleDateString('fr-FR'),
-        (i.user.firstName + ' ' + i.user.lastName).replace(',', ' '),
-        i.user.email,
-        i.user.phone || '',
-        (i.project?.title || '').replace(',', ' '),
-        i.project?.sector || '',
-        i.amount,
-        i.expectedReturn || 0,
-        i.status
-      ].join(','))
+      rows.push([new Date(i.createdAt).toLocaleDateString('fr-FR'), (i.user.firstName + ' ' + i.user.lastName).replace(',', ' '), i.user.email, i.user.phone || '', (i.project?.title || '').replace(',', ' '), i.project?.sector || '', i.amount, i.expectedReturn || 0, i.status].join(','))
     })
     res.setHeader('Content-Type', 'text/csv; charset=utf-8')
     res.setHeader('Content-Disposition', 'attachment; filename="investissements-baobab.csv"')
     res.send('\uFEFF' + rows.join('\n'))
   } catch (e) { errorResponse(res) }
 })
+
+export default router

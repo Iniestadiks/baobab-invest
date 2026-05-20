@@ -182,17 +182,29 @@ router.post('/:id/simulate', async (req: Request, res: Response): Promise<void> 
 // Soumettre un projet (entrepreneur)
 router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    // Vérifier KYC obligatoire
     const entrepreneur = await prisma.user.findUnique({ where: { id: req.userId } })
     if (!entrepreneur || entrepreneur.kycStatus !== 'VERIFIED') {
       res.status(403).json({ success: false, message: "Votre KYC doit etre verifie par un administrateur avant de soumettre un projet." })
       return
     }
-    // Vérifier limite sous-secteur (max 3 projets actifs par sous-secteur et ville)
+
+    // Calculer goalAmount automatiquement
+    const feesCalc = await getFees()
+    const hasMentorCalc = !!req.body.mentorId
+    const hasInsuranceCalc = req.body.withInsurance !== false
+    const diviseurCalc = 1 - (feesCalc.commission_baobab_collection/100)
+      - (hasMentorCalc ? feesCalc.commission_mentor/100 : 0)
+      - (hasInsuranceCalc ? feesCalc.commission_guarantee/100 : 0)
+    const netAmountCalc = req.body.goalAmount
+    const computedGoalCalc = Math.ceil(netAmountCalc / diviseurCalc)
+    const graceCalc = ['AGRICULTURE','ELEVAGE'].includes(req.body.sector)
+      ? feesCalc.grace_period_agriculture
+      : feesCalc.grace_period_other
+
+    // Vérifier slots sous-secteur
     if (req.body.subSector && req.body.city) {
       const { MAX_ACTIVE_PER_SUBSECTOR } = await import('../config/taxonomy')
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      // Compter les projets actifs SAUF ceux en retard depuis +30j avec moins de 20% collecté
       const activeProjects = await prisma.project.findMany({
         where: {
           sector: req.body.sector,
@@ -202,52 +214,43 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         },
         select: { id: true, title: true, raisedAmount: true, goalAmount: true, createdAt: true, status: true }
       })
-      // Filtrer : exclure les projets actifs depuis +30j avec moins de 20% collecté (slots libérés)
       const validActive = activeProjects.filter(p => {
         const isStale = p.status === 'ACTIVE' && p.createdAt < thirtyDaysAgo && p.raisedAmount < p.goalAmount * 0.2
         return !isStale
       })
       if (validActive.length >= MAX_ACTIVE_PER_SUBSECTOR) {
-        // Compter position dans la liste d'attente
         const waitlistCount = await prisma.project.count({
           where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: 'WAITLISTED' }
         })
-        // Sauvegarder en liste d'attente au lieu de rejeter
         const data = projectSchema.parse(req.body)
-        const feesW = await getFees()
-        const hasMentorW = !!data.mentorId
-        const hasInsuranceW = req.body.withInsurance !== false
-        const diviseurW = 1 - (feesW.commission_baobab_collection/100) - (hasMentorW ? feesW.commission_mentor/100 : 0) - (hasInsuranceW ? feesW.commission_guarantee/100 : 0)
-        const netAmountW = data.goalAmount
-        const computedGoalW = Math.ceil(netAmountW / diviseurW)
-        const graceW = ['AGRICULTURE','ELEVAGE'].includes(data.sector) ? feesW.grace_period_agriculture : feesW.grace_period_other
         const score = calculateBankabilityScore({ ...data, description: data.description })
         const waitlistedProject = await prisma.project.create({
-          data: { ...data, goalAmount: computedGoalW, netAmount: netAmountW, gracePeriodMonths: graceW, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED' }
+          data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED' }
         })
-        // Notifier l'entrepreneur
         await prisma.notification.create({
-          data: { userId: req.userId!, title: 'Projet en liste d attente', body: `Votre projet "${waitlistedProject.title}" est en position ${waitlistCount + 1} dans la liste d attente. Vous serez notifié dès qu un slot se libère.`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id, position: waitlistCount + 1 }) }
+          data: { userId: req.userId!, title: 'Projet en liste d attente', body: `Votre projet "${waitlistedProject.title}" est en position ${waitlistCount + 1} dans la liste d attente.`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id, position: waitlistCount + 1 }) }
         })
-        // Notifier l'admin
         const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
         await prisma.notification.createMany({
-          data: admins.map(a => ({ userId: a.id, title: 'Nouveau projet en liste d attente', body: `"${waitlistedProject.title}" — ${req.body.sector} / ${req.body.subSector} — ${req.body.city} (position ${waitlistCount + 1})`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id }) }))
+          data: admins.map(a => ({ userId: a.id, title: 'Nouveau projet en liste d attente', body: `"${waitlistedProject.title}" — position ${waitlistCount + 1}`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id }) }))
         })
         res.status(202).json({
           success: true,
-          message: `Slots complets. Votre projet a ete place en position ${waitlistCount + 1} dans la liste d attente. Vous serez notifie automatiquement des qu un slot se libere.`,
-          data: { project: waitlistedProject, position: waitlistCount + 1, activeProjects: validActive.map(p => ({ id: p.id, title: p.title, raisedAmount: p.raisedAmount, goalAmount: p.goalAmount })) }
+          message: `Slots complets. Votre projet est en position ${waitlistCount + 1} dans la liste d attente.`,
+          data: { project: waitlistedProject, position: waitlistCount + 1 }
         })
         return
       }
     }
+
     const data = projectSchema.parse(req.body)
     const score = calculateBankabilityScore({ ...data, description: data.description })
-
     const project = await prisma.project.create({
       data: {
         ...data,
+        goalAmount: computedGoalCalc,
+        netAmount: netAmountCalc,
+        gracePeriodMonths: graceCalc,
         entrepreneurId: req.userId!,
         campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null,
         bankabilityScore: score,
@@ -255,15 +258,20 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
       }
     })
 
-    // Notification à l'admin (on crée juste un log ici)
-    console.log(`Nouveau projet soumis : ${project.title} — Score bankabilité : ${score}`)
+    // Notifier les admins
+    const adminsNotif = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+    await prisma.notification.createMany({
+      data: adminsNotif.map(a => ({ userId: a.id, title: '🆕 Nouveau projet à valider', body: `"${project.title}" — ${data.sector} — ${data.city} — GoalAmount: ${computedGoalCalc.toLocaleString()} FCFA`, type: 'NEW_PROJECT', data: JSON.stringify({ projectId: project.id }) }))
+    })
 
-    successResponse(res, { ...project, bankabilityScore: score }, 'Projet soumis — en attente de validation', 201)
+    console.log(`Nouveau projet soumis : ${project.title} — Score bankabilité : ${score} — GoalAmount: ${computedGoalCalc}`)
+    successResponse(res, { ...project, bankabilityScore: score, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc }, 'Projet soumis — en attente de validation', 201)
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ success: false, message: error.errors[0].message })
       return
     }
+    console.error(error)
     errorResponse(res)
   }
 })
