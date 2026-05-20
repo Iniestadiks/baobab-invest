@@ -3,6 +3,7 @@ import { z } from 'zod'
 import prisma from '../config/database'
 import { authenticate, requireRole, requireAdmin, AuthRequest } from '../middleware/auth'
 import { successResponse, errorResponse } from '../utils/helpers'
+import { getFees } from '../config/fees'
 
 const router = Router()
 
@@ -213,9 +214,16 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         })
         // Sauvegarder en liste d'attente au lieu de rejeter
         const data = projectSchema.parse(req.body)
+        const feesW = await getFees()
+        const hasMentorW = !!data.mentorId
+        const hasInsuranceW = req.body.withInsurance !== false
+        const diviseurW = 1 - (feesW.commission_baobab_collection/100) - (hasMentorW ? feesW.commission_mentor/100 : 0) - (hasInsuranceW ? feesW.commission_guarantee/100 : 0)
+        const netAmountW = data.goalAmount
+        const computedGoalW = Math.ceil(netAmountW / diviseurW)
+        const graceW = ['AGRICULTURE','ELEVAGE'].includes(data.sector) ? feesW.grace_period_agriculture : feesW.grace_period_other
         const score = calculateBankabilityScore({ ...data, description: data.description })
         const waitlistedProject = await prisma.project.create({
-          data: { ...data, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED' }
+          data: { ...data, goalAmount: computedGoalW, netAmount: netAmountW, gracePeriodMonths: graceW, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED' }
         })
         // Notifier l'entrepreneur
         await prisma.notification.create({

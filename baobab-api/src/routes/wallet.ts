@@ -161,17 +161,37 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
       }
     })
 
-    // Calcul frais opérateur : BAOBAB envoie montant majoré pour que l'utilisateur reçoive le net demandé
+    // Règle anti-abus : 3% si a déjà investi, 7% sinon
     const fees = await getFees()
-    const payoutRate = fees.paydunya_payout || 2
-    const grossAmount = Math.round(amount / (1 - payoutRate / 100)) // montant brut à envoyer
-    const payoutFee = grossAmount - amount // frais absorbés par BAOBAB
-    // Débiter le wallet admin du coût opérateur
+    const hasInvested = await prisma.investment.count({ where: { userId: req.userId! } })
+    const withdrawRate = hasInvested > 0 
+      ? fees.withdrawal_fee_standard   // 3% — investisseur actif
+      : fees.withdrawal_fee_no_invest  // 7% — jamais investi (3% Payout + 4% pénalité)
+    
+    // L'utilisateur paie les frais — il reçoit amount - frais%
+    const payoutFee = Math.round(amount * withdrawRate / 100)
+    const netReceived = amount - payoutFee
+    
+    // BAOBAB envoie netReceived via PayDunya (et paie 3% Payout à l'opérateur)
+    const operatorFee = Math.round(netReceived * fees.withdrawal_fee_standard / 100)
+    const grossAmount = netReceived // on envoie le net, l'opérateur prend sa part
+    
+    // Créditer BAOBAB : frais perçus - coût opérateur
     const adminW = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    if (adminW && payoutFee > 0) {
-      await prisma.wallet.update({ where: { userId: adminW.id }, data: { balance: { decrement: payoutFee }, commissionBalance: { decrement: payoutFee } } })
-      await prisma.platformRevenue.create({ data: { type: 'PAYDUNYA_FEE', amount: -payoutFee, description: 'Frais operateur retrait ' + payoutRate + '% — ' + (phoneNumber || '') } })
+    if (adminW) {
+      const baobabProfit = payoutFee - operatorFee  // pénalité anti-abus si applicable
+      await prisma.wallet.update({ 
+        where: { userId: adminW.id }, 
+        data: { commissionBalance: { increment: baobabProfit } } 
+      })
     }
+    await prisma.platformRevenue.create({ 
+      data: { 
+        type: 'WITHDRAWAL_FEE', 
+        amount: payoutFee, 
+        description: `Frais retrait ${withdrawRate}% — ${hasInvested > 0 ? 'investisseur actif' : 'anti-abus'} — ${phoneNumber || ''}` 
+      } 
+    })
     // Initier le payout PayDunya automatiquement
     try {
       const payoutRes = await initPayout({

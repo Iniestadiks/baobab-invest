@@ -225,6 +225,8 @@ model Project {
   description         String
   sector              ProjectSector @default(AUTRE)
   subSector          String?
+  netAmount           Float?
+  gracePeriodMonths   Int             @default(0)
   city                String
   country             String        @default("SN")
   goalAmount          Float
@@ -271,6 +273,7 @@ model Investment {
   projectId      String
   amount         Float
   guaranteeContribution Float      @default(0)
+  sharePercent         Float?          // Part brute investisseur = montant / goalAmount
   expectedReturn Float
   status         TransactionStatus @default(PENDING)
   returnedAmount Float             @default(0)

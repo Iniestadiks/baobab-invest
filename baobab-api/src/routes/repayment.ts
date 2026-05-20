@@ -93,22 +93,34 @@ router.post('/create/:projectId', authenticate, async (req: AuthRequest, res: Re
     if (existing) { res.status(400).json({ success: false, message: 'Echeancier deja cree' }); return }
 
     const fees = await getFees()
-    const totalGross = project.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
-    const baobabRate = fees.commission_baobab_return || 5
-    const paydunyaRate = fees.paydunya_payout || 3
-    const totalNet = Math.round(totalGross * (1 - baobabRate / 100 - paydunyaRate / 100))
+    
+    // NOUVELLE STRATÉGIE : remboursement = 22% sur besoin net du projet
+    // Pas de commission BAOBAB au retour (0%)
+    // BAOBAB prélève 4% Payin sur chaque mensualité pour compenser ses avances
+    const netAmount = project.netAmount || project.goalAmount
+    const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
+    const totalGross = Math.round(netAmount * (1 + returnRate / 100))
+    
+    // Payin 4% prélevé sur chaque mensualité → distribué aux investisseurs nets
+    const payinRate = fees.payin_repayment  // 4%
+    
     const months = project.durationMonths || 12
-    const monthly = Math.ceil(totalNet / months)
+    
+    // Délai de grâce selon secteur
+    const gracePeriod = project.gracePeriodMonths || 0
+    const monthly = Math.ceil(totalGross / months)
+    const netMonthly = Math.round(monthly * (1 - payinRate / 100))  // après Payin 4%
+    
     const nextDue = new Date()
-    nextDue.setMonth(nextDue.getMonth() + 1)
+    nextDue.setMonth(nextDue.getMonth() + 1 + gracePeriod)  // délai grâce
 
     const schedule = await prisma.repaymentSchedule.create({
       data: {
         projectId: project.id,
-        totalAmount: totalNet,
+        totalAmount: totalGross,
         monthlyAmount: monthly,
         totalMonths: months,
-        remainingAmount: totalNet,
+        remainingAmount: totalGross,
         nextDueDate: nextDue,
         status: 'ACTIVE'
       }
@@ -116,11 +128,11 @@ router.post('/create/:projectId', authenticate, async (req: AuthRequest, res: Re
 
     const payments = Array.from({ length: months }, (_, i) => {
       const due = new Date()
-      due.setMonth(due.getMonth() + i + 1)
+      due.setMonth(due.getMonth() + i + 1 + gracePeriod)
       return {
         scheduleId: schedule.id,
         projectId: project.id,
-        amount: i === months - 1 ? totalNet - monthly * (months - 1) : monthly,
+        amount: i === months - 1 ? totalGross - monthly * (months - 1) : monthly,
         monthNumber: i + 1,
         dueDate: due,
         status: 'PENDING'
@@ -132,13 +144,13 @@ router.post('/create/:projectId', authenticate, async (req: AuthRequest, res: Re
       data: {
         userId: project.entrepreneurId,
         title: 'Echeancier de remboursement cree',
-        body: 'Remboursez ' + monthly.toLocaleString() + ' FCFA/mois pendant ' + months + ' mois. Total: ' + totalNet.toLocaleString() + ' FCFA.',
+        body: 'Remboursez ' + monthly.toLocaleString() + ' FCFA/mois pendant ' + months + ' mois' + (gracePeriod > 0 ? ' (debut mois ' + (gracePeriod+1) + ')' : '') + '. Total: ' + totalGross.toLocaleString() + ' FCFA.',
         type: 'REPAYMENT_SCHEDULE_CREATED',
         data: JSON.stringify({ projectId: project.id, scheduleId: schedule.id })
       }
     })
 
-    successResponse(res, { schedule, monthly, totalNet, months }, 'Echeancier cree')
+    successResponse(res, { schedule, monthly, totalGross, months, gracePeriod }, 'Echeancier cree')
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
@@ -182,19 +194,27 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
     }
 
     const fees = await getFees()
-    const baobabRate = fees.commission_baobab_return || 5
-    const paydunyaRate = fees.paydunya_payout || 3
-    const totalInvested = schedule.project.investments.reduce((s, i) => s + i.amount, 0)
+    const fees2 = await getFees()
+    const payinRate = fees2.payin_repayment  // 4%
+    const payinFee = Math.round(nextPayment.amount * payinRate / 100)
+    const netToDistribute = nextPayment.amount - payinFee
+    const goalAmount = schedule.project.goalAmount
 
     await prisma.$transaction(async (tx) => {
       await tx.wallet.update({
         where: { userId: req.userId! },
         data: { balance: { decrement: nextPayment.amount } }
       })
+      // Payin 4% → admin
+      const adminRep2 = await tx.user.findFirst({ where: { role: "ADMIN" } })
+      if (adminRep2 && payinFee > 0) {
+        await tx.wallet.update({ where: { userId: adminRep2.id }, data: { commissionBalance: { increment: payinFee } } })
+        await tx.platformRevenue.create({ data: { type: "PAYIN_REPAYMENT", amount: payinFee, projectId: schedule.projectId, description: "Payin 4% mensualite M" + nextPayment.monthNumber } })
+      }
 
       for (const inv of schedule.project.investments) {
-        const proportion = totalInvested > 0 ? inv.amount / totalInvested : 0
-        const investorShare = Math.round(nextPayment.amount * proportion)
+        const proportion = goalAmount > 0 ? inv.amount / goalAmount : 0
+        const investorShare = Math.round(netToDistribute * proportion)
         if (investorShare <= 0) continue
 
         await tx.wallet.update({

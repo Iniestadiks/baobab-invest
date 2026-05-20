@@ -94,11 +94,15 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
     const fees = await getFees()
     const platformFee   = Math.round(amount * fees.commission_baobab_collection / 100)
     const mentorFee     = project.mentorId ? Math.round(amount * fees.commission_mentor / 100) : 0
-    const guaranteeFee  = Math.round(amount * fees.commission_guarantee / 100)
-    const paydunyaPayin = Math.round(amount * fees.paydunya_payin / 100)
+    const payinFee      = Math.round(amount * fees.payin_recovery / 100)
+    const withInsurance = req.body.withInsurance !== false  // true par défaut
+    const guaranteeFee  = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
+    const reinvestedGuarantee = withInsurance ? 0 : Math.round(amount * fees.commission_guarantee / 100)
+    const netToProject  = amount - platformFee - payinFee - mentorFee - guaranteeFee + reinvestedGuarantee
+    const sharePercent  = amount / project.goalAmount
 
     // Taux de retour minimum selon config
-    const minRate    = project.mentorId ? fees.return_min_with_mentor : fees.return_min_no_mentor
+    const minRate    = fees.return_min
     const returnRate = Math.max(project.expectedReturn || 0, minRate)
     const expectedReturn = Math.round(amount * (1 + returnRate / 100))
 
@@ -124,6 +128,7 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
           status: 'PENDING',
           expectedReturn,
           guaranteeContribution: guaranteeFee,
+          sharePercent,
         }
       })
 
@@ -146,7 +151,8 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
           where: { userId: adminUser.id },
           data: {
             balance: { increment: platformFee },
-            commissionBalance: { increment: platformFee },
+            commissionBalance: { increment: platformFee + payinFee },
+            balance: { increment: platformFee + payinFee },
             guaranteeBalance: { increment: guaranteeFee },
           }
         })
