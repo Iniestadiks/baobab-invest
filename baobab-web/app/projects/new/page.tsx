@@ -36,7 +36,7 @@ export default function NewProjectPage() {
   const [form, setForm] = useState({
     title: "", description: "", sector: "", subSector: "",
     city: "", country: "SN", goalAmount: "", minimumInvestment: "5000",
-    expectedReturn: "15", durationMonths: "6", riskLevel: "MEDIUM",
+    expectedReturn: "22", durationMonths: "6", riskLevel: "MEDIUM",
     mentorId: "", campaignEndsAt: "",
     useOfFunds: "", businessPlan: "",
   });
@@ -246,7 +246,7 @@ export default function NewProjectPage() {
               </div>
               <div>
                 <label className={labelClass}>Taux de retour (%) *</label>
-                <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange} className={inputClass} min="15" max="100" />
+                <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange} className={inputClass} min="22" max="100" />
                 <div className="text-xs text-gray-400 mt-1">Min: 15%</div>
               </div>
               <div>
@@ -276,15 +276,64 @@ export default function NewProjectPage() {
               </div>
             )}
 
-            {/* Récapitulatif */}
-            {form.goalAmount && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-xs space-y-1">
-                <div className="font-bold text-green-800 mb-2">Récapitulatif financier</div>
-                <div className="flex justify-between"><span>Montant à lever</span><span className="font-bold">{fmt(Number(form.goalAmount))} FCFA</span></div>
-                <div className="flex justify-between"><span>Retour investisseurs ({form.expectedReturn}%)</span><span className="font-bold">{fmt(Math.round(Number(form.goalAmount) * (1 + Number(form.expectedReturn)/100)))} FCFA</span></div>
-                <div className="flex justify-between"><span>Durée</span><span className="font-bold">{form.durationMonths} mois</span></div>
-              </div>
-            )}
+            {/* Récapitulatif financier avec nouvelle stratégie */}
+            {form.goalAmount && (() => {
+              const netAmount = Number(form.goalAmount)
+              const hasMentor = !!form.mentorId
+              const baobabPct = 5, mentorPct = hasMentor ? 2 : 0, assurancePct = 2
+              const diviseur = 1 - (baobabPct + mentorPct + assurancePct) / 100
+              const goalAmount = Math.ceil(netAmount / diviseur)
+              const baobabFee = Math.round(goalAmount * baobabPct / 100)
+              const mentorFee = Math.round(goalAmount * mentorPct / 100)
+              const assuranceFee = Math.round(goalAmount * assurancePct / 100)
+              const retour = Number(form.expectedReturn) || 22
+              const totalRemboursement = Math.round(netAmount * (1 + retour / 100))
+              const mensualite = Math.round(totalRemboursement / Number(form.durationMonths || 12))
+              const agriSectors = ['AGRICULTURE', 'ELEVAGE']
+              const grace = agriSectors.includes(form.sector) ? 2 : 1
+              return (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-xs space-y-2">
+                  <div className="font-bold text-green-800 text-sm mb-1">📊 Récapitulatif financier</div>
+                  <div className="bg-white rounded-lg p-3 space-y-1.5">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Votre besoin net</span>
+                      <span className="font-bold text-gray-900">{fmt(netAmount)} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>BAOBAB 5%</span>
+                      <span>-{fmt(baobabFee)} FCFA</span>
+                    </div>
+                    {hasMentor && <div className="flex justify-between text-gray-500">
+                      <span>Mentor 2%</span>
+                      <span>-{fmt(mentorFee)} FCFA</span>
+                    </div>}
+                    <div className="flex justify-between text-gray-500">
+                      <span>Assurance 2%</span>
+                      <span>-{fmt(assuranceFee)} FCFA</span>
+                    </div>
+                    <div className="border-t border-gray-200 pt-1.5 flex justify-between font-bold text-green-700">
+                      <span>Montant à collecter</span>
+                      <span>{fmt(goalAmount)} FCFA</span>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 space-y-1.5">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Vous remboursez {retour}% sur {form.durationMonths} mois</span>
+                      <span className="font-bold text-orange-600">{fmt(totalRemboursement)} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>Mensualité estimée</span>
+                      <span className="font-bold">{fmt(mensualite)} FCFA/mois</span>
+                    </div>
+                    {grace > 0 && <div className="flex justify-between text-blue-600">
+                      <span>🕐 Délai de grâce</span>
+                      <span>{grace} mois (1er paiement mois {grace+1})</span>
+                    </div>}
+                  </div>
+                  <p className="text-green-700 text-xs">✅ Vous recevrez exactement <strong>{fmt(netAmount)} FCFA</strong> nets sur votre wallet.</p>
+                </div>
+              )
+            })()}
 
             <div className="flex gap-3">
               <button onClick={() => setStep(2)} className="flex-1 border border-gray-200 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-50">← Retour</button>
