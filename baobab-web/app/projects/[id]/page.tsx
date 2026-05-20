@@ -20,6 +20,7 @@ export default function ProjectDetailPage() {
   const [simResult, setSimResult] = useState<any>(null);
   const [investing, setInvesting] = useState(false);
   const [investAmount, setInvestAmount] = useState("");
+  const [withInsurance, setWithInsurance] = useState(true);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const { config: fees } = usePlatformConfig();
@@ -63,7 +64,7 @@ export default function ProjectDetailPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: Number(investAmount) }),
+        body: JSON.stringify({ amount: Number(investAmount), withInsurance }),
       });
       const data = await res.json();
       if (data.success) {
@@ -395,25 +396,59 @@ export default function ProjectDetailPage() {
                             ✅ Sans mentor — {fees.commission_mentor}% bonus pour vous !
                           </div>
                         )}
-                        {[
-                          { label: "Montant versé", value: `${Number(investAmount).toLocaleString()} FCFA`, color: "text-gray-700" },
-                          { label: `Commission BAOBAB (${fees.commission_baobab_collection}%)`, value: `- ${Math.round(Number(investAmount) * fees.commission_baobab_collection / 100).toLocaleString()} FCFA`, color: "text-red-600" },
-                          project.mentor ? { label: `Commission mentor (${fees.commission_mentor}%)`, value: `- ${Math.round(Number(investAmount) * fees.commission_mentor / 100).toLocaleString()} FCFA`, color: "text-red-600" } : null,
-                          { label: `Fonds garantie (${fees.commission_guarantee}%)`, value: `- ${Math.round(Number(investAmount) * fees.commission_guarantee / 100).toLocaleString()} FCFA`, color: "text-orange-600" },
-                          { label: "Net dans le projet", value: `${Math.round(Number(investAmount) * (1 - fees.commission_baobab_collection/100 - (project.mentor ? fees.commission_mentor/100 : 0) - fees.commission_guarantee/100)).toLocaleString()} FCFA`, color: "text-green-700 font-bold" },
-                          { label: `Retour brut (${project.expectedReturn}%)`, value: `+${Math.round(Number(investAmount) * (1 + project.expectedReturn/100)).toLocaleString()} FCFA`, color: "text-green-600" },
-                          { label: `BAOBAB ${fees.commission_baobab_return}% sur retours`, value: `-${Math.round(Number(investAmount) * (1 + project.expectedReturn/100) * fees.commission_baobab_return/100).toLocaleString()} FCFA`, color: "text-red-500 text-xs" },
-                          { label: "Vous recevez net", value: `${Math.round(Number(investAmount) * (1 + project.expectedReturn/100) * (1 - fees.commission_baobab_return/100 - fees.paydunya_payout/100)).toLocaleString()} FCFA`, color: "text-green-800 font-bold text-sm" },
-                          { label: `Gain net`, value: `+${Math.round(Number(investAmount) * (1 + project.expectedReturn/100) * (1 - fees.commission_baobab_return/100 - fees.paydunya_payout/100) - Number(investAmount)).toLocaleString()} FCFA`, color: "text-blue-700 font-bold" },
-                        ].filter(Boolean).map((item: any) => (
-                          <div key={item.label} className={`flex justify-between ${item.color}`}>
-                            <span>{item.label}</span>
-                            <span>{item.value}</span>
+                        {/* Case assurance — cochée par défaut */}
+                        <div className={`rounded-lg p-3 border-2 cursor-pointer transition-all ${withInsurance ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-gray-50'}`}
+                          onClick={() => setWithInsurance(!withInsurance)}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${withInsurance ? 'bg-green-500 border-green-500' : 'border-gray-400'}`}>
+                              {withInsurance && <span className="text-white text-xs font-bold">✓</span>}
+                            </div>
+                            <div>
+                              <span className="font-semibold text-gray-800 text-xs">🛡️ Assurance capital 2% — Conseillée</span>
+                              <p className="text-xs text-gray-500 mt-0.5">Protège votre capital en cas de défaillance du projet</p>
+                            </div>
                           </div>
-                        ))}
+                          {!withInsurance && (
+                            <p className="text-xs text-blue-600 mt-1.5 ml-7">✨ Les 2% sont réinjectés dans votre part de projet</p>
+                          )}
+                        </div>
+                        {/* Décomposition nouvelle stratégie */}
+                        {(() => {
+                          const amt = Number(investAmount)
+                          const baobabFee = Math.round(amt * fees.commission_baobab_collection / 100)
+                          const payinFee = Math.round(amt * (fees.payin_recovery || 4) / 100)
+                          const mentorFee = project.mentor ? Math.round(amt * fees.commission_mentor / 100) : 0
+                          const guarFee = withInsurance ? Math.round(amt * fees.commission_guarantee / 100) : 0
+                          const reinvested = withInsurance ? 0 : Math.round(amt * fees.commission_guarantee / 100)
+                          const totalFees = baobabFee + payinFee + mentorFee + guarFee
+                          const netToProject = amt - totalFees + reinvested
+                          const returnRate = project.expectedReturn || 22
+                          const netAmount = project.netAmount || project.goalAmount
+                          const sharePercent = amt / project.goalAmount
+                          const totalReturn = Math.round(netAmount * (1 + returnRate/100))
+                          const payinRepayment = fees.payin_repayment || 4
+                          const netDistributed = Math.round(totalReturn * (1 - payinRepayment/100))
+                          const investorTotal = Math.round(netDistributed * sharePercent)
+                          const gain = investorTotal - amt
+                          const gainPct = ((gain / amt) * 100).toFixed(1)
+                          return (
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-gray-600"><span>Capital investi</span><span className="font-bold">{amt.toLocaleString()} FCFA</span></div>
+                              <div className="flex justify-between text-red-500"><span>BAOBAB 5% collecte</span><span>-{baobabFee.toLocaleString()} FCFA</span></div>
+                              <div className="flex justify-between text-red-500"><span>Payin 4% (frais op.)</span><span>-{payinFee.toLocaleString()} FCFA</span></div>
+                              {project.mentor && <div className="flex justify-between text-red-500"><span>Mentor 2%</span><span>-{mentorFee.toLocaleString()} FCFA</span></div>}
+                              {withInsurance
+                                ? <div className="flex justify-between text-orange-500"><span>Assurance 2%</span><span>-{guarFee.toLocaleString()} FCFA</span></div>
+                                : <div className="flex justify-between text-blue-500"><span>Assurance refusée (+2% réinvestis)</span><span>+{reinvested.toLocaleString()} FCFA</span></div>
+                              }
+                              <div className="flex justify-between text-green-700 font-bold border-t border-gray-200 pt-1"><span>Net dans le projet</span><span>{netToProject.toLocaleString()} FCFA</span></div>
+                              <div className="flex justify-between text-green-600 font-bold text-sm border-t border-green-200 pt-1 mt-1"><span>Vous récupérez (sur {project.durationMonths} mois)</span><span>{investorTotal.toLocaleString()} FCFA</span></div>
+                              <div className={`flex justify-between font-bold text-sm ${gain >= 0 ? 'text-blue-700' : 'text-red-600'}`}><span>Gain net</span><span>{gain >= 0 ? '+' : ''}{gain.toLocaleString()} FCFA ({gainPct}%)</span></div>
+                            </div>
+                          )
+                        })()}
                         <div className="text-gray-400 mt-2 text-xs">
-                          💡 Frais PayDunya absorbés par BAOBAB INVEST.{" "}
-                          <Link href="/transparence" className="text-green-600 hover:underline">Transparence →</Link>
+                          💡 Dépôt wallet crédité 100% — BAOBAB absorbe les frais opérateur.
                         </div>
                       </div>
                     )}
