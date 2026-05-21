@@ -157,16 +157,18 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
   const [saving, setSaving] = React.useState<string | null>(null);
   const [values, setValues] = React.useState<Record<string, string>>({});
 
-  React.useEffect(() => {
+  const loadConfigs = () => {
+    setLoading(true);
     authGet("/api/config").then(res => {
       if (res.success) {
         setConfigs(res.data);
         const v: Record<string, string> = {};
-        res.data.forEach((c: any) => { v[c.key] = String(c.value); });
+        res.data.forEach((c: any) => { v[c.key] = String(c.draftValue ?? c.value); });
         setValues(v);
       }
     }).finally(() => setLoading(false));
-  }, []);
+  };
+  React.useEffect(() => { loadConfigs(); }, []);
 
   const save = async (key: string) => {
     setSaving(key);
