@@ -315,8 +315,8 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
                     <span className="font-bold text-orange-700">+{garantieFond.toLocaleString()} FCFA</span>
                   </div>
                   <div className="flex justify-between text-xs border-t pt-2">
-                    <span className="text-gray-500">Frais opérateur Payin {payinRate}%</span>
-                    <span className="font-bold text-red-600">-{payinCost.toLocaleString()} FCFA</span>
+                    <span className="text-gray-500">Payin récupéré à l'invest {payinRecovery}%</span>
+                    <span className="font-bold text-blue-700">+{payinPerInvestor.toLocaleString()} FCFA → admin</span>
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 space-y-2">
@@ -348,11 +348,11 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
                 <div className="grid grid-cols-3 gap-3 text-xs">
                   <div className="text-center">
                     <div className="text-gray-500">Revenus</div>
-                    <div className="font-bold text-green-700">+{(baobabGainClot + baobabGainRet).toLocaleString()} FCFA</div>
+                    <div className="font-bold text-green-700">+{(baobabGainClot + payinPerInvestor + payinMensualites).toLocaleString()} FCFA</div>
                   </div>
                   <div className="text-center">
                     <div className="text-gray-500">Coûts opérateur</div>
-                    <div className="font-bold text-red-600">-{(payinCost + payoutCost).toLocaleString()} FCFA</div>
+                    <div className="font-bold text-red-600">-{payinPerInvestor.toLocaleString()} FCFA</div>
                   </div>
                   <div className="text-center">
                     <div className="text-gray-500">Bilan NET</div>
@@ -621,7 +621,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   const [processing, setProcessing] = React.useState<string | null>(null);
   const [note, setNote] = React.useState("");
   const [fees, setFees] = React.useState<any>({
-    commission_baobab_collection: 5, commission_baobab_return: 5,
+    commission_baobab_collection: 5, payin_recovery: 4, payin_repayment: 4,
     commission_guarantee: 2, commission_mentor: 2,
     paydunya_payin: 3, paydunya_payout: 2
   });
