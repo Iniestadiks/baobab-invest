@@ -174,7 +174,7 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
     setSaving(key);
     try {
       const res = await authPatch(`/api/config/${key}`, { value: Number(values[key]) });
-      if (res.success) flash(`✅ ${res.message}`);
+      if (res.success) { flash(`📝 ${res.message}`); loadConfigs(); }
       else flash("❌ " + res.message);
     } finally { setSaving(null); }
   };
