@@ -36,9 +36,9 @@ export default function TransparencePage() {
 
   const f = fees || {
     commission_baobab_collection: 5, commission_mentor: 2,
-    commission_guarantee: 2, commission_baobab_return: 5,
-    paydunya_payin: 3, paydunya_payout: 2,
-    return_min_with_mentor: 15, return_min_no_mentor: 17,
+    commission_guarantee: 2, payin_recovery: 4,
+    payin_repayment: 4, withdrawal_fee_standard: 3,
+    return_min: 22,
     investment_min: 5000
   };
 
@@ -94,9 +94,9 @@ export default function TransparencePage() {
               { label: "Commission BAOBAB à la clôture", value: `${f.commission_baobab_collection}%`, desc: "Prélevé une fois sur chaque investissement", color: "bg-red-50 text-red-700" },
               { label: "Commission mentor", value: `${f.commission_mentor}%`, desc: "Versé au mentor qui accompagne le projet", color: "bg-purple-50 text-purple-700" },
               { label: "Fonds de garantie communautaire", value: `${f.commission_guarantee}%`, desc: "Protège les investisseurs en cas de défaut", color: "bg-blue-50 text-blue-700" },
-              { label: "Commission BAOBAB sur les retours", value: `${f.commission_baobab_return}%`, desc: "Prélevé sur le montant total remboursé", color: "bg-orange-50 text-orange-700" },
-              { label: "Frais PayDunya Payin", value: `${f.paydunya_payin}%`, desc: "Frais Mobile Money encaissement — absorbé par BAOBAB", color: "bg-gray-50 text-gray-700" },
-              { label: "Frais PayDunya Payout", value: `${f.paydunya_payout}%`, desc: "Frais Mobile Money virement — absorbé par BAOBAB", color: "bg-gray-50 text-gray-700" },
+              { label: "Payin mensualités remboursement", value: `${f.payin_repayment||4}%`, desc: "Prélevé sur chaque mensualité — compense frais opérateur", color: "bg-blue-50 text-blue-700" },
+              { label: "Récupération Payin investissement", value: `${f.payin_recovery||4}%`, desc: "Prélevé à l'investissement — compense frais dépôt Mobile Money", color: "bg-gray-50 text-gray-700" },
+              { label: "Frais retrait Mobile Money", value: `${f.withdrawal_fee_standard||3}%`, desc: "Prélevé uniquement au retrait vers Mobile Money", color: "bg-gray-50 text-gray-700" },
             ].map(item => (
               <div key={item.label} className="flex items-center justify-between p-4 rounded-xl border border-gray-100">
                 <div>
@@ -124,17 +124,17 @@ export default function TransparencePage() {
               </div>
             </div>
             <div className="bg-blue-50 rounded-xl p-4">
-              <h3 className="font-bold text-blue-800 mb-3">Au remboursement ({f.return_min_with_mentor}%)</h3>
+              <h3 className="font-bold text-blue-800 mb-3">Au remboursement ({f.return_min||22}%)</h3>
               <div className="space-y-2 text-sm">
                 {(() => {
-                  const gross = Math.round(100000 * (1 + f.return_min_with_mentor/100));
-                  const baobabReturn = Math.round(gross * f.commission_baobab_return/100);
-                  const payoutFee = Math.round(gross * f.paydunya_payout/100);
-                  const net = gross - baobabReturn - payoutFee;
+                  const gross = Math.round(100000 * (1 + (f.return_min||22)/100));
+                  const payinMens = Math.round(gross * (f.payin_repayment||4)/100);
+                  const payoutFee = 0;
+                  const net = gross - payinMens;
                   return <>
-                    <div className="flex justify-between"><span className="text-gray-600">Retour brut {f.return_min_with_mentor}%</span><span className="font-bold">{gross.toLocaleString()} FCFA</span></div>
-                    <div className="flex justify-between"><span className="text-gray-600">BAOBAB retour {f.commission_baobab_return}%</span><span className="text-red-600">- {baobabReturn.toLocaleString()} FCFA</span></div>
-                    <div className="flex justify-between"><span className="text-gray-600">PayDunya Payout {f.paydunya_payout}%</span><span className="text-red-600">- {payoutFee.toLocaleString()} FCFA</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">Retour brut {f.return_min||22}%</span><span className="font-bold">{gross.toLocaleString()} FCFA</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">Payin mensualités {f.payin_repayment||4}%</span><span className="text-blue-600">- {payinMens.toLocaleString()} FCFA</span></div>
+                    <div className="flex justify-between"><span className="text-green-600">0% commission retour BAOBAB</span><span className="text-green-600">0 FCFA</span></div>
                     <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Vous recevez</span><span className="font-bold text-blue-700">{net.toLocaleString()} FCFA</span></div>
                     <div className="flex justify-between"><span className="text-gray-500 text-xs">Gain net</span><span className="text-green-600 font-bold text-xs">+{(net-100000).toLocaleString()} FCFA (+{((net/100000-1)*100).toFixed(1)}%)</span></div>
                   </>;
