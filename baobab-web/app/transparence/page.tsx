@@ -149,14 +149,14 @@ export default function TransparencePage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">📈 Taux de retour minimum garanti</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="bg-purple-50 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-purple-700">{f.return_min_with_mentor}%</div>
-              <div className="font-medium text-purple-800 mt-1">Avec mentor</div>
-              <div className="text-xs text-gray-500 mt-1">Projet accompagné par un expert</div>
+              <div className="text-3xl font-bold text-purple-700">{f.return_min||22}%</div>
+              <div className="font-medium text-purple-800 mt-1">Taux minimum unique</div>
+              <div className="text-xs text-gray-500 mt-1">Applicable avec ou sans mentor</div>
             </div>
             <div className="bg-green-50 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-green-700">{f.return_min_no_mentor}%</div>
-              <div className="font-medium text-green-800 mt-1">Sans mentor</div>
-              <div className="text-xs text-gray-500 mt-1">+{f.return_min_no_mentor - f.return_min_with_mentor}% bonus investisseur</div>
+              <div className="text-3xl font-bold text-green-700">0%</div>
+              <div className="font-medium text-green-800 mt-1">Commission retour BAOBAB</div>
+              <div className="text-xs text-gray-500 mt-1">BAOBAB ne prélève rien au remboursement ✅</div>
             </div>
           </div>
         </div>
