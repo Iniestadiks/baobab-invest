@@ -16,7 +16,7 @@ const projectSchema = z.object({
   country: z.string().default('SN'),
   goalAmount: z.number().min(100000, 'Montant minimum 100 000 FCFA'),
   minimumInvestment: z.number().min(5000).default(5000),
-  expectedReturn: z.number().min(15, 'Taux de retour minimum : 15%').max(100),
+  expectedReturn: z.number().min(22, 'Taux de retour minimum : 22%').max(100),
   durationMonths: z.number().min(1).max(60),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
   mentorId: z.string().optional(),
@@ -140,39 +140,32 @@ router.post('/:id/simulate', async (req: Request, res: Response): Promise<void> 
     }
     const sharePercent = amount / project.goalAmount
     const hasMentor = !!project.mentorId
-    const returnRate = project.expectedReturn || (hasMentor ? 15 : 17)
-    // expectedReturn = capital + intérêts (ex: 100 000 FCFA à 17% = 117 000 FCFA)
-    const expectedReturn = Math.round(amount * (1 + returnRate / 100))
-    // Commissions à la clôture
-    const platformFee   = Math.round(amount * 0.05)  // BAOBAB 5%
-    const mentorFee     = hasMentor ? Math.round(amount * 0.02) : 0  // Mentor 2%
-    const guaranteeFee  = Math.round(amount * 0.02)  // Garantie 2%
-    const paydunyaPayin = Math.round(amount * 0.03)  // PayDunya Payin 3% (absorbé BAOBAB)
-    // Commissions sur retours
-    const baobabOnReturn   = Math.round(expectedReturn * 0.05)  // BAOBAB 5% sur retours
-    const paydunyaPayout   = Math.round(expectedReturn * 0.02)  // PayDunya Payout 2% (absorbé BAOBAB)
-    const netReceived      = expectedReturn - baobabOnReturn - paydunyaPayout
-    const bonusSansMentor  = hasMentor ? 0 : Math.round(amount * 0.02)  // +2% investisseur si pas de mentor
-
+    const fees = await getFees()
+    const withInsurance = req.body.withInsurance !== false
+    const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
+    const platformFee    = Math.round(amount * fees.commission_baobab_collection / 100)
+    const payinFee       = Math.round(amount * fees.payin_recovery / 100)
+    const mentorFee      = hasMentor ? Math.round(amount * fees.commission_mentor / 100) : 0
+    const guaranteeFee   = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
+    const reinvested     = withInsurance ? 0 : Math.round(amount * fees.commission_guarantee / 100)
+    const netToProject   = amount - platformFee - payinFee - mentorFee - guaranteeFee + reinvested
+    const netAmount      = (project as any).netAmount || project.goalAmount
+    const totalReturn    = Math.round(netAmount * (1 + returnRate / 100))
+    const netDistributed = Math.round(totalReturn * (1 - fees.payin_repayment / 100))
+    const investorTotal  = Math.round(netDistributed * sharePercent)
+    const gain           = investorTotal - amount
     successResponse(res, {
       invested: amount,
-      sharePercent: (sharePercent * 100).toFixed(4),
+      sharePercent: (sharePercent * 100).toFixed(4) + '%',
       returnRate: returnRate + '%',
       hasMentor,
-      // À l'investissement
-      platformFee,
-      mentorFee,
-      guaranteeFee,
-      paydunyaPayin,
-      // Au remboursement
-      expectedReturn,
-      baobabOnReturn,
-      paydunyaPayout,
-      bonusSansMentor,
-      netReceived,
-      // Résumé
-      totalCostForBAOBAB: platformFee + paydunyaPayin + baobabOnReturn + paydunyaPayout,
-      monthlyReturn: project.durationMonths ? Math.round((netReceived - amount) / project.durationMonths) : 0,
+      withInsurance,
+      fees: { platformFee, payinFee, mentorFee, guaranteeFee, reinvested, netToProject },
+      returns: {
+        totalReturn, netDistributed, investorTotal, gain,
+        gainPercent: ((gain / amount) * 100).toFixed(2) + '%',
+        monthly: project.durationMonths ? Math.round(investorTotal / project.durationMonths) : 0,
+      }
     })
   } catch {
     errorResponse(res)
