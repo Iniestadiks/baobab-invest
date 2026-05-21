@@ -172,11 +172,11 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
       const baobabOnCollection = Math.round(totalInvested * (feeMap.commission_baobab_collection || 5) / 100)
       const mentorFee = p.mentorId ? Math.round(totalInvested * (feeMap.commission_mentor || 2) / 100) : 0
       const guaranteeFee = Math.round(totalInvested * (feeMap.commission_guarantee || 2) / 100)
-      const paydunyaPayin = Math.round(totalInvested * (feeMap.paydunya_payin || 3) / 100)
+      const paydunyaPayin = Math.round(totalInvested * (feeMap.payin_recovery || 4) / 100)
       const cagnotteNette = totalInvested - baobabOnCollection - mentorFee - guaranteeFee
       // Au remboursement (projections)
-      const baobabOnReturn = Math.round(totalExpectedReturn * (feeMap.commission_baobab_return || 5) / 100)
-      const paydunyaPayout = Math.round(totalExpectedReturn * (feeMap.paydunya_payout || 2) / 100)
+      const baobabOnReturn = Math.round(totalExpectedReturn * (0) / 100)
+      const paydunyaPayout = Math.round(totalExpectedReturn * (feeMap.withdrawal_fee_standard || 3) / 100)
       const netInvestors = totalExpectedReturn - baobabOnReturn - paydunyaPayout
       // Fournisseurs payés
       const totalFournisseurs = p.milestones.reduce((s, m) =>
@@ -184,7 +184,7 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
       const fournisseursPending = p.milestones.reduce((s, m) =>
         s + m.payments.filter((pay: any) => pay.status === 'PENDING').reduce((ss: number, pay: any) => ss + pay.amount, 0), 0)
       // Revenu net BAOBAB sur ce projet
-      const revenueNetBAOBABProjet = baobabOnCollection - paydunyaPayin + (p.status === 'COMPLETED' ? baobabOnReturn - paydunyaPayout : 0)
+      const revenueNetBAOBABProjet = baobabOnCollection
 
       return {
         id: p.id,
@@ -223,7 +223,7 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
           name: `${i.user?.firstName} ${i.user?.lastName}`,
           amount: i.amount,
           expectedReturn: i.expectedReturn,
-          netReturn: Math.round((i.expectedReturn || 0) * (1 - (feeMap.commission_baobab_return||5)/100 - (feeMap.paydunya_payout||2)/100)),
+          netReturn: Math.round((i.expectedReturn || 0) * (1 - (0)/100 - (feeMap.withdrawal_fee_standard||3)/100)),
           date: i.createdAt,
           status: i.status
         }))
@@ -283,7 +283,7 @@ router.get('/stats/charts', authenticate, requireAdmin, async (req: AuthRequest,
      const fraisTaux = (feeMap.commission_baobab_collection||5) + (feeMap.commission_mentor||2) + (feeMap.commission_guarantee||2)
      const totalCagnotteNette = Math.round(totalRaisedBrut * (1 - fraisTaux/100))
      const totalExpectedReturn = investments.reduce((s, i) => s + (i.expectedReturn||0), 0)
-     const totalNetInvestors = Math.round(totalExpectedReturn * (1 - (feeMap.commission_baobab_return||5)/100 - (feeMap.paydunya_payout||2)/100))
+     const totalNetInvestors = Math.round(totalExpectedReturn * (1 - (0)/100 - (feeMap.withdrawal_fee_standard||3)/100))
      const revs = await prisma.platformRevenue.findMany()
      const revByType: any = {}
      revs.forEach((r: any) => { revByType[r.type] = (revByType[r.type]||0) + r.amount })
