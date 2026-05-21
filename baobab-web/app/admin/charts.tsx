@@ -37,7 +37,7 @@ export default function AdminCharts() {
           {[
             { label: "Total levé (brut)", value: `${(k.totalRaised/1000).toFixed(0)}k FCFA`, icon: "💰", color: "text-green-700", bg: "bg-green-50", note: "Capital investi total" },
             { label: "Cagnotte nette projets", value: `${(k.totalCagnotteNette/1000).toFixed(0)}k FCFA`, icon: "🏗️", color: "text-blue-700", bg: "bg-blue-50", note: "Après frais clôture (9%)" },
-            { label: "Retours nets investisseurs", value: `${(k.totalNetInvestors/1000).toFixed(0)}k FCFA`, icon: "📈", color: "text-orange-700", bg: "bg-orange-50", note: "Projetés après frais retour (7%)" },
+            { label: "Retours nets investisseurs", value: `${(k.totalNetInvestors/1000).toFixed(0)}k FCFA`, icon: "📈", color: "text-orange-700", bg: "bg-orange-50", note: "Projetés — Payin 4% mensualités seulement" },
             { label: "Revenu net BAOBAB", value: `${(k.revenuNetBAOBAB||0).toLocaleString()} FCFA`, icon: "🏦", color: "text-purple-700", bg: "bg-purple-50", note: "Encaissé à ce jour" },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>
@@ -154,9 +154,9 @@ export default function AdminCharts() {
                 { label: "↳ Commission mentors versée", value: Math.round(k.totalRaised * (k.feeMap?.commission_mentor||2) / 100), note: `${k.feeMap?.commission_mentor||2}% crédité sur wallet mentor`, color: "text-blue-700" },
                 { label: "↳ Fonds de garantie", value: Math.round(k.totalRaised * (k.feeMap?.commission_guarantee||2) / 100), note: `${k.feeMap?.commission_guarantee||2}% réservé — libéré au remboursement`, color: "text-orange-700" },
                 { label: "Retour total brut (projeté)", value: k.totalExpectedReturn, note: "Capital + intérêts promis", color: "text-gray-900" },
-                { label: "↳ Net versé aux investisseurs", value: k.totalNetInvestors, note: "Après BAOBAB 5% + PayDunya 2% sur retours", color: "text-green-700" },
-                { label: "↳ Commission BAOBAB sur retours", value: Math.round(k.totalExpectedReturn * (k.feeMap?.commission_baobab_return||5) / 100), note: `${k.feeMap?.commission_baobab_return||5}% prélevé au remboursement`, color: "text-purple-700" },
-                { label: "Revenu net BAOBAB (encaissé)", value: k.revenuNetBAOBAB, note: "Collecte - PayDunya absorbé", color: "text-purple-800 font-bold" },
+                { label: "↳ Net versé aux investisseurs", value: k.totalNetInvestors, note: "0% commission retour — Payin 4% sur mensualités seulement", color: "text-green-700" },
+                { label: "↳ Payin mensualités BAOBAB", value: Math.round(k.totalExpectedReturn * (k.feeMap?.payin_repayment||4) / 100), note: `${k.feeMap?.payin_repayment||4}% Payin sur mensualités`, color: "text-blue-700" },
+                { label: "Revenu net BAOBAB (encaissé)", value: k.revenuNetBAOBAB, note: "Collecte 5% + Payin invest 4% + Payin mensualités 4%", color: "text-purple-800 font-bold" },
               ].map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-gray-700">{row.label}</td>

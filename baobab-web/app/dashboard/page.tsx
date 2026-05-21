@@ -104,8 +104,8 @@ export default function DashboardPage() {
   const unread = notifications.filter(n => !n.isRead).length;
   const projetsActifs = investments.filter(i => i.project?.status !== "COMPLETED").length;
   const projetsTermines = investments.filter(i => i.project?.status === "COMPLETED").length;
-  const baobabRate = fees?.commission_baobab_return || 5;
-  const paydunyaRate = fees?.paydunya_payout || 2;
+  const baobabRate = fees?.payin_repayment || 4;  // Payin mensualités (0% commission retour)
+  const paydunyaRate = 0;  // supprimé — reversements virtuels 0% frais
   // totalExpected vient du backend qui a deja applique les frais
   const totalNetReturn = totalExpected;
   const gainNet = Math.max(0, totalNetReturn - totalInvested);
@@ -126,7 +126,7 @@ export default function DashboardPage() {
     return { name: new Date(inv.createdAt).toLocaleDateString("fr-FR", { day:"numeric", month:"short" }), "Investi": cumInv, "Retour net": cumNet };
   });
   const sectorData = Object.entries(investments.reduce((acc: any, inv) => { const s = inv.project?.sector || "Autre"; acc[s] = (acc[s]||0) + inv.amount; return acc; }, {})).map(([name, value]) => ({ name, value }));
-  const projectData = investments.slice(0,5).map(inv => ({ name: (inv.project?.title||"").substring(0,12), investi: inv.amount, retour: Math.round((inv.expectedReturn||0) * (1 - baobabRate/100 - paydunyaRate/100)) }));
+  const projectData = investments.slice(0,5).map(inv => ({ name: (inv.project?.title||"").substring(0,12), investi: inv.amount, retour: Math.round((inv.expectedReturn||0) * (1 - baobabRate/100)) }));
 
   const TABS = [
     { id: "overview",     label: "Vue générale",    icon: "📊" },
