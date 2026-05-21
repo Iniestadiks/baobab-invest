@@ -480,6 +480,7 @@ model PlatformConfig {
   id          String   @id @default(uuid())
   key         String   @unique
   value       Float
+  draftValue  Float?   // Valeur brouillon — pas encore active
   label       String
   description String?
   updatedAt   DateTime @updatedAt

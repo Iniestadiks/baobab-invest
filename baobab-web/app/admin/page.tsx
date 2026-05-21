@@ -203,12 +203,21 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">⚙️ Configuration des taux</h2>
-          <p className="text-sm text-gray-500 mt-1">Les modifications s&apos;appliquent immédiatement sur les prochains investissements.</p>
+          <p className="text-sm text-gray-500 mt-1">Modifiez les taux, sauvegardez en brouillon, puis confirmez pour appliquer.</p>
         </div>
-        <button onClick={reset} className="text-sm text-red-500 hover:underline border border-red-200 px-3 py-1.5 rounded-xl">
-          🔄 Réinitialiser les défauts
-        </button>
       </div>
+      {configs.some((c: any) => c.draftValue !== null && c.draftValue !== undefined) && (
+        <div className="bg-yellow-100 border border-yellow-400 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <span className="font-bold text-yellow-800">⚠️ Brouillons en attente</span>
+            <p className="text-sm text-yellow-700 mt-0.5">Des modifications ont été sauvegardées mais pas encore appliquées aux futurs projets.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={confirmDraft} className="bg-green-600 text-white text-sm px-3 py-2 rounded-xl font-medium">✅ Appliquer</button>
+            <button onClick={cancelDraft} className="bg-red-100 text-red-700 text-sm px-3 py-2 rounded-xl font-medium">❌ Annuler</button>
+          </div>
+        </div>
+      )}
       {groups.map(g => (
         <div key={g.title} className="bg-white rounded-2xl border border-gray-100 p-5">
           <h3 className="font-bold text-gray-900 mb-4">{g.title}</h3>
@@ -218,8 +227,9 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
               if (!c) return null;
               const isPercent = !key.includes("_min") && !key.includes("grace_period");
               const isMois = key.includes("grace_period");
+              const hasDraft = c.draftValue !== null && c.draftValue !== undefined;
               return (
-                <div key={key} className="flex items-center gap-3">
+                <div key={key} className={`flex items-center gap-3 ${hasDraft ? 'bg-yellow-50 rounded-xl p-2 border border-yellow-200' : ''}`}>
                   <div className="flex-1">
                     <div className="text-sm font-medium text-gray-900">{c.label}</div>
                     <div className="text-xs text-gray-400">{c.description}</div>
@@ -262,25 +272,22 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
         </p>
         <div className="flex gap-3">
           <button
-            onClick={async () => {
-              if (!confirm("Confirmer l'application des nouveaux taux sur tous les futurs projets et investissements ?")) return;
-              const token = localStorage.getItem("accessToken");
-              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/config/reset`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              const d = await res.json();
-              if (d.success) { flash("✅ Taux actuels confirmés et actifs sur tous les futurs projets !"); }
-            }}
-            className="bg-blue-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-700 font-medium"
+            onClick={confirmDraft}
+            className="bg-green-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-green-700 font-medium"
           >
             ✅ Confirmer et appliquer sur les futurs projets
+          </button>
+          <button
+            onClick={cancelDraft}
+            className="bg-orange-100 text-orange-700 text-sm px-4 py-2 rounded-xl hover:bg-orange-200 font-medium"
+          >
+            ❌ Annuler les brouillons
           </button>
           <button
             onClick={reset}
             className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded-xl hover:bg-gray-50 font-medium"
           >
-            🔄 Réinitialiser aux valeurs par défaut
+            🔄 Réinitialiser les défauts
           </button>
         </div>
       </div>
