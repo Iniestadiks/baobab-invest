@@ -216,7 +216,8 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
             {g.keys.map(key => {
               const c = configs.find(x => x.key === key);
               if (!c) return null;
-              const isPercent = !key.includes("_min");
+              const isPercent = !key.includes("_min") && !key.includes("grace_period");
+              const isMois = key.includes("grace_period");
               return (
                 <div key={key} className="flex items-center gap-3">
                   <div className="flex-1">
@@ -234,7 +235,7 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
                         min="0"
                         max={isPercent ? "50" : "1000000"}
                       />
-                      <span className="absolute right-2 top-2 text-xs text-gray-400">{isPercent ? "%" : "F"}</span>
+                      <span className="absolute right-2 top-2 text-xs text-gray-400">{isMois ? "mois" : isPercent ? "%" : "F"}</span>
                     </div>
                     <button
                       onClick={() => save(key)}
@@ -252,6 +253,36 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
       ))}
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-700">
         <strong>⚠️ Important :</strong> Ces taux s&apos;appliquent uniquement aux <strong>nouveaux investissements</strong>. Les investissements existants conservent leurs taux d&apos;origine.
+      </div>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="font-bold text-blue-800 mb-2">🚀 Appliquer aux projets futurs</div>
+        <p className="text-sm text-blue-700 mb-3">
+          Les taux sauvegardés s&apos;appliquent automatiquement à tous les nouveaux projets et investissements.
+          Les projets en cours ne sont pas affectés.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={async () => {
+              if (!confirm("Confirmer l'application des nouveaux taux sur tous les futurs projets et investissements ?")) return;
+              const token = localStorage.getItem("accessToken");
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/config/reset`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const d = await res.json();
+              if (d.success) { flash("✅ Taux actuels confirmés et actifs sur tous les futurs projets !"); }
+            }}
+            className="bg-blue-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-700 font-medium"
+          >
+            ✅ Confirmer et appliquer sur les futurs projets
+          </button>
+          <button
+            onClick={reset}
+            className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded-xl hover:bg-gray-50 font-medium"
+          >
+            🔄 Réinitialiser aux valeurs par défaut
+          </button>
+        </div>
       </div>
 
       {/* SIMULATEUR EN TEMPS RÉEL */}
