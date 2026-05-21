@@ -225,7 +225,8 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
             {g.keys.map(key => {
               const c = configs.find(x => x.key === key);
               if (!c) return null;
-              const isPercent = !key.includes("_min") && !key.includes("grace_period");
+              const isAmountMin = key === "investment_min" || key === "withdrawal_min";
+              const isPercent = !isAmountMin && !key.includes("grace_period");
               const isMois = key.includes("grace_period");
               const hasDraft = c.draftValue !== null && c.draftValue !== undefined;
               return (
@@ -241,11 +242,11 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
                         value={values[key] || ""}
                         onChange={e => setValues(prev => ({ ...prev, [key]: e.target.value }))}
                         className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm text-right focus:outline-none focus:border-green-400"
-                        step={isPercent ? "0.5" : "1000"}
+                        step={isAmountMin ? "1000" : isPercent ? "0.5" : "1"}
                         min="0"
-                        max={isPercent ? "50" : "1000000"}
+                        max={isAmountMin ? "1000000" : isPercent ? "50" : "100"}
                       />
-                      <span className="absolute right-2 top-2 text-xs text-gray-400">{isMois ? "mois" : isPercent ? "%" : "F"}</span>
+                      <span className="absolute right-2 top-2 text-xs text-gray-400">{isMois ? "mois" : isAmountMin ? "F" : "%"}</span>
                     </div>
                     <button
                       onClick={() => save(key)}
@@ -661,7 +662,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   const [fees, setFees] = React.useState<any>({
     commission_baobab_collection: 5, payin_recovery: 4, payin_repayment: 4,
     commission_guarantee: 2, commission_mentor: 2,
-    paydunya_payin: 3, paydunya_payout: 2
+    payin_recovery: 4, payin_repayment: 4
   });
   React.useEffect(() => {
     authGet("/api/config/public").then((res: any) => {
@@ -723,10 +724,13 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
           {fundedProjects.map((p: any) => {
             const det = details[p.id];
             const grossReturn = Math.round((p.raisedAmount || 0) * (1 + (p.expectedReturn || 15) / 100));
-            const baobabOnReturn = Math.round(grossReturn * (fees.commission_baobab_return || 5) / 100);
-            const paydunyaPayout = Math.round(grossReturn * (fees.paydunya_payout || 2) / 100);
-            const netInvestors = grossReturn - baobabOnReturn - paydunyaPayout;
-            const revenueBAOBAB = Math.round((p.raisedAmount || 0) * (fees.commission_baobab_collection || 5) / 100) - Math.round((p.raisedAmount || 0) * (fees.paydunya_payin || 3) / 100) + baobabOnReturn - paydunyaPayout;
+            // NOUVELLE STRATÉGIE : 0% commission retour, Payin 4% sur mensualités
+            const payinRepayment = fees.payin_repayment || 4;
+            const payinOnReturn = Math.round(grossReturn * payinRepayment / 100);
+            const netInvestors = grossReturn - payinOnReturn;  // 96% aux investisseurs
+            const baobabOnReturn = payinOnReturn;  // BAOBAB récupère Payin mensualités
+            const paydunyaPayout = 0;  // supprimé
+            const revenueBAOBAB = Math.round((p.raisedAmount || 0) * (fees.commission_baobab_collection || 5) / 100) + payinOnReturn;
             const garantie = Math.round((p.raisedAmount || 0) * (fees.commission_guarantee || 2) / 100);
 
             return (
@@ -781,11 +785,11 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                         <span className="font-bold">{grossReturn.toLocaleString()} FCFA</span>
                       </div>
                       <div className="flex justify-between py-1 border-b border-gray-50 text-red-600">
-                        <span>— Commission BAOBAB retours ({fees.commission_baobab_return || 5}%)</span>
+                        <span>— BAOBAB Payin mensualités ({fees.payin_repayment || 4}%)</span>
                         <span>-{baobabOnReturn.toLocaleString()} FCFA</span>
                       </div>
                       <div className="flex justify-between py-1 border-b border-gray-50 text-red-500">
-                        <span>— PayDunya Payout ({fees.paydunya_payout || 2}%) absorbé BAOBAB</span>
+                        <span>— 0% commission retour BAOBAB</span>
                         <span>-{paydunyaPayout.toLocaleString()} FCFA</span>
                       </div>
                       <div className="flex justify-between py-1 border-b border-gray-50 font-bold text-green-700">
@@ -1318,7 +1322,7 @@ function FinancesTab({ authGet }: any) {
                       <div className="bg-white rounded-xl p-3 border border-orange-100">
                         <div className="text-gray-400">Retour projeté investisseurs (net)</div>
                         <div className="font-bold text-orange-700">{p.netInvestors.toLocaleString()} FCFA</div>
-                        <div className="text-gray-400 mt-1">Brut {p.totalExpectedReturn.toLocaleString()} - BAOBAB {p.baobabOnReturn.toLocaleString()} - PayDunya {p.paydunyaPayout.toLocaleString()}</div>
+                        <div className="text-gray-400 mt-1">Brut {p.totalExpectedReturn.toLocaleString()} - Payin {p.baobabOnReturn.toLocaleString()} - 0% retour BAOBAB</div>
                       </div>
                       <div className="bg-white rounded-xl p-3 border border-purple-100">
                         <div className="text-gray-400">Revenu net BAOBAB</div>
