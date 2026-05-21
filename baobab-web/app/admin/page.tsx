@@ -185,6 +185,17 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
       window.location.reload();
     }
   };
+  const confirmDraft = async () => {
+    if (!confirm("Confirmer l'application de tous les brouillons sur les futurs projets ?")) return;
+    const res = await authPost("/api/config/confirm", {});
+    if (res.success) { flash("✅ " + res.message); loadConfigs(); }
+    else flash("❌ " + res.message);
+  };
+  const cancelDraft = async () => {
+    const res = await authPost("/api/config/cancel-draft", {});
+    if (res.success) { flash("🔄 Brouillons annulés"); loadConfigs(); }
+    else flash("❌ " + res.message);
+  };
 
   if (loading) return <div className="text-center py-10 text-gray-400">Chargement...</div>;
 
