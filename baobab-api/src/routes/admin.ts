@@ -174,10 +174,13 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
       const guaranteeFee = Math.round(totalInvested * (feeMap.commission_guarantee || 2) / 100)
       const paydunyaPayin = Math.round(totalInvested * (feeMap.payin_recovery || 4) / 100)
       const cagnotteNette = totalInvested - baobabOnCollection - mentorFee - guaranteeFee
-      // Au remboursement (projections)
-      const baobabOnReturn = Math.round(totalExpectedReturn * (0) / 100)
-      const paydunyaPayout = Math.round(totalExpectedReturn * (feeMap.withdrawal_fee_standard || 3) / 100)
-      const netInvestors = totalExpectedReturn - baobabOnReturn - paydunyaPayout
+      // Au remboursement (projections) — nouvelle stratégie
+      // 0% commission retour BAOBAB, Payin 4% sur mensualités seulement
+      const payinRepayment = feeMap.payin_repayment || 4
+      const payinOnRepayment = Math.round(totalExpectedReturn * payinRepayment / 100)
+      const netInvestors = totalExpectedReturn - payinOnRepayment
+      const baobabOnReturn = payinOnRepayment  // pour affichage
+      const paydunyaPayout = 0  // supprimé
       // Fournisseurs payés
       const totalFournisseurs = p.milestones.reduce((s, m) =>
         s + m.payments.filter((pay: any) => pay.status === 'COMPLETED').reduce((ss: number, pay: any) => ss + pay.amount, 0), 0)
