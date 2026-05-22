@@ -87,6 +87,8 @@ export default function MentorDashboard() {
   );
 
   const totalCommission = projects.reduce((s, p) => s + (p.mentorCommission || 0), 0);
+  const totalCommissionEstimated = projects.reduce((s, p) => s + (p.mentorCommissionEstimated || p.mentorCommission || 0), 0);
+  const commissionRate = fees?.commission_mentor || 2;
   const activeProjects = projects.filter(p => ["ACTIVE","IN_PROGRESS","FUNDED"].includes(p.status));
   const pendingProjects = projects.filter(p => p.status === "PENDING_REVIEW");
   const completedProjects = projects.filter(p => p.status === "COMPLETED");
@@ -222,7 +224,7 @@ export default function MentorDashboard() {
           {[
             { icon: "⚡", label: "Decisions en attente", value: pendingProjects.length + " projet(s)", color: pendingProjects.length > 0 ? "text-orange-700 bg-orange-50" : "text-gray-600 bg-gray-50" },
             { icon: "🟢", label: "Projets actifs", value: activeProjects.length + "/5", color: "text-green-700 bg-green-50" },
-            { icon: "💰", label: "Ma commission", value: (fees?.commission_mentor || 2) + "% a la cloture", color: "text-green-700 bg-green-50" },
+            { icon: "💰", label: "Ma commission", value: commissionRate + "% à la clôture (" + fmt(totalCommission) + " FCFA)", color: "text-green-700 bg-green-50" },
             { icon: "🏆", label: "Taux succes", value: projects.length > 0 ? Math.round((completedProjects.length/projects.length)*100) + "%" : "N/A", color: "text-blue-700 bg-blue-50" },
           ].map(s => (
             <div key={s.label} className={`rounded-2xl p-4 ${s.color}`}>
@@ -434,7 +436,8 @@ export default function MentorDashboard() {
                   { label: "Solde disponible",    value: fmt(wallet?.balance||0) + " FCFA",          color: "text-green-700" },
                   { label: "Total gagne",          value: fmt(wallet?.totalEarned||0) + " FCFA",      color: "text-green-700" },
                   { label: "Total retire",          value: fmt(wallet?.totalWithdrawn||0) + " FCFA",  color: "text-red-600" },
-                  { label: "Commissions en attente",value: fmt(totalCommission) + " FCFA",             color: "text-yellow-700" },
+                  { label: "Commissions reçues (2%)",value: fmt(totalCommission) + " FCFA",            color: "text-yellow-700" },
+                  { label: "Commission estimée totale", value: fmt(totalCommissionEstimated) + " FCFA",    color: "text-green-700" },
                 ].map(s => (
                   <div key={s.label} className="flex justify-between items-center py-2 border-b border-gray-50">
                     <span className="text-sm text-gray-500">{s.label}</span>

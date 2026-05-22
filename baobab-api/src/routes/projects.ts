@@ -643,11 +643,16 @@ router.get('/mentor/my-projects', authenticate, requireRole(['MENTOR']), async (
       orderBy: { createdAt: 'desc' }
     })
 
-    // Calculer la commission mentor (1% des retours)
+    // Commission mentor = 2% du goalAmount à la collecte (nouvelle stratégie)
+    const fees = await getFees()
+    const mentorRate = fees.commission_mentor / 100  // 2%
     const enriched = projects.map(p => {
-      const totalReturns = p.investments.reduce((s, i) => s + i.expectedReturn, 0)
-      const mentorCommission = totalReturns * 0.01
-      return { ...p, mentorCommission, totalReturns }
+      const totalInvested = p.investments.reduce((s, i) => s + i.amount, 0)
+      const totalReturns = p.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
+      // Commission déjà créditée au wallet lors de la collecte
+      const mentorCommission = Math.round(totalInvested * mentorRate)
+      const mentorCommissionEstimated = Math.round((p.goalAmount || 0) * mentorRate)
+      return { ...p, mentorCommission, mentorCommissionEstimated, totalReturns, totalInvested }
     })
 
     successResponse(res, enriched)
