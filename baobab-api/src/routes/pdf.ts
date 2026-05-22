@@ -115,7 +115,7 @@ router.get('/report/admin', authenticate, requireAdmin, async (req: AuthRequest,
     const fraisTaux = (feeMap.commission_baobab_collection||5) + (feeMap.commission_mentor||2) + (feeMap.commission_guarantee||2)
     const totalCagnotteNette = Math.round(totalRaised * (1 - fraisTaux/100))
     const totalGrossReturn = projects.reduce((s: number, p: any) => s + p.investments.reduce((ss: number, i: any) => ss + (i.expectedReturn||0), 0), 0)
-    const totalNetInvestors = Math.round(totalGrossReturn * (1 - (feeMap.commission_baobab_return||5)/100 - (feeMap.paydunya_payout||3)/100))
+    const totalNetInvestors = Math.round(totalGrossReturn * (1 - (feeMap.payin_repayment||4)/100))
     const revByType: any = {}
     revenues.forEach((r: any) => { revByType[r.type] = (revByType[r.type]||0) + r.amount })
     const revenuNetBAOBAB = (revByType['COMMISSION_COLLECTION']||0) - Math.abs(revByType['PAYDUNYA_FEE']||0)

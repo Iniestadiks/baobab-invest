@@ -214,7 +214,7 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req: AuthRequest,
     // Transaction atomique avec calcul PayDunya Payout
     const { getFees } = await import('../config/fees')
     const fees = await getFees()
-    const payoutRate = fees.paydunya_payout || 2
+    const payoutRate = fees.withdrawal_fee_standard || 3
     const paydunyaPayout = Math.round(milestone.amount * payoutRate / 100)
     const netSupplier = milestone.amount - paydunyaPayout
 

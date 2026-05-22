@@ -326,7 +326,7 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
     }
 
     const fees = await getFees()
-    const baobabRate = fees.commission_baobab_return || 5
+    const baobabRate = fees.payin_repayment || 4  // Payin mensualités — 0% commission retour
     const totalInvested = schedule.project.investments.reduce((s, i) => s + i.amount, 0)
     const isEarlyFull = months === 0 || paymentsToProcess.length === schedule.payments.length
 

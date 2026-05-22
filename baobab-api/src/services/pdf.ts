@@ -94,8 +94,8 @@ export function generateInvestmentCertificate(res: Response, data: {
 
   section(doc, 'DETAILS DE L\'INVESTISSEMENT')
   const fees = data.fees || {}
-  const baobabRate = fees.commission_baobab_return || 5
-  const paydunyaRate = fees.paydunya_payout || 3
+  const baobabRate = fees.payin_repayment || 4
+  const paydunyaRate = 0
   const grossReturn = data.investment.expectedReturn || 0
   const netReturn = Math.round(grossReturn * (1 - baobabRate/100 - paydunyaRate/100))
   const gain = netReturn - data.investment.amount
@@ -159,8 +159,8 @@ export function generateInvestorStatement(res: Response, data: {
   row(doc, 'Total gagne', `${(data.wallet?.totalEarned || 0).toLocaleString()} FCFA`, true)
 
   const fees = data.fees || {}
-  const baobabRate = fees.commission_baobab_return || 5
-  const paydunyaRate = fees.paydunya_payout || 3
+  const baobabRate = fees.payin_repayment || 4
+  const paydunyaRate = 0
   const totalInvested = data.investments.reduce((s, i) => s + i.amount, 0)
   const totalGrossReturn = data.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
   const totalNetReturn = Math.round(totalGrossReturn * (1 - baobabRate/100 - paydunyaRate/100))
@@ -253,8 +253,8 @@ export function generateProjectReport(res: Response, data: {
 
   if (data.investments.length > 0) {
     section(doc, 'INVESTISSEURS')
-    const baobabRet = fees.commission_baobab_return || 5
-    const paydunyaPayout = fees.paydunya_payout || 3
+    const baobabRet = fees.payin_repayment || 4
+    const paydunyaPayout = 0
     const y0 = doc.y
     doc.rect(40, y0, doc.page.width - 80, 16).fill(LIGHT_GREEN)
     doc.fillColor(GREEN).fontSize(8).font('Helvetica-Bold')
@@ -364,11 +364,11 @@ export function generateAdminReport(res: Response, data: {
 
   section(doc, 'TAUX EN VIGUEUR')
   row(doc, 'Commission BAOBAB collecte', `${fees.commission_baobab_collection || 5}%`)
-  row(doc, 'Commission BAOBAB retours', `${fees.commission_baobab_return || 5}%`)
+  row(doc, 'Payin mensualités remboursement', `${fees.payin_repayment || 4}%`)
   row(doc, 'Commission mentor', `${fees.commission_mentor || 2}%`)
   row(doc, 'Fonds garantie', `${fees.commission_guarantee || 2}%`)
-  row(doc, 'PayDunya Payin (absorbe)', `${fees.paydunya_payin || 4}%`)
-  row(doc, 'PayDunya Payout (absorbe)', `${fees.paydunya_payout || 3}%`)
+  row(doc, 'Récupération Payin investissement', `${fees.payin_recovery || 4}%`)
+  row(doc, 'Frais retrait standard', `${0}%`)
 
   section(doc, 'DERNIERS REVENUS')
   const y0 = doc.y
