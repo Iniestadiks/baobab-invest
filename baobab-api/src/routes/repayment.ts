@@ -219,7 +219,11 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
 
         await tx.wallet.update({
           where: { userId: inv.userId },
-          data: { balance: { increment: investorShare }, totalEarned: { increment: investorShare } }
+          data: {
+            balance: { increment: investorShare },
+            gainBalance: { increment: investorShare },
+            totalEarned: { increment: investorShare }
+          }
         })
 
         await tx.notification.create({
@@ -341,7 +345,11 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
         if (investorShare <= 0) continue
         await tx.wallet.update({
           where: { userId: inv.userId },
-          data: { balance: { increment: investorShare }, totalEarned: { increment: investorShare } }
+          data: {
+            balance: { increment: investorShare },
+            gainBalance: { increment: investorShare },
+            totalEarned: { increment: investorShare }
+          }
         })
         await tx.notification.create({
           data: {

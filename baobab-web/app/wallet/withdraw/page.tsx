@@ -45,6 +45,18 @@ export default function WithdrawPage() {
   const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "{}") : {};
   const dashboard = user.role === "ENTREPRENEUR" ? "/entrepreneur" : user.role === "MENTOR" ? "/mentor" : "/dashboard";
   const balance = wallet?.balance || 0;
+  const gainBalance = wallet?.gainBalance || 0;
+  const depositBalance = wallet?.depositBalance || 0;
+  
+  // Calcul frais proportionnels
+  const amt = Number(amount) || 0;
+  const gainPart = Math.min(amt, gainBalance);
+  const depositPart = Math.max(0, amt - gainPart);
+  const gainFee = Math.round(gainPart * 3 / 100);
+  const depositFee = Math.round(depositPart * 7 / 100);
+  const totalFee = gainFee + depositFee;
+  const netReceived = amt - totalFee;
+  const effectiveRate = amt > 0 ? ((totalFee / amt) * 100).toFixed(1) : '0';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -57,9 +69,20 @@ export default function WithdrawPage() {
       <div className="max-w-lg mx-auto px-6 py-8 space-y-5">
 
         <div className="bg-green-600 rounded-2xl p-5 text-white">
-          <div className="text-sm opacity-80 mb-1">Solde disponible</div>
+          <div className="text-sm opacity-80 mb-1">Solde total disponible</div>
           <div className="text-3xl font-bold">{fmt(balance)} FCFA</div>
-          <div className="text-xs opacity-70 mt-1">Minimum de retrait : 5 000 FCFA</div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="bg-white/20 rounded-xl p-3">
+              <div className="text-xs opacity-80">📈 Gains remboursements</div>
+              <div className="font-bold">{fmt(gainBalance)} FCFA</div>
+              <div className="text-xs opacity-70">Frais retrait : 3%</div>
+            </div>
+            <div className="bg-white/20 rounded-xl p-3">
+              <div className="text-xs opacity-80">💵 Dépôts à investir</div>
+              <div className="font-bold">{fmt(depositBalance)} FCFA</div>
+              <div className="text-xs opacity-70">Frais retrait : 7%</div>
+            </div>
+          </div>
         </div>
 
         {msg && (
@@ -103,11 +126,23 @@ export default function WithdrawPage() {
           />
         </div>
 
+        {amt > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
+            <p className="font-semibold mb-2">📊 Détail des frais</p>
+            {gainPart > 0 && <p>• Gains {fmt(gainPart)} FCFA × 3% = <strong>-{fmt(gainFee)} FCFA</strong></p>}
+            {depositPart > 0 && <p>• Dépôts {fmt(depositPart)} FCFA × 7% = <strong>-{fmt(depositFee)} FCFA</strong></p>}
+            <p className="border-t border-blue-200 mt-2 pt-2 font-bold">
+              Taux effectif : {effectiveRate}% — Vous recevez : {fmt(netReceived)} FCFA
+            </p>
+            {depositPart > 0 && (
+              <p className="text-orange-600 mt-1">💡 Investissez d&apos;abord pour bénéficier du taux 3%</p>
+            )}
+          </div>
+        )}
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-xs text-orange-700">
           <p className="font-semibold mb-1">⚠️ Important</p>
           <p>• Le montant sera débité immédiatement de votre wallet</p>
           <p>• Le virement Mobile Money arrive sous 24h ouvrées</p>
-          <p>• Avec PayDunya : le virement sera instantané</p>
         </div>
 
         <button onClick={submit} disabled={loading || !amount || !phone || !operator || Number(amount) > balance}

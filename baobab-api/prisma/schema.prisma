@@ -197,6 +197,8 @@ model Wallet {
   id              String   @id @default(uuid())
   userId          String   @unique
   balance         Float    @default(0)
+  depositBalance  Float    @default(0)  // Dépôts non encore investis → retrait 7%
+  gainBalance     Float    @default(0)  // Gains remboursements reçus → retrait 3%
   escrowBalance   Float    @default(0)
   totalDeposited  Float    @default(0)
   totalWithdrawn  Float    @default(0)

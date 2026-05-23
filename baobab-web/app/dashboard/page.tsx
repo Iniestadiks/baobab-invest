@@ -98,6 +98,8 @@ export default function DashboardPage() {
   const totalReturned = stats?.totalReturned || 0;
   const balance = wallet?.balance || 0;
   const escrow = wallet?.escrowBalance || 0;
+  const gainBalance = wallet?.gainBalance || 0;
+  const depositBalance = wallet?.depositBalance || 0;
   const level = getLevel(totalInvested);
   const nextLevel = getNextLevel(totalInvested);
   const levelProgress = nextLevel ? Math.min(((totalInvested - level.min) / (nextLevel.min - level.min)) * 100, 100) : 100;
@@ -211,6 +213,14 @@ export default function DashboardPage() {
                 <div className="text-green-200 text-xs mb-1">Solde wallet</div>
                 <div className="text-2xl font-bold">{fmt(balance)} FCFA</div>
                 <Link href="/wallet/deposit" className="mt-2 inline-block text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg font-medium">+ Déposer</Link>
+              </div>
+              <div>
+                <div className="text-green-200 text-xs mb-1">📈 Gains (retrait 3%)</div>
+                <div className="text-xl font-bold">{fmt(gainBalance)} FCFA</div>
+              </div>
+              <div>
+                <div className="text-green-200 text-xs mb-1">💵 À investir (retrait 7%)</div>
+                <div className="text-xl font-bold">{fmt(depositBalance)} FCFA</div>
               </div>
               <div>
                 <div className="text-green-200 text-xs mb-1">Total investi</div>

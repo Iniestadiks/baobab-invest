@@ -99,7 +99,7 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
       })
       await p.wallet.update({
         where: { userId },
-        data: { balance: { increment: amount } }
+        data: { balance: { increment: amount }, depositBalance: { increment: amount } }
       })
       await p.notification.create({
         data: {
@@ -161,36 +161,44 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
       }
     })
 
-    // Règle anti-abus : 3% si a déjà investi, 7% sinon
+    // Règle retrait proportionnelle : 3% sur gains, 7% sur dépôts non investis
     const fees = await getFees()
-    const hasInvested = await prisma.investment.count({ where: { userId: req.userId! } })
-    const withdrawRate = hasInvested > 0 
-      ? fees.withdrawal_fee_standard   // 3% — investisseur actif
-      : fees.withdrawal_fee_no_invest  // 7% — jamais investi (3% Payout + 4% pénalité)
-    
-    // L'utilisateur paie les frais — il reçoit amount - frais%
-    const payoutFee = Math.round(amount * withdrawRate / 100)
+    const walletData = await prisma.wallet.findUnique({ where: { userId: req.userId! } })
+    const gainBal = walletData?.gainBalance || 0
+    const depositBal = walletData?.depositBalance || 0
+
+    // D'abord puiser dans les gains (3%), puis dans les dépôts (7%)
+    const gainPart    = Math.min(amount, gainBal)
+    const depositPart = Math.max(0, amount - gainPart)
+    const gainFee     = Math.round(gainPart * fees.withdrawal_fee_standard / 100)
+    const depositFee  = Math.round(depositPart * fees.withdrawal_fee_no_invest / 100)
+    const payoutFee   = gainFee + depositFee
     const netReceived = amount - payoutFee
-    
-    // BAOBAB envoie netReceived via PayDunya (et paie 3% Payout à l'opérateur)
-    const operatorFee = Math.round(netReceived * fees.withdrawal_fee_standard / 100)
-    const grossAmount = netReceived // on envoie le net, l'opérateur prend sa part
-    
-    // Créditer BAOBAB : frais perçus - coût opérateur
+    const withdrawRate = amount > 0 ? ((payoutFee / amount) * 100).toFixed(1) : '0'
+    const grossAmount = netReceived
+
+    // Créditer BAOBAB
     const adminW = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    if (adminW) {
-      const baobabProfit = payoutFee - operatorFee  // pénalité anti-abus si applicable
-      await prisma.wallet.update({ 
-        where: { userId: adminW.id }, 
-        data: { commissionBalance: { increment: baobabProfit } } 
+    if (adminW && payoutFee > 0) {
+      await prisma.wallet.update({
+        where: { userId: adminW.id },
+        data: { commissionBalance: { increment: payoutFee } }
       })
     }
-    await prisma.platformRevenue.create({ 
-      data: { 
-        type: 'WITHDRAWAL_FEE', 
-        amount: payoutFee, 
-        description: `Frais retrait ${withdrawRate}% — ${hasInvested > 0 ? 'investisseur actif' : 'anti-abus'} — ${phoneNumber || ''}` 
-      } 
+    await prisma.platformRevenue.create({
+      data: {
+        type: 'WITHDRAWAL_FEE',
+        amount: payoutFee,
+        description: `Frais retrait ${withdrawRate}% — gains:${gainPart}@3% + dépôts:${depositPart}@7% — ${phoneNumber || ''}`
+      }
+    })
+    // Décrémenter gainBalance et depositBalance
+    await prisma.wallet.update({
+      where: { userId: req.userId! },
+      data: {
+        gainBalance: { decrement: gainPart },
+        depositBalance: { decrement: depositPart },
+      }
     })
     // Initier le payout PayDunya automatiquement
     try {
