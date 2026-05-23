@@ -177,19 +177,29 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
     const withdrawRate = amount > 0 ? ((payoutFee / amount) * 100).toFixed(1) : '0'
     const grossAmount = netReceived
 
-    // Créditer BAOBAB
+    // Créditer BAOBAB — si frais standard = 0%, BAOBAB absorbe le Payout réel 2%
     const adminW = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    if (adminW && payoutFee > 0) {
-      await prisma.wallet.update({
-        where: { userId: adminW.id },
-        data: { commissionBalance: { increment: payoutFee } }
-      })
+    const realPayoutCost = Math.round(gainPart * 2 / 100) // Payout réel PayDunya 2% sur les gains
+    if (adminW) {
+      if (payoutFee > 0) {
+        // Frais perçus sur dépôts anti-abus
+        await prisma.wallet.update({
+          where: { userId: adminW.id },
+          data: { commissionBalance: { increment: payoutFee - realPayoutCost } }
+        })
+      } else if (realPayoutCost > 0) {
+        // Retrait gratuit — BAOBAB absorbe le Payout réel depuis commissionBalance
+        await prisma.wallet.update({
+          where: { userId: adminW.id },
+          data: { commissionBalance: { decrement: realPayoutCost } }
+        })
+      }
     }
     await prisma.platformRevenue.create({
       data: {
         type: 'WITHDRAWAL_FEE',
-        amount: payoutFee,
-        description: `Frais retrait ${withdrawRate}% — gains:${gainPart}@3% + dépôts:${depositPart}@7% — ${phoneNumber || ''}`
+        amount: payoutFee - realPayoutCost,
+        description: `Retrait — gains:${gainPart} gratuit (BAOBAB absorbe ${realPayoutCost} FCFA) + dépôts:${depositPart}@7% — ${phoneNumber || ''}`
       }
     })
     // Décrémenter gainBalance et depositBalance
