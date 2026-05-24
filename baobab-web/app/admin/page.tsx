@@ -18,6 +18,7 @@ const TABS = [
   { id: "reimburse", label: "💰 Remboursements" },
   { id: "finances", label: "💵 Finances BAOBAB" },
   { id: "transactions", label: "💳 Transactions" },
+  { id: "fund", label: "🌱 Fonds Solidaire" },
   { id: "config", label: "⚙️ Configuration" },
   { id: "active_projects", label: "🚀 Projets actifs" },
   { id: "stats", label: "📈 Statistiques" },
@@ -2603,8 +2604,442 @@ export default function AdminPage() {
         {tab === "stats" && <StatsTab authGet={authGet} />}
         {tab === "config" && <ConfigTab flash={flash} />}
         {tab === "transactions" && <TransactionsTab flash={flash} />}
+        {tab === "fund" && <FundTab flash={flash} />}
 
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// FUND TAB — Gestion Fonds Solidaire BAOBAB
+// ═══════════════════════════════════════════════════════════
+function FundTab({ flash }: { flash: (m: string) => void }) {
+  const [stats, setStats] = React.useState<any>(null);
+  const [contributions, setContributions] = React.useState<any[]>([]);
+  const [projects, setProjects] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [activeTab, setActiveTab] = React.useState<"overview"|"contributions"|"allocate"|"campaigns">("overview");
+  const [filter, setFilter] = React.useState({ status: "", startDate: "", endDate: "", page: 1 });
+  const [allocForm, setAllocForm] = React.useState({ projectId: "", amount: "", note: "" });
+  const [campForm, setCampForm] = React.useState({ title: "", description: "", goalAmount: "", startDate: "", endDate: "", projectId: "" });
+  const [processing, setProcessing] = React.useState(false);
+
+  const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
+
+  const BADGE_CONFIG: Record<string, { label: string; icon: string }> = {
+    SEMEUR: { label: "Semeur", icon: "🌱" },
+    JARDINIER: { label: "Jardinier", icon: "🌿" },
+    BAOBAB: { label: "Baobab", icon: "🌳" },
+    GRAND_BATISSEUR: { label: "Grand Bâtisseur", icon: "🏆" },
+  };
+
+  const load = React.useCallback(async () => {
+    const params = new URLSearchParams();
+    if (filter.status) params.set("status", filter.status);
+    if (filter.startDate) params.set("startDate", filter.startDate);
+    if (filter.endDate) params.set("endDate", filter.endDate);
+    params.set("page", String(filter.page));
+
+    const [s, c, p] = await Promise.all([
+      authGet("/api/fund/admin/stats?" + params),
+      authGet("/api/fund/admin/contributions?" + params),
+      authGet("/api/projects?status=ACTIVE,FUNDED,IN_PROGRESS"),
+    ]);
+    if (s.success) setStats(s.data);
+    if (c.success) setContributions(c.data.contributions || []);
+    if (p.success) setProjects(p.data || []);
+    setLoading(false);
+  }, [filter]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const confirmContrib = async (id: string) => {
+    setProcessing(true);
+    const res = await authPost(`/api/fund/admin/confirm/${id}`, {});
+    if (res.success) { flash("✅ Contribution confirmée"); load(); }
+    else flash("❌ " + res.message);
+    setProcessing(false);
+  };
+
+  const allocate = async () => {
+    if (!allocForm.projectId || !allocForm.amount) { flash("❌ Projet et montant requis"); return; }
+    setProcessing(true);
+    const res = await authPost("/api/fund/admin/allocate", {
+      projectId: allocForm.projectId,
+      amount: Number(allocForm.amount),
+      note: allocForm.note
+    });
+    if (res.success) { flash("✅ " + res.message); setAllocForm({ projectId: "", amount: "", note: "" }); load(); }
+    else flash("❌ " + res.message);
+    setProcessing(false);
+  };
+
+  const createCampaign = async () => {
+    if (!campForm.title || !campForm.goalAmount || !campForm.startDate || !campForm.endDate) {
+      flash("❌ Remplissez tous les champs obligatoires"); return;
+    }
+    setProcessing(true);
+    const res = await authPost("/api/fund/admin/campaigns", {
+      ...campForm, goalAmount: Number(campForm.goalAmount)
+    });
+    if (res.success) { flash("✅ Campagne créée"); setCampForm({ title: "", description: "", goalAmount: "", startDate: "", endDate: "", projectId: "" }); load(); }
+    else flash("❌ " + res.message);
+    setProcessing(false);
+  };
+
+  const exportCSV = () => {
+    const params = new URLSearchParams({ format: "csv" });
+    if (filter.startDate) params.set("startDate", filter.startDate);
+    if (filter.endDate) params.set("endDate", filter.endDate);
+    const token = localStorage.getItem("accessToken");
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/api/fund/admin/export?${params}`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob())
+      .then(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `fonds-solidaire-${new Date().toISOString().split("T")[0]}.csv`;
+        a.click();
+      });
+  };
+
+  if (loading) return <div className="text-center py-10 text-gray-400">Chargement...</div>;
+
+  const g = stats?.global || {};
+  const totalAllocated = stats?.allocations?.reduce((s: number, a: any) => s + a.amount, 0) || 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">🌱 Fonds Solidaire BAOBAB</h2>
+          <p className="text-sm text-gray-500">Gestion des contributions et allocations</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={exportCSV} className="bg-green-600 text-white text-sm px-4 py-2 rounded-xl font-medium hover:bg-green-700">
+            📥 Exporter CSV
+          </button>
+          <button onClick={load} className="text-sm text-green-600 hover:underline">🔄 Actualiser</button>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "Total reçu", value: fmt(g.totalReceived || 0) + " F", color: "text-green-700", bg: "bg-green-50" },
+          { label: "Net fonds", value: fmt(g.totalNet || 0) + " F", color: "text-blue-700", bg: "bg-blue-50" },
+          { label: "Alloué projets", value: fmt(totalAllocated) + " F", color: "text-purple-700", bg: "bg-purple-50" },
+          { label: "Disponible", value: fmt(g.available || 0) + " F", color: "text-orange-700", bg: "bg-orange-50" },
+          { label: "Frais BAOBAB", value: fmt(g.totalBaobabFee || 0) + " F", color: "text-gray-700", bg: "bg-gray-50" },
+        ].map(s => (
+          <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>
+            <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtres période */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Du</label>
+          <input type="date" value={filter.startDate}
+            onChange={e => setFilter(f => ({ ...f, startDate: e.target.value }))}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Au</label>
+          <input type="date" value={filter.endDate}
+            onChange={e => setFilter(f => ({ ...f, endDate: e.target.value }))}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Statut</label>
+          <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-green-400">
+            <option value="">Tous</option>
+            <option value="PENDING">En attente</option>
+            <option value="COMPLETED">Confirmés</option>
+            <option value="REJECTED">Rejetés</option>
+          </select>
+        </div>
+        <button onClick={load} className="bg-green-600 text-white text-sm px-4 py-2 rounded-xl font-medium">Filtrer</button>
+        <button onClick={exportCSV} className="bg-gray-100 text-gray-700 text-sm px-4 py-2 rounded-xl font-medium">📥 CSV période</button>
+      </div>
+
+      {/* Sous-onglets */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {[
+          { id: "overview", label: "📊 Stats" },
+          { id: "contributions", label: `💝 Contributions (${contributions.length})` },
+          { id: "allocate", label: "🚀 Allouer" },
+          { id: "campaigns", label: `🎯 Campagnes (${stats?.campaigns?.length || 0})` },
+        ].map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id as any)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${activeTab === t.id ? "bg-green-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-green-300"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* STATS */}
+      {activeTab === "overview" && (
+        <div className="space-y-5">
+          {/* Par méthode paiement */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4">Par méthode de paiement</h3>
+            <div className="space-y-2">
+              {stats?.byMethod?.map((m: any) => (
+                <div key={m.paymentMethod} className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="text-sm text-gray-700">{m.paymentMethod}</span>
+                  <div className="text-right">
+                    <span className="font-bold text-green-700">{fmt(m._sum.amount)} FCFA</span>
+                    <span className="text-xs text-gray-400 ml-2">({m._count} contributions)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Évolution mensuelle */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4">Évolution mensuelle</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-3 py-2 text-xs text-gray-500">Mois</th>
+                    <th className="text-right px-3 py-2 text-xs text-gray-500">Total reçu</th>
+                    <th className="text-right px-3 py-2 text-xs text-gray-500">Net fonds</th>
+                    <th className="text-right px-3 py-2 text-xs text-gray-500">Frais BAOBAB</th>
+                    <th className="text-right px-3 py-2 text-xs text-gray-500">Contributions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {stats?.byMonth?.map((m: any) => (
+                    <tr key={m.month} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-gray-700">{m.month}</td>
+                      <td className="px-3 py-2 text-right font-mono text-green-700">{fmt(Number(m.total))}</td>
+                      <td className="px-3 py-2 text-right font-mono text-blue-700">{fmt(Number(m.net))}</td>
+                      <td className="px-3 py-2 text-right font-mono text-purple-700">{fmt(Number(m.fees))}</td>
+                      <td className="px-3 py-2 text-right text-gray-500">{m.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Badges distribués */}
+          {stats?.badges?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 className="font-bold text-gray-900 mb-4">Badges distribués</h3>
+              <div className="flex flex-wrap gap-3">
+                {stats.badges.map((b: any) => (
+                  <div key={b.badge} className="bg-green-50 rounded-xl px-4 py-2 text-center">
+                    <div className="text-xl">{BADGE_CONFIG[b.badge]?.icon}</div>
+                    <div className="text-xs font-medium text-green-700">{BADGE_CONFIG[b.badge]?.label}</div>
+                    <div className="text-xs text-gray-500">{b._count} fois</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CONTRIBUTIONS */}
+      {activeTab === "contributions" && (
+        <div className="space-y-3">
+          {contributions.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+              <div className="text-4xl mb-3">💝</div>
+              <p className="text-gray-400">Aucune contribution</p>
+            </div>
+          ) : contributions.map((c: any) => (
+            <div key={c.id} className="bg-white rounded-2xl border border-gray-100 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-700 font-bold">
+                    {c.anonymous ? "🙈" : (c.user?.firstName?.[0] || c.guestName?.[0] || "?")}
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm">
+                      {c.anonymous ? "Anonyme" : c.user ? `${c.user.firstName} ${c.user.lastName}` : c.guestName || "Visiteur"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {c.user?.email || c.guestEmail || ""} · {c.paymentMethod}
+                    </div>
+                    {c.project && <div className="text-xs text-green-600">→ {c.project.title}</div>}
+                    {c.message && <div className="text-xs text-gray-400 italic">"{c.message}"</div>}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-green-700">{fmt(c.amount)} FCFA</div>
+                  <div className="text-xs text-gray-400">Net: {fmt(c.netAmount)} FCFA</div>
+                  <div className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleDateString("fr-FR")}</div>
+                  {c.status === "PENDING" ? (
+                    <button onClick={() => confirmContrib(c.id)} disabled={processing}
+                      className="mt-1 text-xs bg-green-600 text-white px-2 py-1 rounded-lg hover:bg-green-700 disabled:opacity-50">
+                      ✅ Confirmer
+                    </button>
+                  ) : (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-lg">✅ Confirmé</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ALLOUER */}
+      {activeTab === "allocate" && (
+        <div className="space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4">🚀 Allouer des fonds à un projet</h3>
+            <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm text-blue-700">
+              💰 Disponible : <strong>{fmt(g.available || 0)} FCFA</strong>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Projet bénéficiaire</label>
+                <select value={allocForm.projectId} onChange={e => setAllocForm(f => ({ ...f, projectId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400">
+                  <option value="">Sélectionner un projet...</option>
+                  {projects.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.title} — {p.sector}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Montant à allouer (FCFA)</label>
+                <input type="number" value={allocForm.amount}
+                  onChange={e => setAllocForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="Ex: 50000"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Note (optionnel)</label>
+                <input type="text" value={allocForm.note}
+                  onChange={e => setAllocForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="Raison de l'allocation..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <button onClick={allocate} disabled={processing || !allocForm.projectId || !allocForm.amount}
+                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 disabled:opacity-50">
+                {processing ? "Traitement..." : "🚀 Allouer les fonds"}
+              </button>
+            </div>
+          </div>
+
+          {/* Historique allocations */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4">Historique des allocations</h3>
+            {!stats?.allocations?.length ? (
+              <p className="text-gray-400 text-sm text-center py-4">Aucune allocation</p>
+            ) : stats.allocations.map((a: any) => (
+              <div key={a.id} className="flex justify-between items-center py-2 border-b border-gray-50">
+                <div>
+                  <div className="font-medium text-gray-900 text-sm">{a.project?.title}</div>
+                  <div className="text-xs text-gray-500">{a.note} · {new Date(a.createdAt).toLocaleDateString("fr-FR")}</div>
+                </div>
+                <div className="font-bold text-green-700">{fmt(a.amount)} FCFA</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CAMPAGNES */}
+      {activeTab === "campaigns" && (
+        <div className="space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h3 className="font-bold text-gray-900 mb-4">🎯 Créer une campagne solidaire</h3>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Titre *</label>
+                <input type="text" value={campForm.title}
+                  onChange={e => setCampForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="Ex: Ramadan Solidaire 2025"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Objectif (FCFA) *</label>
+                <input type="number" value={campForm.goalAmount}
+                  onChange={e => setCampForm(f => ({ ...f, goalAmount: e.target.value }))}
+                  placeholder="500000"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Date début *</label>
+                <input type="datetime-local" value={campForm.startDate}
+                  onChange={e => setCampForm(f => ({ ...f, startDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Date fin *</label>
+                <input type="datetime-local" value={campForm.endDate}
+                  onChange={e => setCampForm(f => ({ ...f, endDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs text-gray-500 mb-1 block">Description</label>
+                <textarea value={campForm.description}
+                  onChange={e => setCampForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Décrivez l'objectif de cette campagne..."
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400 resize-none" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs text-gray-500 mb-1 block">Projet lié (optionnel)</label>
+                <select value={campForm.projectId}
+                  onChange={e => setCampForm(f => ({ ...f, projectId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400">
+                  <option value="">Fonds général</option>
+                  {projects.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.title}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button onClick={createCampaign} disabled={processing}
+              className="mt-4 w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 disabled:opacity-50">
+              {processing ? "Création..." : "🎯 Créer la campagne"}
+            </button>
+          </div>
+
+          {/* Liste campagnes */}
+          <div className="space-y-3">
+            {stats?.campaigns?.map((c: any) => {
+              const pct = Math.round((c.raised / c.goalAmount) * 100);
+              const active = c.active && new Date(c.endDate) > new Date();
+              return (
+                <div key={c.id} className={`bg-white rounded-2xl border-2 p-4 ${active ? "border-green-200" : "border-gray-100"}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-bold text-gray-900">{c.title}</div>
+                      <div className="text-xs text-gray-500">{c.description}</div>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-lg font-medium ${active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                      {active ? "🟢 Active" : "⚫ Terminée"}
+                    </span>
+                  </div>
+                  <div className="bg-gray-100 rounded-full h-2 mb-1">
+                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${Math.min(100, pct)}%` }}></div>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>{fmt(c.raised)} FCFA / {fmt(c.goalAmount)} FCFA ({pct}%)</span>
+                    <span>Fin: {new Date(c.endDate).toLocaleDateString("fr-FR")}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

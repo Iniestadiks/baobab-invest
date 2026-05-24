@@ -9,6 +9,7 @@ import milestoneRoutes from './routes/milestones'
 import supplierRoutes from './routes/suppliers'
 import feedRoutes from './routes/feed'
 import adminRoutes from './routes/admin'
+import fundRoutes from './routes/fund'
 import notificationRoutes from './routes/notifications'
 import repaymentRouter from './routes/repayment'
 import messageRoutes from './routes/messages'
@@ -39,6 +40,7 @@ app.use('/api/milestones', milestoneRoutes)
 app.use('/api/suppliers', supplierRoutes)
 app.use('/api/feed', feedRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/fund', fundRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/repayment', repaymentRouter)
 app.use('/api/messages', messageRoutes)
@@ -68,5 +70,5 @@ checkAndPromoteWaitlist() // Lancer au démarrage
 app.listen(config.port, () => {
   console.log(`🌳 BAOBAB INVEST API démarrée sur le port ${config.port}`)
   console.log(`📡 Environnement : ${config.env}`)
-  console.log(`🗄️  Routes : auth | projects | investments | milestones | suppliers | feed | admin | notifications`)
+  console.log(`🗄️  Routes : auth | projects | investments | milestones | suppliers | feed | admin | fund | notifications`)
 })
