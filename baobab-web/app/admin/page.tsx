@@ -2650,7 +2650,7 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
     ]);
     if (s.success) setStats(s.data);
     if (c.success) setContributions(c.data.contributions || []);
-    if (p.success) setProjects(p.data || []);
+    if (p.success) setProjects(p.data?.projects || p.data || []);
     setLoading(false);
   }, [filter]);
 
