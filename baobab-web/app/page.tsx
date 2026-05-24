@@ -220,7 +220,7 @@ export default function LandingPage() {
                 {[
                   { label: "Commission collecte BAOBAB", value: "5%", note: "Preleve a la cloture du projet" },
                   { label: "Commission retours BAOBAB", value: "5%", note: "Preleve au remboursement" },
-                  { label: "Commission mentor", value: "2%", note: "Verse directement au mentor garant" },
+                  { label: "Commission mentor", value: "2%", note: "Versé directement au mentor garant à la clôture" },
                   { label: "Fonds de garantie", value: "2%", note: "Reserve en cas de difficulte" },
                   { label: "Frais PayDunya", value: "Absorbes", note: "BAOBAB prend en charge les frais de paiement" },
                 ].map(f => (
@@ -253,7 +253,7 @@ export default function LandingPage() {
                   <span className="font-bold">91 000 FCFA</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-green-200">
-                  <span className="text-gray-600">Retour brut (15%)</span>
+                  <span className="text-gray-600">Retour brut (min 23%)</span>
                   <span className="font-bold text-orange-600">+115 000 FCFA</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-green-200 text-red-400">

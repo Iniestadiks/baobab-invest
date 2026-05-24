@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authGet, authPost } from "@/lib/api";
+import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -22,6 +23,7 @@ const SECTORS: Record<string, { label: string; icon: string }> = {
 };
 
 export default function NewProjectPage() {
+  const { fees } = usePlatformConfig();
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -246,8 +248,8 @@ export default function NewProjectPage() {
               </div>
               <div>
                 <label className={labelClass}>Taux de retour (%) *</label>
-                <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange} className={inputClass} min="22" max="100" />
-                <div className="text-xs text-gray-400 mt-1">Min: 15%</div>
+                <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange} className={inputClass} min={String(fees?.return_min || 23)} max="100" />
+                <div className="text-xs text-gray-400 mt-1">Min: {fees?.return_min || 23}%</div>
               </div>
               <div>
                 <label className={labelClass}>Niveau de risque</label>
@@ -280,13 +282,13 @@ export default function NewProjectPage() {
             {form.goalAmount && (() => {
               const netAmount = Number(form.goalAmount)
               const hasMentor = !!form.mentorId
-              const baobabPct = 5, mentorPct = hasMentor ? 2 : 0, assurancePct = 2
+              const baobabPct = fees?.commission_baobab_collection || 6, mentorPct = hasMentor ? (fees?.commission_mentor || 2) : 0, assurancePct = fees?.commission_guarantee || 2
               const diviseur = 1 - (baobabPct + mentorPct + assurancePct) / 100
               const goalAmount = Math.ceil(netAmount / diviseur)
               const baobabFee = Math.round(goalAmount * baobabPct / 100)
               const mentorFee = Math.round(goalAmount * mentorPct / 100)
               const assuranceFee = Math.round(goalAmount * assurancePct / 100)
-              const retour = Number(form.expectedReturn) || 22
+              const retour = Number(form.expectedReturn) || (fees?.return_min || 23)
               const totalRemboursement = Math.round(netAmount * (1 + retour / 100))
               const mensualite = Math.round(totalRemboursement / Number(form.durationMonths || 12))
               const agriSectors = ['AGRICULTURE', 'ELEVAGE']
@@ -300,7 +302,7 @@ export default function NewProjectPage() {
                       <span className="font-bold text-gray-900">{fmt(netAmount)} FCFA</span>
                     </div>
                     <div className="flex justify-between text-gray-500">
-                      <span>BAOBAB 5%</span>
+                      <span>BAOBAB {fees?.commission_baobab_collection || 6}%</span>
                       <span>-{fmt(baobabFee)} FCFA</span>
                     </div>
                     {hasMentor && <div className="flex justify-between text-gray-500">

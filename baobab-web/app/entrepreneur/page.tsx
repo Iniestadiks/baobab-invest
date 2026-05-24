@@ -144,7 +144,7 @@ export default function EntrepreneurDashboard() {
     </div>
   );
 
-  const fraisTaux = (fees?.commission_baobab_collection || 5) + (fees?.commission_mentor || 2) + (fees?.commission_guarantee || 2);
+  const fraisTaux = (fees?.commission_baobab_collection || 6) + (fees?.commission_mentor || 2) + (fees?.commission_guarantee || 2);
   const visibleProjects = projects.filter(p => p.status !== "CANCELLED");
   const activeProjects = projects.filter(p => p.status === "ACTIVE");
   const inProgressProjects = projects.filter(p => ["FUNDED","IN_PROGRESS"].includes(p.status));

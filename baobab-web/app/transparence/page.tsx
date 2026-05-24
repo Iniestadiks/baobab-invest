@@ -35,10 +35,10 @@ export default function TransparencePage() {
   }, []);
 
   const f = fees || {
-    commission_baobab_collection: 5, commission_mentor: 2,
+    commission_baobab_collection: 6, commission_mentor: 2,
     commission_guarantee: 2, payin_recovery: 4,
-    payin_repayment: 4, withdrawal_fee_standard: 3,
-    return_min: 22,
+    payin_repayment: 4, withdrawal_fee_standard: 0,
+    withdrawal_fee_no_invest: 7, return_min: 23,
     investment_min: 5000
   };
 
@@ -124,15 +124,15 @@ export default function TransparencePage() {
               </div>
             </div>
             <div className="bg-blue-50 rounded-xl p-4">
-              <h3 className="font-bold text-blue-800 mb-3">Au remboursement ({f.return_min||22}%)</h3>
+              <h3 className="font-bold text-blue-800 mb-3">Au remboursement ({f.return_min||23}%)</h3>
               <div className="space-y-2 text-sm">
                 {(() => {
-                  const gross = Math.round(100000 * (1 + (f.return_min||22)/100));
+                  const gross = Math.round(100000 * (1 + (f.return_min||23)/100));
                   const payinMens = Math.round(gross * (f.payin_repayment||4)/100);
                   const payoutFee = 0;
                   const net = gross - payinMens;
                   return <>
-                    <div className="flex justify-between"><span className="text-gray-600">Retour brut {f.return_min||22}%</span><span className="font-bold">{gross.toLocaleString()} FCFA</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">Retour brut {f.return_min||23}%</span><span className="font-bold">{gross.toLocaleString()} FCFA</span></div>
                     <div className="flex justify-between"><span className="text-gray-600">Payin mensualités {f.payin_repayment||4}%</span><span className="text-blue-600">- {payinMens.toLocaleString()} FCFA</span></div>
                     <div className="flex justify-between"><span className="text-green-600">0% commission retour BAOBAB</span><span className="text-green-600">0 FCFA</span></div>
                     <div className="flex justify-between border-t pt-2 mt-2"><span className="font-bold">Vous recevez</span><span className="font-bold text-blue-700">{net.toLocaleString()} FCFA</span></div>
@@ -149,7 +149,7 @@ export default function TransparencePage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">📈 Taux de retour minimum garanti</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="bg-purple-50 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-purple-700">{f.return_min||22}%</div>
+              <div className="text-3xl font-bold text-purple-700">{f.return_min||23}%</div>
               <div className="font-medium text-purple-800 mt-1">Taux minimum unique</div>
               <div className="text-xs text-gray-500 mt-1">Applicable avec ou sans mentor</div>
             </div>

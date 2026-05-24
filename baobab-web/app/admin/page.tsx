@@ -315,12 +315,12 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
           const v = values;
           const besoin = 100000;
           // NOUVELLE STRATÉGIE FINANCIÈRE
-          const baobabClot = parseFloat(v.commission_baobab_collection || "5");
+          const baobabClot = parseFloat(v.commission_baobab_collection || "6");
           const mentor = parseFloat(v.commission_mentor || "2");
           const garantie = parseFloat(v.commission_guarantee || "2");
           const payinRecovery = parseFloat(v.payin_recovery || "4");
           const payinRepayment = parseFloat(v.payin_repayment || "4");
-          const returnMin = parseFloat(v.return_min || "22");
+          const returnMin = parseFloat(v.return_min || "23");
           // GoalAmount = besoin / (1 - baobab% - mentor% - garantie%)
           const totalFraisClot = baobabClot + mentor + garantie;
           const goalAmount = Math.round(besoin / (1 - totalFraisClot / 100));
@@ -673,9 +673,9 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   const [processing, setProcessing] = React.useState<string | null>(null);
   const [note, setNote] = React.useState("");
   const [fees, setFees] = React.useState<any>({
-    commission_baobab_collection: 5, payin_recovery: 4, payin_repayment: 4,
+    commission_baobab_collection: 6, payin_recovery: 4, payin_repayment: 4,
     commission_guarantee: 2, commission_mentor: 2,
-    payin_recovery: 4, payin_repayment: 4
+    withdrawal_fee_standard: 0, withdrawal_fee_no_invest: 7, return_min: 23
   });
   React.useEffect(() => {
     authGet("/api/config/public").then((res: any) => {

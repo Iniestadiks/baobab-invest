@@ -145,7 +145,8 @@ export default function SubmitProjectPage() {
       if (Number(form.minimumInvestment) < 5000) { setError("❌ L'investissement minimum par personne ne peut pas être inférieur à 5 000 FCFA"); return; }
       if (Number(form.goalAmount) < 100000) { setError("❌ Le montant minimum à lever est 100 000 FCFA"); return; }
       if (!form.expectedReturn) { setError("Le taux de retour est obligatoire"); return; }
-      if (Number(form.expectedReturn) < 15) { setError("❌ Le retour minimum est 15% — en dessous, les investisseurs perdent de l'argent après les frais de plateforme"); return; }
+      const minReturn = fees?.return_min || 23;
+      if (Number(form.expectedReturn) < minReturn) { setError(`❌ Le retour minimum est ${minReturn}% — en dessous, les investisseurs perdent de l'argent après les frais de plateforme`); return; }
       if (!form.durationMonths) { setError("La durée est obligatoire"); return; }
     }
     setError(""); setStep(s => s + 1);
@@ -339,7 +340,7 @@ export default function SubmitProjectPage() {
                       value={form.netBesoin}
                       onChange={e => {
                         const net = Number(e.target.value);
-                        const frais = (fees?.commission_baobab_collection||5) + (fees?.commission_mentor||2) + (fees?.commission_guarantee||2);
+                        const frais = (fees?.commission_baobab_collection||6) + (fees?.commission_mentor||2) + (fees?.commission_guarantee||2);
                         const objectif = net > 0 ? Math.ceil(net / (1 - frais/100)) : 0;
                         setForm(f => ({ ...f, netBesoin: e.target.value, goalAmount: objectif > 0 ? String(objectif) : "" }));
                       }}
@@ -351,8 +352,8 @@ export default function SubmitProjectPage() {
                           <span className="font-bold text-blue-700">{Number(form.netBesoin).toLocaleString()} FCFA</span>
                         </div>
                         <div className="flex justify-between text-red-500">
-                          <span>Frais BAOBAB 5% + mentor 2% + garantie 2%</span>
-                          <span>+{Math.ceil(Number(form.netBesoin) / 0.91 - Number(form.netBesoin)).toLocaleString()} FCFA</span>
+                          <span>Frais BAOBAB {fees?.commission_baobab_collection||6}% + mentor {fees?.commission_mentor||2}% + garantie {fees?.commission_guarantee||2}%</span>
+                          <span>+{Math.ceil(Number(form.netBesoin) / (1 - (fees?.commission_baobab_collection||6)/100 - (fees?.commission_mentor||2)/100 - (fees?.commission_guarantee||2)/100) - Number(form.netBesoin)).toLocaleString()} FCFA</span>
                         </div>
                         <div className="flex justify-between font-bold text-green-700 border-t border-gray-100 pt-1">
                           <span>Objectif de collecte affiché</span>
@@ -395,7 +396,7 @@ export default function SubmitProjectPage() {
                     <div className="text-xs text-gray-400 mt-1 leading-relaxed">
                       💡 C'est le taux que tu t'engages à reverser aux investisseurs à la fin du projet.
                       Ex: pour 100 000 FCFA levés à 20%, tu rembourseras 120 000 FCFA.
-                      <strong className="text-red-600"> Minimum imposé : 15%</strong> pour que les investisseurs gagnent réellement après les frais de plateforme.
+                      <strong className="text-red-600"> Minimum imposé : {fees?.return_min||23}%</strong> pour que les investisseurs gagnent réellement après les frais de plateforme.
                     </div>
                   </div>
                 </div>
