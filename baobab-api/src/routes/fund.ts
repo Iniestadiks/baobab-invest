@@ -62,9 +62,9 @@ router.get('/stats', async (req: any, res: Response): Promise<void> => {
       // Stats mensuelles 12 derniers mois
       prisma.$queryRaw`
         SELECT 
-          DATE_TRUNC('month', "createdAt") as month,
-          SUM(amount) as total,
-          COUNT(*) as count
+          TO_CHAR(DATE_TRUNC('month', "createdAt"), 'YYYY-MM') as month,
+          SUM(amount)::float as total,
+          COUNT(*)::int as count
         FROM fund_contribution
         WHERE status = 'COMPLETED'
           AND "createdAt" >= NOW() - INTERVAL '12 months'
