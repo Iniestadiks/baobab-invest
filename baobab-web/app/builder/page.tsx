@@ -40,18 +40,21 @@ export default function BuilderDashboard() {
   const [contribForm, setContribForm] = useState({ amount: "", projectId: "", message: "", anonymous: false, operator: "WAVE", phone: "" });
   const [submitting, setSubmitting] = useState(false);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [repayments, setRepayments] = useState<any[]>([]);
+  const [impactData, setImpactData] = useState<any>(null);
 
   const flash = (m: string) => { setFlashMsg(m); setTimeout(() => setFlashMsg(""), 4000); };
 
   const load = useCallback(async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) { router.push("/auth/login"); return; }
-    const [me, myContribs, stats, projs, notif] = await Promise.all([
+    const [me, myContribs, stats, projs, notif, impact] = await Promise.all([
       authGet("/api/auth/me"),
       authGet("/api/fund/my-contributions"),
       authGet("/api/fund/stats"),
       authGet("/api/projects?status=ACTIVE&limit=10"),
       authGet("/api/notifications"),
+      authGet("/api/fund/builder/impact"),
     ]);
     if (me.success) { setUser(me.data); setProfile(me.data.builderProfile); }
     if (myContribs.success) {
@@ -61,6 +64,7 @@ export default function BuilderDashboard() {
     if (stats.success) setFundStats(stats.data?.fund || {});
     if (projs.success) setProjects(projs.data?.projects || projs.data || []);
     if (notif.success) { setNotifications(notif.data.notifications?.slice(0, 8) || []); setUnread(notif.data.unreadCount || 0); }
+    if (impact.success) { setRepayments(impact.data.repaymentSchedules || []); setImpactData(impact.data); }
     setLoading(false);
   }, [router]);
 
@@ -135,6 +139,7 @@ export default function BuilderDashboard() {
     { id: "projects",      label: "Projets à soutenir", icon: "🚀" },
     { id: "profile",       label: "Mon profil",       icon: "🏗️" },
     { id: "impact",        label: "Mon impact",       icon: "🌍" },
+    { id: "repayments",    label: "Remboursements",   icon: "📅", badge: repayments.filter(r => r.stats?.late > 0).length },
   ];
 
   return (
@@ -200,6 +205,25 @@ export default function BuilderDashboard() {
                 <p className="text-gray-400 text-sm">Bonjour, {user?.firstName}</p>
                 <h1 className="text-2xl font-bold">Espace Bâtisseur 🏗️</h1>
                 {profile?.companyName && <p className="text-yellow-400 text-sm mt-1">{profile.companyName}</p>}
+            {impactData && (
+              <div className="mt-2 flex items-center gap-2">
+                {[
+                  { level: "GRAND_MECENE", icon: "💎", label: "Grand Mécène", min: 10000000 },
+                  { level: "OR", icon: "🥇", label: "Bâtisseur Or", min: 2000000 },
+                  { level: "ARGENT", icon: "🥈", label: "Bâtisseur Argent", min: 500000 },
+                  { level: "BATISSEUR", icon: "🏗️", label: "Bâtisseur", min: 100000 },
+                ].filter(l => impactData.level === l.level).map(l => (
+                  <span key={l.level} className="text-xs bg-yellow-400/20 border border-yellow-400/30 text-yellow-300 px-3 py-1 rounded-full font-bold">
+                    {l.icon} {l.label}
+                  </span>
+                ))}
+                {impactData.nextLevel && impactData.nextThreshold > 0 && (
+                  <span className="text-xs text-gray-400">
+                    → {fmt(impactData.nextThreshold - totalDonated)} FCFA pour niveau {impactData.nextLevel}
+                  </span>
+                )}
+              </div>
+            )}
                 {!profile?.verified && (
                   <div className="mt-2 bg-yellow-400/20 border border-yellow-400/30 rounded-xl px-3 py-1.5 text-xs text-yellow-300 inline-block">
                     ⏳ Vérification en attente — Notre équipe examine votre profil

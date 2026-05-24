@@ -477,3 +477,118 @@ router.get('/my-contributions', authenticate, async (req: AuthRequest, res: Resp
 })
 
 export default router
+
+// ─── BUILDER — Impact & projets soutenus ────────────────────────────────────
+router.get('/builder/impact', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // Contributions du bâtisseur
+    const contributions = await prisma.fundContribution.findMany({
+      where: { userId: req.userId!, status: 'COMPLETED' },
+      include: { project: { select: { id: true, title: true, sector: true, city: true, status: true, raisedAmount: true, goalAmount: true, durationMonths: true, entrepreneurId: true, entrepreneur: { select: { firstName: true, lastName: true, profileImageUrl: true } } } }, campaign: true },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Projets uniques soutenus
+    const projectIds = [...new Set(contributions.filter(c => c.projectId).map(c => c.projectId!))]
+
+    // Récupérer échéanciers des projets soutenus
+    const schedules = projectIds.length > 0 ? await prisma.repaymentSchedule.findMany({
+      where: { projectId: { in: projectIds } },
+      include: {
+        payments: { orderBy: { dueDate: 'asc' } },
+        project: { select: { id: true, title: true, sector: true, entrepreneur: { select: { firstName: true, lastName: true } } } }
+      }
+    }) : []
+
+    // Stats globales fonds
+    const fundContribs = await prisma.fundContribution.aggregate({
+      where: { status: 'COMPLETED' }, _sum: { amount: true, netAmount: true }, _count: true
+    })
+
+    // Allocations liées aux projets soutenus
+    const allocations = projectIds.length > 0 ? await prisma.fundAllocation.findMany({
+      where: { projectId: { in: projectIds } },
+      include: { project: { select: { title: true, sector: true } } }
+    }) : []
+
+    // Calcul impact
+    const totalDonated = contributions.reduce((s, c) => s + c.amount, 0)
+    const totalNet = contributions.reduce((s, c) => s + c.netAmount, 0)
+    const projectsSupported = projectIds.length
+    const badges = await prisma.fundBadge.findMany({ where: { userId: req.userId! } })
+
+    // Niveau bâtisseur
+    let level = 'BATISSEUR'
+    let nextLevel = 'ARGENT'
+    let nextThreshold = 500000
+    if (totalDonated >= 10000000) { level = 'GRAND_MECENE'; nextLevel = ''; nextThreshold = 0 }
+    else if (totalDonated >= 2000000) { level = 'OR'; nextLevel = 'GRAND_MECENE'; nextThreshold = 10000000 }
+    else if (totalDonated >= 500000) { level = 'ARGENT'; nextLevel = 'OR'; nextThreshold = 2000000 }
+    else if (totalDonated >= 100000) { level = 'BATISSEUR'; nextLevel = 'ARGENT'; nextThreshold = 500000 }
+
+    // Stats remboursements
+    const repaymentStats = schedules.map(s => {
+      const total = s.payments.length
+      const paid = s.payments.filter(p => p.status === 'COMPLETED').length
+      const late = s.payments.filter(p => p.status === 'LATE').length
+      const pending = s.payments.filter(p => p.status === 'PENDING').length
+      const totalPaid = s.payments.filter(p => p.status === 'COMPLETED').reduce((sum, p) => sum + p.amount, 0)
+      return { ...s, stats: { total, paid, late, pending, totalPaid, pct: total > 0 ? Math.round((paid/total)*100) : 0 } }
+    })
+
+    successResponse(res, {
+      contributions,
+      projectsSupported,
+      totalDonated,
+      totalNet,
+      allocations,
+      repaymentSchedules: repaymentStats,
+      badges,
+      level,
+      nextLevel,
+      nextThreshold,
+      fundGlobal: { totalReceived: fundContribs._sum.amount || 0, totalContributors: fundContribs._count }
+    })
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// ─── PAGE PUBLIQUE — Hall of Fame Bâtisseurs ─────────────────────────────────
+router.get('/builders/public', async (req: any, res: Response): Promise<void> => {
+  try {
+    // Top bâtisseurs publics
+    const topBuilders = await prisma.fundContribution.groupBy({
+      by: ['userId'],
+      where: { status: 'COMPLETED', anonymous: false, userId: { not: null } },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: 'desc' } },
+      take: 20
+    })
+
+    const enriched = await Promise.all(topBuilders.map(async b => {
+      if (!b.userId) return null
+      const [user, profile, badges, count] = await Promise.all([
+        prisma.user.findUnique({ where: { id: b.userId }, select: { firstName: true, lastName: true, role: true } }),
+        prisma.builderProfile.findUnique({ where: { userId: b.userId } }),
+        prisma.fundBadge.findMany({ where: { userId: b.userId } }),
+        prisma.fundContribution.count({ where: { userId: b.userId, status: 'COMPLETED' } })
+      ])
+      const total = b._sum.amount || 0
+      let level = 'BATISSEUR'
+      if (total >= 10000000) level = 'GRAND_MECENE'
+      else if (total >= 2000000) level = 'OR'
+      else if (total >= 500000) level = 'ARGENT'
+      return { userId: b.userId, firstName: user?.firstName, lastName: user?.lastName, companyName: profile?.companyName, sector: profile?.sector, description: profile?.description, website: profile?.website, isPublic: profile?.isPublic ?? true, totalDonated: total, contributions: count, badges: badges.map(b => b.badge), level }
+    }))
+
+    // Stats globales
+    const stats = await prisma.fundContribution.aggregate({
+      where: { status: 'COMPLETED' }, _sum: { amount: true }, _count: true
+    })
+    const projectsHelped = await prisma.fundAllocation.count()
+
+    successResponse(res, {
+      builders: enriched.filter(b => b && b.isPublic),
+      stats: { totalRaised: stats._sum.amount || 0, totalContributors: stats._count, projectsHelped }
+    })
+  } catch (e) { console.error(e); errorResponse(res) }
+})

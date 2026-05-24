@@ -58,6 +58,7 @@ export default function LandingPage() {
               🌱 Fonds Solidaire
             </Link>
             <a href="#batisseurs" className="hover:text-green-600 transition-colors">Bâtisseurs</a>
+            <Link href="/batisseurs" className="hover:text-green-600 transition-colors">🏆 Hall of Fame</Link>
             <Link href="/transparence" className="hover:text-green-600 transition-colors">Transparence</Link>
           </div>
           <div className="flex items-center gap-3">
