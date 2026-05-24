@@ -41,7 +41,6 @@ export default function DashboardPage() {
   const [flashMsg, setFlashMsg] = useState("");
   const [savingsAmount, setSavingsAmount] = useState("");
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
   const [searchInv, setSearchInv] = useState("");
   const [savingsDay, setSavingsDay] = useState("");
 
