@@ -412,4 +412,36 @@ router.post('/admin/reject/:id', authenticate, requireAdmin, async (req: AuthReq
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
+// GET /api/wallet/history — Historique transactions investisseur
+router.get('/history', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { page = '1', limit = '20', type } = req.query
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string)
+    const where: any = { userId: req.userId! }
+    if (type) where.type = type
+
+    const [transactions, total, wallet] = await Promise.all([
+      prisma.walletTransaction.findMany({
+        where, skip, take: parseInt(limit as string),
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.walletTransaction.count({ where }),
+      prisma.wallet.findUnique({ where: { userId: req.userId! } })
+    ])
+
+    successResponse(res, {
+      transactions,
+      total,
+      pages: Math.ceil(total / parseInt(limit as string)),
+      wallet: {
+        balance: wallet?.balance || 0,
+        depositBalance: wallet?.depositBalance || 0,
+        gainBalance: wallet?.gainBalance || 0,
+        totalDeposited: wallet?.totalDeposited || 0,
+        totalWithdrawn: wallet?.totalWithdrawn || 0,
+      }
+    })
+  } catch (e) { errorResponse(res) }
+})
+
 export default router

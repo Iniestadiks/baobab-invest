@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [flashMsg, setFlashMsg] = useState("");
   const [savingsAmount, setSavingsAmount] = useState("");
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [searchInv, setSearchInv] = useState("");
   const [savingsDay, setSavingsDay] = useState("");
 
@@ -665,6 +666,62 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+            {/* Historique transactions */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-900">📋 Dernières transactions</h3>
+                <Link href="/wallet/history" className="text-xs text-green-600 hover:underline">Voir tout →</Link>
+              </div>
+              {transactions.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-4">Aucune transaction</p>
+              ) : transactions.map((tx: any) => (
+                <div key={tx.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm ${tx.type === "DEPOSIT" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {tx.type === "DEPOSIT" ? "↓" : "↑"}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {tx.type === "DEPOSIT" ? "Dépôt" : "Retrait"}
+                        {tx.operator && ` — ${tx.operator}`}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(tx.createdAt).toLocaleDateString("fr-FR", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-bold text-sm ${tx.type === "DEPOSIT" ? "text-green-700" : "text-red-600"}`}>
+                      {tx.type === "DEPOSIT" ? "+" : "-"}{fmt(tx.amount)} FCFA
+                    </div>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-lg ${tx.status === "COMPLETED" ? "bg-green-100 text-green-700" : tx.status === "PENDING" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
+                      {tx.status === "COMPLETED" ? "✅" : tx.status === "PENDING" ? "⏳" : "❌"} {tx.status === "COMPLETED" ? "Confirmé" : tx.status === "PENDING" ? "En attente" : "Rejeté"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Deux soldes */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <h3 className="font-bold text-gray-900 mb-4">💰 Détail des soldes</h3>
+              <div className="space-y-3">
+                {[
+                  { label: "📈 Gains remboursements", value: fmt(gainBalance) + " FCFA", color: "text-green-700", note: "Retrait gratuit (0%)" },
+                  { label: "💵 Dépôts à investir", value: fmt(depositBalance) + " FCFA", color: "text-orange-600", note: "Retrait 7% si non investi" },
+                  { label: "🔒 En séquestre", value: fmt(escrow) + " FCFA", color: "text-blue-700", note: "Investissements en cours" },
+                ].map(s => (
+                  <div key={s.label} className="flex justify-between items-center py-2 border-b border-gray-50">
+                    <div>
+                      <span className="text-sm text-gray-700">{s.label}</span>
+                      <div className="text-xs text-gray-400">{s.note}</div>
+                    </div>
+                    <span className={`font-bold ${s.color}`}>{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Épargne programmée */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <h3 className="font-bold text-gray-900 mb-3">🌱 Épargne programmée</h3>

@@ -47,7 +47,11 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     const skip = (Number(page) - 1) * Number(limit)
 
     const where: any = {
-      status: status ? String(status) : { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS', 'COMPLETED'] },
+      status: status 
+        ? String(status).includes(',') 
+          ? { in: String(status).split(',') }
+          : String(status)
+        : { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS', 'COMPLETED'] },
       ...(sector ? { sector: String(sector) } : {}),
       ...(country ? { country: String(country) } : {}),
       ...(city ? { city: { contains: String(city), mode: 'insensitive' } } : {}),
