@@ -12,6 +12,7 @@ enum UserRole {
   ENTREPRENEUR
   ADMIN
   MENTOR
+  BUILDER
 }
 
 enum KycStatus {

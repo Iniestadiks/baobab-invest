@@ -7,6 +7,7 @@ export function getDashboardPath(role: string): string {
     case 'MENTOR':       return '/mentor'
     case 'ADMIN':        return '/admin'
     case 'INVESTOR':     return '/dashboard'
+    case 'BUILDER':     return '/builder'
     default:             return '/dashboard'
   }
 }

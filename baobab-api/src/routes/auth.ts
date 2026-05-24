@@ -30,7 +30,7 @@ router.post('/login', async (req, res): Promise<void> => {
 // Register
 router.post('/register', async (req, res): Promise<void> => {
   try {
-    const { email, password, firstName, lastName, phone, role, country, city, region, countryCode, indicatif } = req.body
+    const { email, password, firstName, lastName, phone, role, country, city, region, countryCode, indicatif, companyName, sector } = req.body
     if (!email || !password || !firstName || !lastName) { res.status(400).json({ success: false, message: 'Champs obligatoires manquants' }); return }
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) { res.status(409).json({ success: false, message: 'Email déjà utilisé' }); return }
@@ -40,6 +40,12 @@ router.post('/register', async (req, res): Promise<void> => {
       data: { email, password: hashed, firstName, lastName, phone, role: role || 'INVESTOR', referralCode, country: country || 'SN', city: city || '', region: region || '', countryCode: countryCode || 'SN', indicatif: indicatif || '+221' }
     })
     await prisma.wallet.create({ data: { userId: user.id, balance: 0 } })
+    // Créer profil Bâtisseur si rôle BUILDER
+    if (role === 'BUILDER') {
+      await prisma.builderProfile.create({
+        data: { userId: user.id, companyName: companyName || null, sector: sector || null }
+      })
+    }
     const accessToken = generateAccessToken(user.id, user.role)
     const refreshToken = generateRefreshToken(user.id)
     successResponse(res, {
@@ -140,6 +146,19 @@ router.get('/mentors', async (req, res): Promise<void> => {
     })
     res.json({ success: true, data: mentors })
   } catch (e) { res.status(500).json({ success: false }) }
+})
+
+// PATCH /api/builder/profile — Mettre à jour profil Bâtisseur
+router.patch('/builder/profile', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { companyName, sector, description, website, country, isPublic } = req.body
+    const profile = await prisma.builderProfile.upsert({
+      where: { userId: req.userId! },
+      create: { userId: req.userId!, companyName, sector, description, website, country, isPublic },
+      update: { companyName, sector, description, website, country, isPublic, updatedAt: new Date() }
+    })
+    successResponse(res, profile, 'Profil Bâtisseur mis à jour')
+  } catch (e) { console.error(e); errorResponse(res) }
 })
 
 export default router

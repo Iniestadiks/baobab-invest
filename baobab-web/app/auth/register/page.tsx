@@ -26,6 +26,13 @@ const ROLES = [
     sublabel: "Expert validateur",
     desc: "Je suis expert ou figure locale. Je valide des projets et j'engage ma réputation.",
   },
+  {
+    value: "BUILDER",
+    icon: "🏗️",
+    label: "Bâtisseur",
+    sublabel: "Mécène / Partenaire",
+    desc: "Entreprise, institution ou mécène : je soutiens les jeunes entrepreneurs à grande échelle.",
+  },
 ];
 
 const COUNTRIES = [
@@ -47,7 +54,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "",
     phone: "", password: "", confirmPassword: "",
-    role: "INVESTOR", country: "SN", city: "",
+    role: "INVESTOR", country: "SN", city: "", companyName: "", sector: "",
   });
   const [geo, setGeo] = useState({
     country: "Senegal", countryCode: "SN", indicatif: "+221",
@@ -99,7 +106,11 @@ export default function RegisterPage() {
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
       localStorage.setItem("user", JSON.stringify(data.data.user));
-      router.push("/dashboard");
+      const role = data.data.user.role;
+      if (role === "ENTREPRENEUR") router.push("/entrepreneur");
+      else if (role === "MENTOR") router.push("/mentor");
+      else if (role === "BUILDER") router.push("/builder");
+      else router.push("/dashboard");
     } catch {
       setError("Erreur de connexion au serveur. Réessaie.");
     } finally {
@@ -127,7 +138,7 @@ export default function RegisterPage() {
           <label className="text-xs font-semibold text-gray-600 mb-3 block uppercase tracking-wide">
             Je suis un...
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {ROLES.map((r) => (
               <button
                 key={r.value}
@@ -156,6 +167,11 @@ export default function RegisterPage() {
               {form.role === "MENTOR" && (
                 <p className="text-xs text-orange-600 mt-2 font-medium">
                   ⚠️ Ton profil sera examiné par notre équipe avant validation.
+                </p>
+              )}
+              {form.role === "BUILDER" && (
+                <p className="text-xs text-yellow-700 mt-2 font-medium">
+                  🏗️ Profil Bâtisseur — Vérification KYC renforcée. Dashboard dédié avec impact social.
                 </p>
               )}
             </div>
@@ -226,6 +242,41 @@ export default function RegisterPage() {
             setGeo(v);
             setForm(f => ({ ...f, country: v.countryCode, city: v.city }));
           }} />
+          {/* Champs spécifiques Bâtisseur */}
+          {form.role === "BUILDER" && (
+            <div className="space-y-3 border-2 border-yellow-200 rounded-2xl p-4 bg-yellow-50">
+              <div className="text-xs font-bold text-yellow-800 mb-2">🏗️ Informations Bâtisseur</div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1 block">Entreprise / Organisation</label>
+                <input
+                  name="companyName" value={form.companyName}
+                  onChange={handleChange}
+                  placeholder="Ex: Groupe Bolloré, Orange CI, UNESCO..."
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1 block">Secteur d'activité</label>
+                <select name="sector" value={form.sector} onChange={handleChange} className="input-field">
+                  <option value="">Sélectionner...</option>
+                  <option value="BANQUE_FINANCE">Banque & Finance</option>
+                  <option value="TECH">Technologie</option>
+                  <option value="AGRICULTURE">Agriculture</option>
+                  <option value="SANTE">Santé</option>
+                  <option value="EDUCATION">Éducation</option>
+                  <option value="COMMERCE">Commerce & Distribution</option>
+                  <option value="ENERGIE">Énergie</option>
+                  <option value="IMMOBILIER">Immobilier</option>
+                  <option value="TELECOMS">Télécommunications</option>
+                  <option value="INSTITUTION">Institution / ONG</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
+              </div>
+              <p className="text-xs text-yellow-700">
+                ⚠️ Votre profil Bâtisseur sera examiné et vérifié par notre équipe avant validation.
+              </p>
+            </div>
+          )}
           {/* Indicatif auto */}
           {geo.indicatif && (
             <p className="text-xs text-green-600 -mt-1">
