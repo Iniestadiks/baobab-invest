@@ -592,3 +592,28 @@ router.get('/builders/public', async (req: any, res: Response): Promise<void> =>
     })
   } catch (e) { console.error(e); errorResponse(res) }
 })
+
+// ─── ADMIN — Vérifier un Bâtisseur ──────────────────────────────────────────
+router.patch('/admin/builder/:userId/verify', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { verified } = req.body
+    const profile = await prisma.builderProfile.upsert({
+      where: { userId: req.params.userId },
+      create: { userId: req.params.userId, verified: verified ?? true },
+      update: { verified: verified ?? true, updatedAt: new Date() }
+    })
+    // Notifier le Bâtisseur
+    if (verified) {
+      await prisma.notification.create({
+        data: {
+          userId: req.params.userId,
+          title: '✅ Profil Bâtisseur vérifié !',
+          body: 'Votre profil Bâtisseur a été vérifié par l\'équipe BAOBAB INVEST. Vous bénéficiez maintenant de tous les avantages.',
+          type: 'BUILDER_VERIFIED',
+          data: JSON.stringify({ verified: true })
+        }
+      })
+    }
+    successResponse(res, profile, verified ? 'Bâtisseur vérifié ✅' : 'Vérification retirée')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
