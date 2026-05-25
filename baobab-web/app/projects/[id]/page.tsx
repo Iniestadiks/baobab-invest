@@ -107,10 +107,10 @@ export default function ProjectDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link href="/projects" className="text-gray-400 hover:text-green-600 transition-colors">← Catalogue</Link>
-          <span className="text-gray-200">|</span>
-          <span className="text-gray-700 font-medium truncate">{project.title}</span>
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4 overflow-hidden">
+          <Link href="/projects" className="text-gray-400 hover:text-green-600 transition-colors flex-shrink-0">← Catalogue</Link>
+          <span className="text-gray-200 flex-shrink-0">|</span>
+          <span className="text-gray-700 font-medium truncate min-w-0 flex-1">{project.title}</span>
         </div>
       </nav>
 
@@ -136,8 +136,8 @@ export default function ProjectDetailPage() {
                       </span>
                     )}
                   </div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2 break-all overflow-hidden w-full">{project.title}</h1>
-                  <p className="text-gray-600 text-sm leading-relaxed break-all overflow-hidden w-full">{project.description}</p>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2 overflow-hidden w-full" style={{wordBreak:"break-all", overflowWrap:"anywhere"}}>{project.title}</h1>
+                  <p className="text-gray-600 text-sm leading-relaxed overflow-hidden w-full" style={{wordBreak:"break-all", overflowWrap:"anywhere", whiteSpace:"pre-wrap"}}>{project.description}</p>
                 </div>
               </div>
 
