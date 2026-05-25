@@ -68,11 +68,11 @@ export default function DepositPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 w-full max-w-md p-8">
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 mb-6 flex items-center gap-2 text-sm">
+        <button onClick={() => router.push("/dashboard")} className="text-gray-400 hover:text-gray-600 mb-6 flex items-center gap-2 text-sm">
           ← Retour
         </button>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Déposer des fonds</h1>
-        <p className="text-gray-500 text-sm mb-6">Rechargez votre wallet — les frais opérateur varient selon votre moyen de paiement</p>
+        <p className="text-gray-500 text-sm mb-6">Rechargez votre wallet — BAOBAB prend en charge les frais opérateur</p>
 
         {wallet && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
@@ -130,12 +130,12 @@ export default function DepositPage() {
                 <span className="font-bold text-gray-900">{fmt(Number(amount))} FCFA</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Frais opérateur (~1.5% - 3.25%)</span>
-                <span className="text-orange-600">- {fmt(Math.round(Number(amount) * 0.04))} FCFA max</span>
+                <span className="text-gray-600">✅ Frais opérateur</span>
+                <span className="font-bold text-green-600">Absorbés par BAOBAB</span>
               </div>
               <div className="flex justify-between border-t border-gray-200 pt-1">
-                <span className="font-semibold text-gray-700">Wallet crédité (estimé)</span>
-                <span className="font-bold text-green-700">~{fmt(Math.round(Number(amount) * 0.96))} FCFA</span>
+                <span className="font-bold text-green-800">💚 Wallet crédité</span>
+                <span className="font-bold text-green-700 text-sm">{fmt(Number(amount))} FCFA — 100% ✅</span>
               </div>
             </div>
           )}
@@ -149,7 +149,7 @@ export default function DepositPage() {
               <span key={m} className="text-xs bg-white border border-gray-200 px-2.5 py-1 rounded-lg text-gray-600">{m}</span>
             ))}
           </div>
-          <div className="text-xs text-gray-400 mt-2">Les frais opérateur Mobile Money sont prélevés par votre opérateur</div>
+          <div className="text-xs text-gray-400 mt-2">💚 BAOBAB absorbe les frais — vous recevez 100% de votre dépôt</div>
         </div>
 
         <button onClick={handleDeposit} disabled={loading || !amount || Number(amount) < 1000}
