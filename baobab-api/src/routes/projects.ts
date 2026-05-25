@@ -188,10 +188,14 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
     // Calculer goalAmount automatiquement
     const feesCalc = await getFees()
     const hasMentorCalc = !!req.body.mentorId
-    const hasInsuranceCalc = req.body.withInsurance !== false
-    const diviseurCalc = 1 - (feesCalc.commission_baobab_collection/100)
-      - (hasMentorCalc ? feesCalc.commission_mentor/100 : 0)
-      - (hasInsuranceCalc ? feesCalc.commission_guarantee/100 : 0)
+    const hasInsuranceCalc = req.body.withInsurance === true // addon individuel, hors calcul cagnotte
+    // Frais fixes intégrés à la cagnotte :
+    //   BAOBAB 6% + Payin 4% + Mentor 2% (si activé)
+    // Assurance EXCLUE : addon individuel hors cagnotte
+    const diviseurCalc = 1
+      - (feesCalc.commission_baobab_collection / 100)  // 6%
+      - (feesCalc.payin_recovery / 100)                // 4%
+      - (hasMentorCalc ? feesCalc.commission_mentor / 100 : 0) // 2% si mentor
     const netAmountCalc = req.body.goalAmount
     const computedGoalCalc = Math.ceil(netAmountCalc / diviseurCalc)
     const graceCalc = ['AGRICULTURE','ELEVAGE'].includes(req.body.sector)

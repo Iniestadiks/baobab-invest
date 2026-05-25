@@ -90,11 +90,20 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
     // payinRepay = totalRemb * payin_repayment%
     // investorReturn = (totalRemb - payinRepay) * sharePercent
     // + bonus si sans assurance
+    // Modèle financier correct :
+    // netAmount = ce que l'entrepreneur reçoit = goalAmount * (1 - frais_fixes)
+    // frais_fixes = BAOBAB(6%) + payin(4%) + mentor(2% si actif)
+    // Assurance = addon individuel, ne réduit pas la part projet
     const payinRepayPct = fees.payin_repayment || 4
-    const netAmount = project.goalAmount * (1 - (fees.commission_baobab_collection + (project.mentorId ? fees.commission_mentor : 0) + fees.commission_guarantee) / 100)
+    const fraisFixesPct = (fees.commission_baobab_collection + fees.payin_recovery + (project.mentorId ? fees.commission_mentor : 0)) / 100
+    const netAmount = Math.round(project.goalAmount * (1 - fraisFixesPct))
+    // Retour total remboursé par l'entrepreneur sur netAmount
     const totalRemb = Math.round(netAmount * (1 + returnRate / 100))
+    // Payin prélevé sur les remboursements (4%)
     const payinRepay = Math.round(totalRemb * payinRepayPct / 100)
     const netDistributed = totalRemb - payinRepay
+    // Part de l'investisseur = sharePercent * netDistributed
+    // + bonus assurance réinjectée si pas d'assurance prise
     const bonusNoInsurance = withInsurance ? 0 : guaranteeFee
     const expectedReturn = Math.round(netDistributed * sharePercent) + bonusNoInsurance
 
