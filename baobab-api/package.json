@@ -28,6 +28,7 @@
     "@types/pdfkit": "^0.17.6",
     "@types/uuid": "^10.0.0",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
     "cors": "^2.8.6",
     "country-state-city": "^3.2.1",
     "dotenv": "^17.4.2",

@@ -142,12 +142,32 @@ export default function ProjectDetailPage() {
               </div>
 
               {project.pitchVideoUrl && (
-                <div className="aspect-video rounded-xl overflow-hidden bg-gray-100 mb-4">
-                  <iframe
-                    src={project.pitchVideoUrl.replace("watch?v=", "embed/")}
-                    className="w-full h-full"
-                    allowFullScreen
-                  />
+                <div className="rounded-2xl overflow-hidden bg-gray-900 mb-4">
+                  {project.pitchVideoUrl.includes('cloudinary') ? (
+                    // Lecteur natif pour vidéos Cloudinary
+                    <div>
+                      <video
+                        src={project.pitchVideoUrl}
+                        controls
+                        controlsList="nodownload"
+                        className="w-full max-h-72 object-cover"
+                        poster={project.pitchVideoUrl.replace(/\.[^.]+$/, '.jpg').replace('/video/upload/', '/video/upload/w_640,h_360,c_fill,so_2/')}
+                      />
+                      <div className="bg-gray-800 px-4 py-2 flex items-center gap-2">
+                        <span className="text-xs text-green-400">🎬 Pitch vidéo de l&apos;entrepreneur</span>
+                        <span className="text-xs text-gray-500 ml-auto">Stocké de façon permanente par BAOBAB INVEST</span>
+                      </div>
+                    </div>
+                  ) : (
+                    // Lecteur YouTube pour anciens liens
+                    <div className="aspect-video">
+                      <iframe
+                        src={project.pitchVideoUrl.replace("watch?v=", "embed/")}
+                        className="w-full h-full"
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 

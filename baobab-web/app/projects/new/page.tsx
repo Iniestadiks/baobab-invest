@@ -28,6 +28,10 @@ export default function NewProjectPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoPreview, setVideoPreview] = useState("");
   const [success, setSuccess] = useState(false);
   const [taxonomy, setTaxonomy] = useState<Record<string, string[]>>({});
   const [subSectors, setSubSectors] = useState<string[]>([]);
@@ -38,7 +42,7 @@ export default function NewProjectPage() {
   const [form, setForm] = useState({
     title: "", description: "", sector: "", subSector: "",
     city: "", country: "SN", goalAmount: "", minimumInvestment: "5000",
-    expectedReturn: "", durationMonths: "6", riskLevel: "MEDIUM",
+    expectedReturn: "", durationMonths: "6", riskLevel: "MEDIUM", pitchVideoUrl: "", pitchVideoPublicId: "",
     mentorId: "", campaignEndsAt: "",
     useOfFunds: "", businessPlan: "",
   });
@@ -83,6 +87,7 @@ export default function NewProjectPage() {
       goalAmount: Number(form.goalAmount),
       minimumInvestment: Number(form.minimumInvestment),
       expectedReturn: Number(form.expectedReturn),
+      pitchVideoUrl: form.pitchVideoUrl || undefined,
       durationMonths: Number(form.durationMonths),
       mentorId: form.mentorId || undefined,
       campaignEndsAt: form.campaignEndsAt || undefined,
@@ -310,12 +315,51 @@ export default function NewProjectPage() {
               <textarea name="useOfFunds" value={form.useOfFunds} onChange={handleChange} rows={3}
                 placeholder="Comment seront utilisés les fonds levés ?" className={inputClass} />
             </div>
+            {/* PITCH VIDEO */}
+            <div>
+              <label className={labelClass}>🎥 Pitch vidéo * (max 1 min 45 sec)</label>
+              <p className="text-xs text-gray-400 mb-2">Présentez votre projet en vidéo. Formats : MP4, MOV, AVI, WebM. Cette vidéo sera conservée par BAOBAB INVEST.</p>
+              {!videoPreview ? (
+                <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-colors ${videoUploading ? "border-green-300 bg-green-50" : "border-gray-300 hover:border-green-400 hover:bg-green-50"}`}>
+                  <input type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/webm" className="hidden"
+                    onChange={e => e.target.files?.[0] && handleVideoUpload(e.target.files[0])} />
+                  {videoUploading ? (
+                    <div className="text-center w-full">
+                      <div className="text-2xl mb-2 animate-pulse">📤</div>
+                      <div className="text-sm font-medium text-green-700 mb-2">Upload en cours... {videoProgress}%</div>
+                      <div className="bg-gray-200 rounded-full h-2 w-full">
+                        <div className="bg-green-500 h-2 rounded-full transition-all" style={{width: `${videoProgress}%`}}></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-4xl mb-3">🎬</div>
+                      <div className="text-sm font-medium text-gray-700">Cliquez pour choisir votre vidéo</div>
+                      <div className="text-xs text-gray-400 mt-1">ou glissez-déposez ici</div>
+                      <div className="text-xs text-green-600 mt-2 font-medium">Maximum : 1 minute 45 secondes</div>
+                    </>
+                  )}
+                </label>
+              ) : (
+                <div className="rounded-2xl overflow-hidden border border-green-200 bg-green-50">
+                  <video src={videoPreview} controls className="w-full max-h-48 object-cover" />
+                  <div className="p-3 flex justify-between items-center">
+                    <div className="text-xs text-green-700 font-medium">✅ Vidéo uploadée ({videoDuration}s) — Stockée de façon permanente</div>
+                    <button onClick={() => { setVideoPreview(""); setForm(f => ({...f, pitchVideoUrl: "", pitchVideoPublicId: ""})); setVideoProgress(0); }}
+                      className="text-xs text-red-500 hover:underline">Changer</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3">
               <button onClick={() => setStep(1)} className="flex-1 border border-gray-200 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-50">← Retour</button>
               <button onClick={() => {
                 if (!form.title || form.description.length < 50) { setError("Remplissez tous les champs correctement"); return; }
+                if (!form.pitchVideoUrl) { setError("La vidéo de pitch est obligatoire"); return; }
                 setError(""); setStep(3);
-              }} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700">Continuer →</button>
+              }} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 disabled:opacity-50"
+              disabled={videoUploading}>Continuer →</button>
             </div>
           </div>
         )}

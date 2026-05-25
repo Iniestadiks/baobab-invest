@@ -2019,6 +2019,30 @@ export default function AdminPage() {
                     <div className="text-sm font-bold text-purple-600">Score : {p.bankabilityScore}/100</div>
                   </div>
                 </div>
+                {/* Pitch vidéo admin */}
+                {p.pitchVideoUrl && (
+                  <div className="mb-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-900">
+                    {p.pitchVideoUrl.includes('cloudinary') ? (
+                      <div>
+                        <video src={p.pitchVideoUrl} controls controlsList="nodownload"
+                          className="w-full max-h-56 object-cover" />
+                        <div className="bg-gray-800 px-3 py-1.5 flex justify-between items-center">
+                          <span className="text-xs text-green-400">🎬 Pitch vidéo entrepreneur</span>
+                          <a href={p.pitchVideoUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-blue-400 hover:underline">Ouvrir ↗</a>
+                        </div>
+                      </div>
+                    ) : (
+                      <iframe src={p.pitchVideoUrl.replace("watch?v=", "embed/")}
+                        className="w-full h-48" allowFullScreen />
+                    )}
+                  </div>
+                )}
+                {!p.pitchVideoUrl && (
+                  <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-700">
+                    ⚠️ Aucune vidéo de pitch fournie par l'entrepreneur
+                  </div>
+                )}
                 <div className="mb-4">
                   <label className="text-xs font-semibold text-gray-600 mb-1 block">Note admin (obligatoire pour le rejet)</label>
                   <input value={adminNote} onChange={e => setAdminNote(e.target.value)}
