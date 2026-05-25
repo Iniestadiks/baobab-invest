@@ -40,7 +40,7 @@ export default function ProjectDetailPage() {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${id}/simulate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: Number(simAmount) }),
+      body: JSON.stringify({ amount: Number(simAmount), withInsurance }),
     });
     const data = await res.json();
     if (data.success) setSimResult(data.data);
@@ -444,35 +444,50 @@ export default function ProjectDetailPage() {
                         {/* Décomposition nouvelle stratégie */}
                         {(() => {
                           const amt = Number(investAmount)
-                          const baobabFee = Math.round(amt * fees.commission_baobab_collection / 100)
-                          const payinFee = Math.round(amt * (fees.payin_recovery || 4) / 100)
-                          const mentorFee = project.mentor ? Math.round(amt * fees.commission_mentor / 100) : 0
-                          const guarFee = withInsurance ? Math.round(amt * fees.commission_guarantee / 100) : 0
-                          const reinvested = withInsurance ? 0 : Math.round(amt * fees.commission_guarantee / 100)
-                          const totalFees = baobabFee + payinFee + mentorFee + guarFee
-                          const netToProject = amt - totalFees + reinvested
-                          const returnRate = project.expectedReturn || 22
-                          const netAmount = project.netAmount || project.goalAmount
+                          const baobabPct = fees.commission_baobab_collection || 6
+                          const payinPct = fees.payin_recovery || 4
+                          const mentorPct = fees.commission_mentor || 2
+                          const guarPct = fees.commission_guarantee || 2
+                          const payinRepayPct = fees.payin_repayment || 4
+                          const baobabFee = Math.round(amt * baobabPct / 100)
+                          const payinFee = Math.round(amt * payinPct / 100)
+                          const mentorFee = project.mentor ? Math.round(amt * mentorPct / 100) : 0
+                          const guarFee = withInsurance ? Math.round(amt * guarPct / 100) : 0
+                          // Sans assurance : les 2% restent dans la part investisseur → capital effectif augmente
+                          const effectiveAmt = withInsurance ? (amt - baobabFee - payinFee - mentorFee - guarFee) : (amt - baobabFee - payinFee - mentorFee)
+                          const returnRate = project.expectedReturn || 23
+                          // Part de l'investisseur dans le pool = son apport effectif / goalAmount
                           const sharePercent = amt / project.goalAmount
-                          const totalReturn = Math.round(netAmount * (1 + returnRate/100))
-                          const payinRepayment = fees.payin_repayment || 4
-                          const netDistributed = Math.round(totalReturn * (1 - payinRepayment/100))
+                          // Total remboursé par l'entrepreneur sur son besoin net
+                          const netAmount = project.netAmount || (project.goalAmount * (1 - (baobabPct + mentorPct + guarPct) / 100))
+                          const totalReturn = Math.round(netAmount * (1 + returnRate / 100))
+                          // Payin 4% prélevé sur chaque mensualité
+                          const payinRepay = Math.round(totalReturn * payinRepayPct / 100)
+                          const netDistributed = totalReturn - payinRepay
+                          // Part investisseur
                           const investorTotal = Math.round(netDistributed * sharePercent)
                           const gain = investorTotal - amt
                           const gainPct = ((gain / amt) * 100).toFixed(1)
                           return (
                             <div className="space-y-1">
                               <div className="flex justify-between text-gray-600"><span>Capital investi</span><span className="font-bold">{amt.toLocaleString()} FCFA</span></div>
-                              <div className="flex justify-between text-red-500"><span>BAOBAB 5% collecte</span><span>-{baobabFee.toLocaleString()} FCFA</span></div>
-                              <div className="flex justify-between text-red-500"><span>Payin 4% (frais op.)</span><span>-{payinFee.toLocaleString()} FCFA</span></div>
-                              {project.mentor && <div className="flex justify-between text-red-500"><span>Mentor 2%</span><span>-{mentorFee.toLocaleString()} FCFA</span></div>}
+                              <div className="flex justify-between text-gray-700"><span className="font-medium">Capital investi</span><span className="font-bold">{fmt(amt)} FCFA</span></div>
+                              <div className="flex justify-between text-red-500 text-xs"><span>BAOBAB {baobabPct}% commission</span><span>-{fmt(baobabFee)} FCFA</span></div>
+                              <div className="flex justify-between text-blue-500 text-xs"><span>Payin {payinPct}% (frais Mobile Money)</span><span>-{fmt(payinFee)} FCFA</span></div>
+                              {project.mentor && <div className="flex justify-between text-purple-500 text-xs"><span>Mentor {mentorPct}%</span><span>-{fmt(mentorFee)} FCFA</span></div>}
                               {withInsurance
-                                ? <div className="flex justify-between text-orange-500"><span>Assurance 2%</span><span>-{guarFee.toLocaleString()} FCFA</span></div>
-                                : <div className="flex justify-between text-blue-500"><span>Assurance refusée (+2% réinvestis)</span><span>+{reinvested.toLocaleString()} FCFA</span></div>
+                                ? <div className="flex justify-between text-orange-500 text-xs"><span>Assurance {guarPct}% (capital protégé)</span><span>-{fmt(guarFee)} FCFA</span></div>
+                                : <div className="flex justify-between text-green-500 text-xs"><span>✅ Sans assurance — {guarPct}% reste investi</span><span>+{fmt(Math.round(amt * guarPct / 100))} FCFA</span></div>
                               }
-                              <div className="flex justify-between text-green-700 font-bold border-t border-gray-200 pt-1"><span>Net dans le projet</span><span>{netToProject.toLocaleString()} FCFA</span></div>
-                              <div className="flex justify-between text-green-600 font-bold text-sm border-t border-green-200 pt-1 mt-1"><span>Vous récupérez (sur {project.durationMonths} mois)</span><span>{investorTotal.toLocaleString()} FCFA</span></div>
-                              <div className={`flex justify-between font-bold text-sm ${gain >= 0 ? 'text-blue-700' : 'text-red-600'}`}><span>Gain net</span><span>{gain >= 0 ? '+' : ''}{gain.toLocaleString()} FCFA ({gainPct}%)</span></div>
+                              <div className="flex justify-between text-green-700 font-bold border-t border-gray-200 pt-2 mt-1"><span>Part effective dans le projet</span><span>{fmt(effectiveAmt)} FCFA</span></div>
+                              <div className="flex justify-between text-green-600 font-bold text-sm border-t border-green-200 pt-2 mt-1">
+                                <span>Vous récupérez ({project.durationMonths} mois)</span>
+                                <span>{fmt(investorTotal)} FCFA</span>
+                              </div>
+                              <div className={`flex justify-between font-bold text-base mt-1 pt-1 border-t-2 ${gain >= 0 ? 'text-green-700 border-green-200' : 'text-red-600 border-red-200'}`}>
+                                <span>Gain net</span>
+                                <span>{gain >= 0 ? '+' : ''}{fmt(gain)} FCFA ({gainPct}%)</span>
+                              </div>
                             </div>
                           )
                         })()}
