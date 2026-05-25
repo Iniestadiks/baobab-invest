@@ -137,33 +137,42 @@ export default function ProjectDetailPage() {
                     )}
                   </div>
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">{project.title}</h1>
-                  <p className="text-gray-600 text-sm leading-relaxed">{project.description}</p>
+                  <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden">{project.description}</p>
                 </div>
               </div>
 
               {project.pitchVideoUrl && (
-                <div className="rounded-2xl overflow-hidden bg-gray-900 mb-4">
+                <div className="rounded-2xl overflow-hidden bg-black mb-4 shadow-lg">
                   {project.pitchVideoUrl.includes('cloudinary') ? (
-                    // Lecteur natif pour vidéos Cloudinary
                     <div>
-                      <video
-                        src={project.pitchVideoUrl}
-                        controls
-                        controlsList="nodownload"
-                        style={{ maxHeight: "480px", width: "100%", objectFit: "contain", background: "#000" }}
-                        poster={project.pitchVideoUrl.replace(/\.[^.]+$/, '.jpg').replace('/video/upload/', '/video/upload/w_640,h_360,c_fill,so_2/')}
-                      />
-                      <div className="bg-gray-800 px-4 py-2 flex items-center gap-2">
-                        <span className="text-xs text-green-400">🎬 Pitch vidéo de l&apos;entrepreneur</span>
-                        <span className="text-xs text-gray-500 ml-auto">Stocké de façon permanente par BAOBAB INVEST</span>
+                      <div className="relative flex items-center justify-center bg-black"
+                        style={{ maxHeight: "520px" }}>
+                        <video
+                          src={project.pitchVideoUrl}
+                          controls
+                          controlsList="nodownload"
+                          playsInline
+                          style={{
+                            maxHeight: "520px",
+                            maxWidth: "100%",
+                            width: "auto",
+                            height: "auto",
+                            display: "block",
+                            margin: "0 auto",
+                            background: "#000"
+                          }}
+                        />
+                      </div>
+                      <div className="bg-gray-900 px-4 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-green-400 font-medium">🎬 Pitch vidéo de l&apos;entrepreneur</span>
+                        <span className="text-xs text-gray-500">Stocké définitivement par BAOBAB INVEST 🔒</span>
                       </div>
                     </div>
                   ) : (
-                    // Lecteur YouTube pour anciens liens
-                    <div className="aspect-video">
+                    <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
                       <iframe
                         src={project.pitchVideoUrl.replace("watch?v=", "embed/")}
-                        className="w-full h-full"
+                        className="absolute inset-0 w-full h-full"
                         allowFullScreen
                       />
                     </div>

@@ -2021,26 +2021,38 @@ export default function AdminPage() {
                 </div>
                 {/* Pitch vidéo admin */}
                 {p.pitchVideoUrl && (
-                  <div className="mb-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-900">
+                  <div className="mb-4 rounded-2xl overflow-hidden border border-gray-200 bg-black shadow-sm">
                     {p.pitchVideoUrl.includes('cloudinary') ? (
                       <div>
-                        <video src={p.pitchVideoUrl} controls controlsList="nodownload"
-                          className="w-full max-h-56 object-cover" />
-                        <div className="bg-gray-800 px-3 py-1.5 flex justify-between items-center">
-                          <span className="text-xs text-green-400">🎬 Pitch vidéo entrepreneur</span>
-                          <a href={p.pitchVideoUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-blue-400 hover:underline">Ouvrir ↗</a>
+                        <div className="flex items-center justify-center bg-black" style={{ maxHeight: "300px" }}>
+                          <video
+                            src={p.pitchVideoUrl}
+                            controls
+                            controlsList="nodownload"
+                            playsInline
+                            style={{ maxHeight: "300px", maxWidth: "100%", width: "auto", height: "auto", display: "block", margin: "0 auto" }}
+                          />
+                        </div>
+                        <div className="bg-gray-800 px-3 py-2 flex justify-between items-center">
+                          <span className="text-xs text-green-400 font-medium">🎬 Pitch vidéo entrepreneur</span>
+                          <div className="flex gap-3">
+                            <a href={p.pitchVideoUrl} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-blue-400 hover:underline">Plein écran ↗</a>
+                            <span className="text-xs text-gray-500">🔒 Stocké définitivement</span>
+                          </div>
                         </div>
                       </div>
                     ) : (
-                      <iframe src={p.pitchVideoUrl.replace("watch?v=", "embed/")}
-                        className="w-full h-48" allowFullScreen />
+                      <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+                        <iframe src={p.pitchVideoUrl.replace("watch?v=", "embed/")}
+                          className="absolute inset-0 w-full h-full" allowFullScreen />
+                      </div>
                     )}
                   </div>
                 )}
                 {!p.pitchVideoUrl && (
                   <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-700">
-                    ⚠️ Aucune vidéo de pitch fournie par l'entrepreneur
+                    ⚠️ Aucune vidéo de pitch — L'entrepreneur n'en a pas fourni
                   </div>
                 )}
                 <div className="mb-4">
