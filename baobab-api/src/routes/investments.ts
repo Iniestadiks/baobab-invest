@@ -89,8 +89,10 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       // 1. Débiter wallet investisseur
       await tx.wallet.update({
         where: { userId: req.userId! },
+        data: {
           escrowBalance: { increment: amount },
           depositBalance: { decrement: amount },
+        }
       })
       // 2. Créer l'investissement
       await tx.investment.create({
