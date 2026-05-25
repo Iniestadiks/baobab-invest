@@ -1,4 +1,5 @@
 "use client";
+import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -50,10 +51,13 @@ export default function WithdrawPage() {
   
   // Calcul frais proportionnels
   const amt = Number(amount) || 0;
+  const { fees } = usePlatformConfig();
+  const gainFeePct = fees?.withdrawal_fee_standard ?? 0;
+  const depositFeePct = fees?.withdrawal_fee_no_invest ?? 7;
   const gainPart = Math.min(amt, gainBalance);
   const depositPart = Math.max(0, amt - gainPart);
-  const gainFee = Math.round(gainPart * 3 / 100);
-  const depositFee = Math.round(depositPart * 7 / 100);
+  const gainFee = Math.round(gainPart * gainFeePct / 100);
+  const depositFee = Math.round(depositPart * depositFeePct / 100);
   const totalFee = gainFee + depositFee;
   const netReceived = amt - totalFee;
   const effectiveRate = amt > 0 ? ((totalFee / amt) * 100).toFixed(1) : '0';
@@ -75,7 +79,7 @@ export default function WithdrawPage() {
             <div className="bg-white/20 rounded-xl p-3">
               <div className="text-xs opacity-80">📈 Gains remboursements</div>
               <div className="font-bold">{fmt(gainBalance)} FCFA</div>
-              <div className="text-xs opacity-70">Frais retrait : 3%</div>
+              <div className="text-xs opacity-70">Retrait : {gainFeePct === 0 ? "Gratuit ✅" : gainFeePct + "%"}</div>
             </div>
             <div className="bg-white/20 rounded-xl p-3">
               <div className="text-xs opacity-80">💵 Dépôts à investir</div>
@@ -129,13 +133,13 @@ export default function WithdrawPage() {
         {amt > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
             <p className="font-semibold mb-2">📊 Détail des frais</p>
-            {gainPart > 0 && <p>• Gains {fmt(gainPart)} FCFA × 3% = <strong>-{fmt(gainFee)} FCFA</strong></p>}
+            {gainPart > 0 && <p>• Gains {fmt(gainPart)} FCFA × {gainFeePct}% = <strong>{gainFeePct === 0 ? "Gratuit ✅" : "-" + fmt(gainFee) + " FCFA"}</strong></p>}
             {depositPart > 0 && <p>• Dépôts {fmt(depositPart)} FCFA × 7% = <strong>-{fmt(depositFee)} FCFA</strong></p>}
             <p className="border-t border-blue-200 mt-2 pt-2 font-bold">
               Taux effectif : {effectiveRate}% — Vous recevez : {fmt(netReceived)} FCFA
             </p>
             {depositPart > 0 && (
-              <p className="text-orange-600 mt-1">💡 Investissez d&apos;abord pour bénéficier du taux 3%</p>
+              <p className="text-orange-600 mt-1">💡 Investissez vos dépôts pour retirer sans frais</p>
             )}
           </div>
         )}
