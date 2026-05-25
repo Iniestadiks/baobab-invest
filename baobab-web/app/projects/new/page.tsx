@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { authGet } from "@/lib/api";
+import { authGet, authFetch } from "@/lib/api";
 import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 import { GeoSelector } from "@/hooks/useGeo";
 
@@ -168,10 +168,8 @@ export default function NewProjectPage() {
     if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) { setError(`Taux minimum : ${minReturn}%`); return; }
     if (!form.goalAmount || Number(form.goalAmount) < 100000) { setError("Montant minimum : 100 000 FCFA"); return; }
     setLoading(true); setError("");
-    const token = localStorage.getItem("accessToken");
-    const res = await fetch(`${API}/api/projects`, {
+    const res = await authFetch(`/api/projects`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         title: form.title, description: form.description,
         sector: form.sector, subSector: form.subSector,
@@ -189,6 +187,7 @@ export default function NewProjectPage() {
     });
     const data = await res.json();
     if (data.success) setSuccess(true);
+    else if (res.status === 401) { setError("Session expirée — vous allez être redirigé..."); setTimeout(() => window.location.href = '/auth/login', 2000); }
     else setError(data.message || "Erreur soumission");
     setLoading(false);
   };
@@ -593,8 +592,17 @@ export default function NewProjectPage() {
                     <span className="font-bold">{fmt(mensualite)} FCFA/mois × {duree}</span>
                   </div>
                   {grace > 0 && (
-                    <div className="text-xs text-blue-600 bg-blue-50 rounded-lg p-2">
-                      🕐 Délai de grâce : {grace} mois — 1er remboursement au mois {grace + 1}
+                    <div className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-1">
+                      <div className="font-bold">🕐 Délai de grâce : {grace} mois</div>
+                      <div className="text-blue-600">
+                        Après la <strong>clôture du projet</strong> (objectif atteint + fonds débloqués) :<br/>
+                        → Mois 1 à {grace} : aucun remboursement exigé<br/>
+                        → Mois {grace + 1} : 1ère mensualité de {fmt(mensualite)} FCFA<br/>
+                        → Mois {grace + duree} : dernière mensualité
+                      </div>
+                      <div className="text-blue-400 text-xs">
+                        ℹ️ Délai configuré par l'admin BAOBAB ({agriSectors.includes(form.sector) ? "Agriculture/Élevage" : "Secteur standard"})
+                      </div>
                     </div>
                   )}
                 </div>
@@ -640,7 +648,8 @@ export default function NewProjectPage() {
                   { label: "Objectif collecte", value: `${fmt(goalAmount)} FCFA` },
                   { label: "Taux retour", value: `${retour}%` },
                   { label: "Durée", value: `${duree} mois` },
-                  { label: "Mensualité", value: `${fmt(mensualite)} FCFA/mois` },
+                  { label: "Mensualité", value: `${fmt(mensualite)} FCFA × ${duree} mois` },
+                  { label: "1ère mensualité", value: `Mois ${grace + 1} après clôture (délai grâce : ${grace} mois)` },
                   { label: "Score bankabilité", value: `${bankScore}/100` },
                 ].map(r => (
                   <div key={r.label} className="flex justify-between items-start py-2 border-b border-gray-50">
