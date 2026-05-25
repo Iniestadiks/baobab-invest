@@ -1,4 +1,5 @@
 "use client";
+const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
 import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -383,8 +384,18 @@ export default function ProjectDetailPage() {
                 <>
                   <h3 className="font-bold text-gray-900 mb-4">💰 Investir dans ce projet</h3>
                   {message && (
-                    <div className={`text-sm p-3 rounded-xl text-center font-medium mb-3 ${message.startsWith("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                    <div className={`text-sm p-3 rounded-xl font-medium mb-3 ${message.startsWith("✅") ? "bg-green-50 text-green-700 text-center" : "bg-red-50 text-red-700"}`}>
                       {message}
+                      {message.includes("insuffisant") && (
+                        <div className="mt-2 flex gap-2">
+                          <a href="/wallet/deposit" className="flex-1 text-center bg-green-600 text-white text-xs font-bold py-2 rounded-xl hover:bg-green-700">
+                            💳 Déposer de l&apos;argent
+                          </a>
+                          <a href="/wallet" className="flex-1 text-center border border-red-200 text-red-600 text-xs font-medium py-2 rounded-xl hover:bg-red-50">
+                            👛 Mon wallet
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="space-y-3">
@@ -454,18 +465,26 @@ export default function ProjectDetailPage() {
                           const mentorFee = project.mentor ? Math.round(amt * mentorPct / 100) : 0
                           const guarFee = withInsurance ? Math.round(amt * guarPct / 100) : 0
                           // Sans assurance : les 2% restent dans la part investisseur → capital effectif augmente
-                          const effectiveAmt = withInsurance ? (amt - baobabFee - payinFee - mentorFee - guarFee) : (amt - baobabFee - payinFee - mentorFee)
                           const returnRate = project.expectedReturn || 23
-                          // Part de l'investisseur dans le pool = son apport effectif / goalAmount
+                          // L'investisseur envoie AMT — son wallet est débité de AMT
+                          // Les frais (BAOBAB+Payin+Mentor+Assurance) sont prélevés sur AMT
+                          // Sa part dans le pool = amt / goalAmount (toujours basé sur AMT brut)
                           const sharePercent = amt / project.goalAmount
-                          // Total remboursé par l'entrepreneur sur son besoin net
-                          const netAmount = project.netAmount || (project.goalAmount * (1 - (baobabPct + mentorPct + guarPct) / 100))
+                          // Besoin net entrepreneur
+                          const netAmount = project.netAmount || Math.round(project.goalAmount * (1 - (baobabPct + (project.mentor ? mentorPct : 0) + guarPct) / 100))
+                          // Total remboursé par l'entrepreneur
                           const totalReturn = Math.round(netAmount * (1 + returnRate / 100))
-                          // Payin 4% prélevé sur chaque mensualité
+                          // Payin 4% sur mensualités
                           const payinRepay = Math.round(totalReturn * payinRepayPct / 100)
                           const netDistributed = totalReturn - payinRepay
-                          // Part investisseur
-                          const investorTotal = Math.round(netDistributed * sharePercent)
+                          // Part de l'investisseur
+                          const investorShare = Math.round(netDistributed * sharePercent)
+                          // Sans assurance : les 2% qui auraient été au fonds garantie → ajoutés au retour
+                          const bonusNoInsurance = withInsurance ? 0 : Math.round(amt * guarPct / 100)
+                          const investorTotal = investorShare + bonusNoInsurance
+                          const effectiveAmt = withInsurance
+                            ? (amt - baobabFee - payinFee - mentorFee - guarFee)
+                            : (amt - baobabFee - payinFee - mentorFee)
                           const gain = investorTotal - amt
                           const gainPct = ((gain / amt) * 100).toFixed(1)
                           return (

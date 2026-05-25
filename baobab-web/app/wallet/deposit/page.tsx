@@ -82,9 +82,19 @@ export default function DepositPage() {
         )}
 
         {verifying && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 text-center">
-            <div className="text-blue-700 font-medium">Vérification du paiement...</div>
-            <div className="text-xs text-blue-500 mt-1">Patientez quelques secondes</div>
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+              <div>
+                <div className="text-blue-800 font-bold">Vérification du paiement en cours...</div>
+                <div className="text-xs text-blue-600 mt-0.5">Confirmation depuis PayDunya</div>
+              </div>
+            </div>
+            <div className="bg-blue-100 rounded-xl p-3 text-xs text-blue-700 space-y-1">
+              <div className="font-bold text-blue-800">⚠️ NE QUITTEZ PAS CETTE PAGE</div>
+              <div>Votre paiement est en cours de traitement. Cette opération peut prendre <strong>30 à 60 secondes</strong>.</div>
+              <div>Si vous quittez maintenant, votre wallet sera crédité automatiquement dans les prochaines minutes par notre système.</div>
+            </div>
           </div>
         )}
 
