@@ -652,3 +652,19 @@ router.get('/users/:id/notifications', authenticate, requireAdmin, async (req: A
     successResponse(res, notifs)
   } catch (e) { errorResponse(res) }
 })
+
+// GET /api/admin/mentors — Liste des mentors vérifiés
+router.get('/mentors', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const mentors = await prisma.user.findMany({
+      where: { role: 'MENTOR', kycStatus: 'VERIFIED' },
+      select: {
+        id: true, firstName: true, lastName: true,
+        reputationScore: true, level: true,
+        profileImageUrl: true, country: true, city: true
+      },
+      orderBy: { reputationScore: 'desc' }
+    })
+    successResponse(res, mentors)
+  } catch (e) { errorResponse(res) }
+})
