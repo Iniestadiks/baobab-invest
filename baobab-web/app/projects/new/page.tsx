@@ -38,7 +38,7 @@ export default function NewProjectPage() {
   const [form, setForm] = useState({
     title: "", description: "", sector: "", subSector: "",
     city: "", country: "SN", goalAmount: "", minimumInvestment: "5000",
-    expectedReturn: "22", durationMonths: "6", riskLevel: "MEDIUM",
+    expectedReturn: "", durationMonths: "6", riskLevel: "MEDIUM",
     mentorId: "", campaignEndsAt: "",
     useOfFunds: "", businessPlan: "",
   });
@@ -278,6 +278,11 @@ export default function NewProjectPage() {
 
             <button onClick={() => {
               if (!form.sector || !form.subSector || !form.city) { setError("Veuillez remplir tous les champs"); return; }
+              const minReturn = fees?.return_min || 23;
+              if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) {
+                setError(`❌ Le taux de retour minimum est ${minReturn}%. Veuillez saisir un taux valide.`);
+                return;
+              }
               if (slotCheck && !slotCheck.available) { setError("Slots complets pour ce sous-secteur dans votre zone"); return; }
               setError(""); setStep(2);
             }} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700">
@@ -335,7 +340,7 @@ export default function NewProjectPage() {
               </div>
               <div>
                 <label className={labelClass}>Taux de retour (%) *</label>
-                <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange} className={inputClass} min={String(fees?.return_min || 23)} max="100" />
+                <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange} className={inputClass} min={String(fees?.return_min || 23)} max="100" placeholder={String(fees?.return_min || 23)} />
                 <div className="text-xs text-gray-400 mt-1">Min: {fees?.return_min || 23}%</div>
               </div>
               <div>
