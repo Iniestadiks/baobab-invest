@@ -72,6 +72,11 @@ export default function NewProjectPage() {
   }, [form.subSector, form.city]);
 
   const submit = async () => {
+    const minReturn = fees?.return_min || 23;
+    if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) {
+      setError(`❌ Le taux de retour minimum est ${minReturn}%. Actuellement configuré à ${minReturn}% par l'administration.`);
+      return;
+    }
     setLoading(true); setError("");
     const payload = {
       ...form,
@@ -278,11 +283,6 @@ export default function NewProjectPage() {
 
             <button onClick={() => {
               if (!form.sector || !form.subSector || !form.city) { setError("Veuillez remplir tous les champs"); return; }
-              const minReturn = fees?.return_min || 23;
-              if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) {
-                setError(`❌ Le taux de retour minimum est ${minReturn}%. Veuillez saisir un taux valide.`);
-                return;
-              }
               if (slotCheck && !slotCheck.available) { setError("Slots complets pour ce sous-secteur dans votre zone"); return; }
               setError(""); setStep(2);
             }} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700">
