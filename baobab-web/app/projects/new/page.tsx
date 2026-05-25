@@ -116,6 +116,58 @@ export default function NewProjectPage() {
     </div>
   );
 
+  const handleVideoUpload = async (file: File) => {
+    if (!file) return;
+    const allowed = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+    if (!allowed.includes(file.type)) {
+      setError("Format non supporté. Utilisez MP4, MOV, AVI ou WebM.");
+      return;
+    }
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = async () => {
+      URL.revokeObjectURL(video.src);
+      const dur = video.duration;
+      setVideoDuration(Math.round(dur));
+      if (dur > 105) {
+        setError(`Vidéo trop longue (${Math.round(dur)}s). Maximum : 1 minute 45 secondes.`);
+        return;
+      }
+      setVideoUploading(true);
+      setVideoProgress(0);
+      setError("");
+      try {
+        const formData = new FormData();
+        formData.append('video', file);
+        const token = localStorage.getItem('accessToken');
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setVideoProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => {
+          const res = JSON.parse(xhr.responseText);
+          if (res.success) {
+            setForm((f: any) => ({ ...f, pitchVideoUrl: res.data.videoUrl, pitchVideoPublicId: res.data.publicId }));
+            setVideoPreview(res.data.videoUrl);
+            setVideoProgress(100);
+          } else {
+            setError(res.message || "Erreur upload vidéo");
+          }
+          setVideoUploading(false);
+        };
+        xhr.onerror = () => { setError("Erreur réseau lors de l'upload"); setVideoUploading(false); };
+        xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL}/api/upload/pitch-video`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.send(formData);
+      } catch (e) {
+        setError("Erreur lors de l'upload");
+        setVideoUploading(false);
+      }
+    };
+    video.src = URL.createObjectURL(file);
+  };
+
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-40">
