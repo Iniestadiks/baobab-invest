@@ -114,7 +114,7 @@ export default function ProjectDetailPage() {
         </div>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-8 overflow-hidden">
         <div className="grid lg:grid-cols-3 gap-8">
 
           {/* Colonne principale */}
@@ -136,8 +136,8 @@ export default function ProjectDetailPage() {
                       </span>
                     )}
                   </div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{project.title}</h1>
-                  <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-hidden">{project.description}</p>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2 break-all overflow-hidden w-full">{project.title}</h1>
+                  <p className="text-gray-600 text-sm leading-relaxed break-all overflow-hidden w-full">{project.description}</p>
                 </div>
               </div>
 
