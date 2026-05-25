@@ -83,15 +83,30 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
     const sharePercent        = amount / project.goalAmount
     const minRate             = fees.return_min
     const returnRate          = Math.max(project.expectedReturn || 0, minRate)
-    const expectedReturn      = Math.round(amount * (1 + returnRate / 100))
+    // Calcul correct du retour investisseur :
+    // sharePercent = amount / goalAmount
+    // netAmount = besoin net entrepreneur = goalAmount * (1 - frais%)
+    // totalRemb = netAmount * (1 + returnRate/100)
+    // payinRepay = totalRemb * payin_repayment%
+    // investorReturn = (totalRemb - payinRepay) * sharePercent
+    // + bonus si sans assurance
+    const payinRepayPct = fees.payin_repayment || 4
+    const netAmount = project.goalAmount * (1 - (fees.commission_baobab_collection + (project.mentorId ? fees.commission_mentor : 0) + fees.commission_guarantee) / 100)
+    const totalRemb = Math.round(netAmount * (1 + returnRate / 100))
+    const payinRepay = Math.round(totalRemb * payinRepayPct / 100)
+    const netDistributed = totalRemb - payinRepay
+    const bonusNoInsurance = withInsurance ? 0 : guaranteeFee
+    const expectedReturn = Math.round(netDistributed * sharePercent) + bonusNoInsurance
 
     await prisma.$transaction(async (tx) => {
       // 1. Débiter wallet investisseur
       await tx.wallet.update({
         where: { userId: req.userId! },
         data: {
-          escrowBalance: { increment: amount },
+          balance:        { decrement: amount },
+          escrowBalance:  { increment: amount },
           depositBalance: { decrement: amount },
+          totalInvested:  { increment: amount },
         }
       })
       // 2. Créer l'investissement
