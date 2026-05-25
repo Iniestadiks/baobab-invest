@@ -181,11 +181,98 @@ export default function NewProjectPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Ville du projet *</label>
-                <input name="city" value={form.city} onChange={handleChange} placeholder="Dakar" className={inputClass} />
+                <select name="city" value={form.city} onChange={handleChange} className={inputClass}>
+                  <option value="">-- Sélectionner une ville --</option>
+                  {form.country === "SN" && <>
+                    <option value="Dakar">Dakar</option>
+                    <option value="Thiès">Thiès</option>
+                    <option value="Saint-Louis">Saint-Louis</option>
+                    <option value="Ziguinchor">Ziguinchor</option>
+                    <option value="Touba">Touba</option>
+                    <option value="Kaolack">Kaolack</option>
+                    <option value="Mbour">Mbour</option>
+                    <option value="Diourbel">Diourbel</option>
+                    <option value="Tambacounda">Tambacounda</option>
+                    <option value="Kolda">Kolda</option>
+                    <option value="Louga">Louga</option>
+                    <option value="Fatick">Fatick</option>
+                    <option value="Kaffrine">Kaffrine</option>
+                    <option value="Sédhiou">Sédhiou</option>
+                    <option value="Matam">Matam</option>
+                  </>}
+                  {form.country === "CI" && <>
+                    <option value="Abidjan">Abidjan</option>
+                    <option value="Bouaké">Bouaké</option>
+                    <option value="Yamoussoukro">Yamoussoukro</option>
+                    <option value="San-Pédro">San-Pédro</option>
+                    <option value="Korhogo">Korhogo</option>
+                    <option value="Daloa">Daloa</option>
+                    <option value="Man">Man</option>
+                  </>}
+                  {form.country === "CM" && <>
+                    <option value="Yaoundé">Yaoundé</option>
+                    <option value="Douala">Douala</option>
+                    <option value="Bafoussam">Bafoussam</option>
+                    <option value="Garoua">Garoua</option>
+                    <option value="Maroua">Maroua</option>
+                    <option value="Bamenda">Bamenda</option>
+                  </>}
+                  {form.country === "ML" && <>
+                    <option value="Bamako">Bamako</option>
+                    <option value="Sikasso">Sikasso</option>
+                    <option value="Mopti">Mopti</option>
+                    <option value="Ségou">Ségou</option>
+                    <option value="Gao">Gao</option>
+                  </>}
+                  {form.country === "BF" && <>
+                    <option value="Ouagadougou">Ouagadougou</option>
+                    <option value="Bobo-Dioulasso">Bobo-Dioulasso</option>
+                    <option value="Koudougou">Koudougou</option>
+                    <option value="Ouahigouya">Ouahigouya</option>
+                  </>}
+                  {form.country === "GN" && <>
+                    <option value="Conakry">Conakry</option>
+                    <option value="Nzérékoré">Nzérékoré</option>
+                    <option value="Kankan">Kankan</option>
+                    <option value="Kindia">Kindia</option>
+                  </>}
+                  {form.country === "TG" && <>
+                    <option value="Lomé">Lomé</option>
+                    <option value="Sokodé">Sokodé</option>
+                    <option value="Kara">Kara</option>
+                  </>}
+                  {form.country === "BJ" && <>
+                    <option value="Cotonou">Cotonou</option>
+                    <option value="Porto-Novo">Porto-Novo</option>
+                    <option value="Parakou">Parakou</option>
+                    <option value="Abomey-Calavi">Abomey-Calavi</option>
+                  </>}
+                  {form.country === "NE" && <>
+                    <option value="Niamey">Niamey</option>
+                    <option value="Zinder">Zinder</option>
+                    <option value="Maradi">Maradi</option>
+                  </>}
+                  {form.country === "TD" && <>
+                    <option value="N&apos;Djamena">N&apos;Djamena</option>
+                    <option value="Moundou">Moundou</option>
+                    <option value="Sarh">Sarh</option>
+                  </>}
+                </select>
               </div>
               <div>
                 <label className={labelClass}>Pays</label>
-                <input name="country" value={form.country} onChange={handleChange} placeholder="SN" className={inputClass} />
+                <select name="country" value={form.country} onChange={e => { handleChange(e); setForm(f => ({...f, city: ""})); }} className={inputClass}>
+                  <option value="SN">🇸🇳 Sénégal</option>
+                  <option value="CI">🇨🇮 Côte d&apos;Ivoire</option>
+                  <option value="CM">🇨🇲 Cameroun</option>
+                  <option value="ML">🇲🇱 Mali</option>
+                  <option value="BF">🇧🇫 Burkina Faso</option>
+                  <option value="GN">🇬🇳 Guinée</option>
+                  <option value="TG">🇹🇬 Togo</option>
+                  <option value="BJ">🇧🇯 Bénin</option>
+                  <option value="NE">🇳🇪 Niger</option>
+                  <option value="TD">🇹🇩 Tchad</option>
+                </select>
               </div>
             </div>
 
