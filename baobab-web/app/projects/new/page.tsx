@@ -539,8 +539,12 @@ export default function NewProjectPage() {
                       <div className="text-xs text-gray-500">📍 {selectedMentor.city} · Score : {selectedMentor.reputationScore}/100</div>
                       <div className="text-xs text-green-600">Commission {fees?.commission_mentor || 2}% prélevée à la clôture</div>
                     </div>
-                    <button onClick={() => { setSelectedMentor(null); setForm(f => ({ ...f, mentorId: "" })); }}
-                      className="text-xs text-red-500 hover:underline">Changer</button>
+                    <div className="flex flex-col gap-1">
+                      <button onClick={() => setShowMentorModal(true)}
+                        className="text-xs text-blue-500 hover:underline">👁️ Voir profil</button>
+                      <button onClick={() => { setSelectedMentor(null); setForm(f => ({ ...f, mentorId: "" })); }}
+                        className="text-xs text-red-500 hover:underline">Changer</button>
+                    </div>
                   </div>
                 ) : (
                   <button onClick={() => setShowMentorModal(true)}
@@ -575,12 +579,18 @@ export default function NewProjectPage() {
                 <div className="bg-white rounded-2xl p-4 space-y-2">
                   <div className="text-xs font-bold text-gray-400 uppercase mb-2">Remboursement sur {duree} mois à {retour}%</div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total à rembourser</span>
+                    <div>
+                      <span className="text-gray-600">Total à rembourser</span>
+                      <div className="text-xs text-gray-400">{fmt(netAmount)} FCFA × (1 + {retour}%) = capital + intérêts</div>
+                    </div>
                     <span className="font-bold text-orange-600">{fmt(totalRemb)} FCFA</span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-500">
-                    <span>Mensualité</span>
-                    <span className="font-bold">{fmt(mensualite)} FCFA/mois</span>
+                    <div>
+                      <span>Mensualité</span>
+                      <div className="text-xs text-gray-400">{duree} mensualités de {fmt(mensualite)} FCFA</div>
+                    </div>
+                    <span className="font-bold">{fmt(mensualite)} FCFA/mois × {duree}</span>
                   </div>
                   {grace > 0 && (
                     <div className="text-xs text-blue-600 bg-blue-50 rounded-lg p-2">
@@ -672,23 +682,36 @@ export default function NewProjectPage() {
               {filteredMentors.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">Aucun mentor trouvé</div>
               ) : filteredMentors.map((m: any) => (
-                <div key={m.id} className="border border-gray-100 rounded-2xl p-4 hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer"
-                  onClick={() => { setSelectedMentor(m); setForm(f => ({ ...f, mentorId: m.id })); setShowMentorModal(false); }}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-700 rounded-2xl flex items-center justify-center text-white font-bold">
+                <div key={m.id} className="border border-gray-100 rounded-2xl p-4 hover:border-green-300 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-700 rounded-2xl flex items-center justify-center text-white font-bold flex-shrink-0">
                       {m.firstName?.[0]}{m.lastName?.[0]}
                     </div>
-                    <div className="flex-1">
-                      <div className="font-bold text-gray-900">{m.firstName} {m.lastName}</div>
-                      <div className="text-xs text-gray-500">📍 {m.city || "Non renseigné"}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="bg-gray-100 rounded-full h-1.5 w-24">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-gray-900">{m.firstName} {m.lastName}</div>
+                          <div className="text-xs text-gray-500">📍 {m.city || "Non renseigné"}{m.country ? ` · ${m.country}` : ""}</div>
+                        </div>
+                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{fees?.commission_mentor || 2}%</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="bg-gray-100 rounded-full h-1.5 flex-1">
                           <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${m.reputationScore}%` }} />
                         </div>
                         <span className="text-xs font-bold text-green-700">{m.reputationScore}/100</span>
                       </div>
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={() => { setSelectedMentor(m); setForm(f => ({ ...f, mentorId: m.id })); setShowMentorModal(false); }}
+                          className="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded-xl hover:bg-green-700">
+                          ✅ Choisir ce mentor
+                        </button>
+                        <a href={`/profile/${m.id}`} target="_blank" rel="noopener noreferrer"
+                          className="border border-gray-200 text-gray-600 text-xs font-medium px-3 py-2 rounded-xl hover:bg-gray-50">
+                          👁️ Profil
+                        </a>
+                      </div>
                     </div>
-                    <div className="text-xs text-green-600 font-bold">{fees?.commission_mentor || 2}%</div>
                   </div>
                 </div>
               ))}
