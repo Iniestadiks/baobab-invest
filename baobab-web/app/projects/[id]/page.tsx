@@ -452,61 +452,80 @@ export default function ProjectDetailPage() {
                             <p className="text-xs text-blue-600 mt-1.5 ml-7">✨ Les 2% sont réinjectés dans votre part de projet</p>
                           )}
                         </div>
-                        {/* Décomposition nouvelle stratégie */}
+                        {/* Décomposition — modèle financier correct */}
                         {(() => {
                           const amt = Number(investAmount)
-                          const baobabPct = fees.commission_baobab_collection || 6
-                          const payinPct = fees.payin_recovery || 4
-                          const mentorPct = fees.commission_mentor || 2
-                          const guarPct = fees.commission_guarantee || 2
+                          const guarPct   = fees.commission_guarantee || 2
                           const payinRepayPct = fees.payin_repayment || 4
-                          const baobabFee = Math.round(amt * baobabPct / 100)
-                          const payinFee = Math.round(amt * payinPct / 100)
-                          const mentorFee = project.mentor ? Math.round(amt * mentorPct / 100) : 0
-                          const guarFee = withInsurance ? Math.round(amt * guarPct / 100) : 0
-                          // Sans assurance : les 2% restent dans la part investisseur → capital effectif augmente
-                          const returnRate = project.expectedReturn || 23
-                          // L'investisseur envoie AMT — son wallet est débité de AMT
-                          // Les frais (BAOBAB+Payin+Mentor+Assurance) sont prélevés sur AMT
-                          // Sa part dans le pool = amt / goalAmount (toujours basé sur AMT brut)
+                          const returnRate = project.expectedReturn || 24
+
+                          // Modèle correct :
+                          // frais fixes dans la cagnotte = BAOBAB(6%) + payin(4%) + mentor(2% si actif)
+                          // Assurance = addon individuel HORS cagnotte
+                          const fraisFixesPct = (fees.commission_baobab_collection || 6)
+                            + (fees.payin_recovery || 4)
+                            + (project.mentor ? (fees.commission_mentor || 2) : 0)
+
+                          // sharePercent = part de l'investisseur dans la cagnotte
                           const sharePercent = amt / project.goalAmount
-                          // Besoin net entrepreneur
-                          const netAmount = project.netAmount || Math.round(project.goalAmount * (1 - (baobabPct + (project.mentor ? mentorPct : 0) + guarPct) / 100))
-                          // Total remboursé par l'entrepreneur
-                          const totalReturn = Math.round(netAmount * (1 + returnRate / 100))
-                          // Payin 4% sur mensualités
-                          const payinRepay = Math.round(totalReturn * payinRepayPct / 100)
+
+                          // netAmount = ce que l'entrepreneur reçoit réellement
+                          const netAmount = Math.round(project.goalAmount * (1 - fraisFixesPct / 100))
+
+                          // Remboursement total → payin prélevé → distribué aux investisseurs
+                          const totalReturn    = Math.round(netAmount * (1 + returnRate / 100))
+                          const payinRepay     = Math.round(totalReturn * payinRepayPct / 100)
                           const netDistributed = totalReturn - payinRepay
-                          // Part de l'investisseur
-                          const investorShare = Math.round(netDistributed * sharePercent)
-                          // Sans assurance : les 2% qui auraient été au fonds garantie → ajoutés au retour
-                          const bonusNoInsurance = withInsurance ? 0 : Math.round(amt * guarPct / 100)
-                          const investorTotal = investorShare + bonusNoInsurance
-                          const effectiveAmt = withInsurance
-                            ? (amt - baobabFee - payinFee - mentorFee - guarFee)
-                            : (amt - baobabFee - payinFee - mentorFee)
-                          const gain = investorTotal - amt
-                          const gainPct = ((gain / amt) * 100).toFixed(1)
+
+                          // Retour investisseur (sans assurance)
+                          const investorReturn = Math.round(netDistributed * sharePercent)
+
+                          // Assurance = addon : si prise, investisseur paie amt + guarFee
+                          // Le projet progresse toujours de amt (inchangé)
+                          // Le retour reste identique
+                          const guarFee = withInsurance ? Math.round(amt * guarPct / 100) : 0
+                          const totalPaid = amt + guarFee  // ce que l'investisseur débourse réellement
+                          const gain = investorReturn - totalPaid
+                          const gainPct = ((gain / totalPaid) * 100).toFixed(1)
+
                           return (
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-gray-600"><span>Capital investi</span><span className="font-bold">{amt.toLocaleString()} FCFA</span></div>
-                              <div className="flex justify-between text-gray-700"><span className="font-medium">Capital investi</span><span className="font-bold">{fmt(amt)} FCFA</span></div>
-                              <div className="flex justify-between text-red-500 text-xs"><span>BAOBAB {baobabPct}% commission</span><span>-{fmt(baobabFee)} FCFA</span></div>
-                              <div className="flex justify-between text-blue-500 text-xs"><span>Payin {payinPct}% (frais Mobile Money)</span><span>-{fmt(payinFee)} FCFA</span></div>
-                              {project.mentor && <div className="flex justify-between text-purple-500 text-xs"><span>Mentor {mentorPct}%</span><span>-{fmt(mentorFee)} FCFA</span></div>}
-                              {withInsurance
-                                ? <div className="flex justify-between text-orange-500 text-xs"><span>Assurance {guarPct}% (capital protégé)</span><span>-{fmt(guarFee)} FCFA</span></div>
-                                : <div className="flex justify-between text-green-500 text-xs"><span>✅ Sans assurance — {guarPct}% reste investi</span><span>+{fmt(Math.round(amt * guarPct / 100))} FCFA</span></div>
-                              }
-                              <div className="flex justify-between text-green-700 font-bold border-t border-gray-200 pt-2 mt-1"><span>Part effective dans le projet</span><span>{fmt(effectiveAmt)} FCFA</span></div>
-                              <div className="flex justify-between text-green-600 font-bold text-sm border-t border-green-200 pt-2 mt-1">
-                                <span>Vous récupérez ({project.durationMonths} mois)</span>
-                                <span>{fmt(investorTotal)} FCFA</span>
+                            <div className="space-y-2">
+                              {/* Ce que l'investisseur paie */}
+                              <div className="flex justify-between text-gray-700 font-medium">
+                                <span>💰 Vous investissez</span>
+                                <span className="font-bold">{fmt(amt)} FCFA</span>
                               </div>
-                              <div className={`flex justify-between font-bold text-base mt-1 pt-1 border-t-2 ${gain >= 0 ? 'text-green-700 border-green-200' : 'text-red-600 border-red-200'}`}>
+                              {withInsurance && (
+                                <div className="flex justify-between text-orange-600 text-xs">
+                                  <span>🛡️ Assurance capital ({guarPct}%) — addon</span>
+                                  <span>+{fmt(guarFee)} FCFA</span>
+                                </div>
+                              )}
+                              {withInsurance && (
+                                <div className="flex justify-between text-gray-500 text-xs border-b border-gray-100 pb-2">
+                                  <span>Total débité de votre wallet</span>
+                                  <span className="font-bold">{fmt(totalPaid)} FCFA</span>
+                                </div>
+                              )}
+                              {/* Progression cagnotte — toujours = amt */}
+                              <div className="flex justify-between text-blue-600 text-xs">
+                                <span>📊 Progression cagnotte</span>
+                                <span className="font-bold">+{fmt(amt)} FCFA ({(sharePercent * 100).toFixed(2)}%)</span>
+                              </div>
+                              {/* Retour */}
+                              <div className="flex justify-between text-green-600 font-bold text-sm border-t border-green-200 pt-2">
+                                <span>✅ Vous récupérez ({project.durationMonths} mois)</span>
+                                <span>{fmt(investorReturn)} FCFA</span>
+                              </div>
+                              <div className={`flex justify-between font-bold text-base pt-1 border-t-2 ${gain >= 0 ? 'text-green-700 border-green-200' : 'text-red-600 border-red-200'}`}>
                                 <span>Gain net</span>
                                 <span>{gain >= 0 ? '+' : ''}{fmt(gain)} FCFA ({gainPct}%)</span>
                               </div>
+                              {!withInsurance && (
+                                <div className="text-xs text-gray-400 italic">
+                                  Sans assurance — votre capital n'est pas protégé en cas de défaillance
+                                </div>
+                              )}
                             </div>
                           )
                         })()}
