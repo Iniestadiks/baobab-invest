@@ -150,7 +150,7 @@ export default function ProjectDetailPage() {
                         src={project.pitchVideoUrl}
                         controls
                         controlsList="nodownload"
-                        className="w-full max-h-72 object-cover"
+                        style={{ maxHeight: "480px", width: "100%", objectFit: "contain", background: "#000" }}
                         poster={project.pitchVideoUrl.replace(/\.[^.]+$/, '.jpg').replace('/video/upload/', '/video/upload/w_640,h_360,c_fill,so_2/')}
                       />
                       <div className="bg-gray-800 px-4 py-2 flex items-center gap-2">

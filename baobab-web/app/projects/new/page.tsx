@@ -377,11 +377,19 @@ export default function NewProjectPage() {
                     onChange={e => e.target.files?.[0] && handleVideoUpload(e.target.files[0])} />
                   {videoUploading ? (
                     <div className="text-center w-full">
-                      <div className="text-2xl mb-2 animate-pulse">📤</div>
-                      <div className="text-sm font-medium text-green-700 mb-2">Upload en cours... {videoProgress}%</div>
-                      <div className="bg-gray-200 rounded-full h-2 w-full">
-                        <div className="bg-green-500 h-2 rounded-full transition-all" style={{width: `${videoProgress}%`}}></div>
+                      <div className="text-2xl mb-2 animate-pulse">{videoProgress < 100 ? "📤" : "⚙️"}</div>
+                      <div className="text-sm font-medium text-green-700 mb-2">
+                        {videoProgress < 100 ? `Envoi en cours... ${videoProgress}%` : "⚙️ Traitement par Cloudinary..."}
                       </div>
+                      <div className="bg-gray-200 rounded-full h-2 w-full mb-2">
+                        <div className={`h-2 rounded-full transition-all ${videoProgress < 100 ? "bg-green-500" : "bg-blue-500 animate-pulse"}`}
+                          style={{width: `${videoProgress}%`}}></div>
+                      </div>
+                      {videoProgress >= 100 && (
+                        <div className="text-xs text-orange-600 font-medium bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
+                          ⚠️ Ne quittez pas cette page — La vidéo est en cours de traitement, cela peut prendre 30 à 60 secondes...
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -393,12 +401,21 @@ export default function NewProjectPage() {
                   )}
                 </label>
               ) : (
-                <div className="rounded-2xl overflow-hidden border border-green-200 bg-green-50">
-                  <video src={videoPreview} controls className="w-full max-h-48 object-cover" />
-                  <div className="p-3 flex justify-between items-center">
-                    <div className="text-xs text-green-700 font-medium">✅ Vidéo uploadée ({videoDuration}s) — Stockée de façon permanente</div>
-                    <button onClick={() => { setVideoPreview(""); setForm(f => ({...f, pitchVideoUrl: "", pitchVideoPublicId: ""})); setVideoProgress(0); }}
-                      className="text-xs text-red-500 hover:underline">Changer</button>
+                <div className="rounded-2xl overflow-hidden border border-green-200 bg-black">
+                  <video
+                    src={videoPreview}
+                    controls
+                    controlsList="nodownload"
+                    style={{ maxHeight: "420px", width: "100%", objectFit: "contain", background: "#000" }}
+                  />
+                  <div className="bg-gray-800 px-3 py-2 flex justify-between items-center">
+                    <div className="text-xs text-green-400 font-medium">
+                      ✅ Vidéo uploadée ({videoDuration}s) — Stockée de façon permanente par BAOBAB INVEST
+                    </div>
+                    <button onClick={() => { setVideoPreview(""); setForm((f: any) => ({...f, pitchVideoUrl: "", pitchVideoPublicId: ""})); setVideoProgress(0); setVideoDuration(0); }}
+                      className="text-xs text-red-400 hover:text-red-300 hover:underline ml-3 flex-shrink-0">
+                      🔄 Changer
+                    </button>
                   </div>
                 </div>
               )}
