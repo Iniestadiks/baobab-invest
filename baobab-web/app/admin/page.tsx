@@ -103,12 +103,17 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
             <div key={tx.id} className={`bg-white rounded-2xl border p-4 ${tx.status === "PENDING" ? "border-orange-200 bg-orange-50/20" : "border-gray-100"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${tx.type === "DEPOSIT" ? "bg-green-100" : "bg-orange-100"}`}>
-                    {tx.type === "DEPOSIT" ? "💳" : "💸"}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+                    tx.type === "DEPOSIT" ? "bg-green-100" :
+                    tx.type === "INVESTMENT" ? "bg-blue-100" :
+                    tx.type === "INSURANCE" ? "bg-orange-100" : "bg-red-100"}`}>
+                    {tx.type === "DEPOSIT" ? "💳" : tx.type === "INVESTMENT" ? "💼" : tx.type === "INSURANCE" ? "🛡️" : "💸"}
                   </div>
                   <div>
                     <div className="font-semibold text-gray-900 text-sm">
-                      {tx.type === "DEPOSIT" ? "Dépôt" : "Retrait"} — {tx.user?.firstName} {tx.user?.lastName}
+                      {tx.type === "DEPOSIT" ? "Dépôt" :
+                       tx.type === "INVESTMENT" ? "Investissement" :
+                       tx.type === "INSURANCE" ? "Assurance capital" : "Retrait"} — {tx.user?.firstName} {tx.user?.lastName}
                     </div>
                     <div className="text-xs text-gray-500">{tx.user?.email} · {tx.user?.role}</div>
                     <div className="text-xs text-gray-400 mt-0.5">
@@ -324,20 +329,25 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
           const payinRepayment = parseFloat(v.payin_repayment || "4");
           const returnMin = parseFloat(v.return_min || "23");
           // GoalAmount = besoin / (1 - baobab% - mentor% - garantie%)
-          const totalFraisClot = baobabClot + mentor + garantie;
-          const goalAmount = Math.round(besoin / (1 - totalFraisClot / 100));
+          // MODÈLE VALIDÉ : goalAmount = besoin / (1 - BAOBAB% - payin% - mentor%)
+          // Assurance EXCLUE de la cagnotte — addon individuel
+          const totalFraisFixesPct = baobabClot + payinRecovery + mentor; // sans garantie
+          const goalAmount = Math.round(besoin / (1 - totalFraisFixesPct / 100));
           const baobabGainClot = Math.round(goalAmount * baobabClot / 100);
           const mentorGain = Math.round(goalAmount * mentor / 100);
-          const garantieFond = Math.round(goalAmount * garantie / 100);
-          // Payin récupéré à l'investissement (pas dans goalAmount)
-          const payinPerInvestor = Math.round(besoin * payinRecovery / 100);
-          // Remboursement sur besoin net
-          const retourBrut = Math.round(besoin * (1 + returnMin / 100));
+          const payinRecovered = Math.round(goalAmount * payinRecovery / 100);
+          // Assurance = addon individuel (optionnel) — pas dans goalAmount
+          const garantieFond = Math.round(besoin * garantie / 100); // si investisseur prend assurance
+          // Remboursement sur besoin net (ce que l'entrepreneur reçoit)
+          const netAmount = besoin; // = goalAmount * (1 - frais%)
+          const retourBrut = Math.round(netAmount * (1 + returnMin / 100));
           // Payin 4% sur mensualités → BAOBAB
           const payinMensualites = Math.round(retourBrut * payinRepayment / 100);
-          const investNetReturn = retourBrut - payinMensualites; // 96% aux investisseurs
+          const investNetReturn = retourBrut - payinMensualites;
           const rendement = ((investNetReturn - besoin) / besoin * 100).toFixed(1);
-          const baobabNet = baobabGainClot + payinPerInvestor + payinMensualites - payinPerInvestor;
+          // Bilan BAOBAB = BAOBAB% + payin collecte + payin mensualités
+          const payinPerInvestor = payinRecovered;
+          const baobabNet = baobabGainClot + payinRecovered + payinMensualites;
           const rentable = baobabNet > 0 && investNetReturn > besoin;
 
           return (
@@ -405,8 +415,8 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
                     <div className="font-bold text-green-700">+{(baobabGainClot + payinPerInvestor + payinMensualites).toLocaleString()} FCFA</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-gray-500">Coûts opérateur</div>
-                    <div className="font-bold text-red-600">-{payinPerInvestor.toLocaleString()} FCFA</div>
+                    <div className="text-gray-500">Dont fonds garantie</div>
+                    <div className="font-bold text-orange-600">-{garantieFond.toLocaleString()} FCFA réservés</div>
                   </div>
                   <div className="text-center">
                     <div className="text-gray-500">Bilan NET</div>
@@ -694,6 +704,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   const completedProjects = allProjects.filter((p: any) => p.status === "COMPLETED");
   const inProgressProjects = allProjects.filter((p: any) => p.status === "IN_PROGRESS");
   const [schedules, setSchedules] = React.useState<any[]>([]);
+  const [escrowData, setEscrowData] = React.useState<any>(null);
 
   React.useEffect(() => {
     // Charger les échéanciers en cours
@@ -738,14 +749,19 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
           <div className="font-semibold text-gray-700">✅ Projets éligibles — collecte terminée (FUNDED)</div>
           {fundedProjects.map((p: any) => {
             const det = details[p.id];
-            const grossReturn = Math.round((p.raisedAmount || 0) * (1 + (p.expectedReturn || 15) / 100));
-            // NOUVELLE STRATÉGIE : 0% commission retour, Payin 4% sur mensualités
+            // MODÈLE VALIDÉ : retour basé sur netAmount (besoin net entrepreneur)
+            // netAmount = goalAmount * (1 - BAOBAB% - payin% - mentor%)
+            const fraisFixesPct = (fees.commission_baobab_collection || 6)
+              + (fees.payin_recovery || 4)
+              + (p.mentor ? (fees.commission_mentor || 2) : 0);
+            const netAmount = Math.round((p.goalAmount || p.raisedAmount || 0) * (1 - fraisFixesPct / 100));
             const payinRepayment = fees.payin_repayment || 4;
+            const grossReturn = Math.round(netAmount * (1 + (p.expectedReturn || 24) / 100));
             const payinOnReturn = Math.round(grossReturn * payinRepayment / 100);
-            const netInvestors = grossReturn - payinOnReturn;  // 96% aux investisseurs
-            const baobabOnReturn = payinOnReturn;  // BAOBAB récupère Payin mensualités
-            const paydunyaPayout = 0;  // supprimé
-            const revenueBAOBAB = Math.round((p.raisedAmount || 0) * (fees.commission_baobab_collection || 5) / 100) + payinOnReturn;
+            const netInvestors = grossReturn - payinOnReturn;
+            const baobabOnReturn = payinOnReturn;
+            const paydunyaPayout = 0;
+            const revenueBAOBAB = Math.round((p.raisedAmount || 0) * (fees.commission_baobab_collection || 6) / 100) + payinOnReturn;
             const garantie = Math.round((p.raisedAmount || 0) * (fees.commission_guarantee || 2) / 100);
 
             return (
@@ -1113,6 +1129,7 @@ function FinancesTab({ authGet }: any) {
 
   const [adminWallet, setAdminWallet] = React.useState<any>(null);
   const [schedules, setSchedules] = React.useState<any[]>([]);
+  const [escrowData, setEscrowData] = React.useState<any>(null);
 
   React.useEffect(() => {
     Promise.all([
@@ -1121,7 +1138,11 @@ function FinancesTab({ authGet }: any) {
       authGet("/api/auth/me"),
       authGet("/api/repayment/admin/all"),
     ]).then(([det, rev, me, sched]) => {
-      if (det.success) setData(det.data);
+      if (det.success) {
+        setData(det.data);
+        // Stocker les données escrow investisseurs
+        if (det.data?.escrow) setEscrowData(det.data.escrow);
+      }
       if (rev.success) setRevenues(rev.data);
       if (me.success) setAdminWallet(me.data?.wallet);
       if (sched.success) setSchedules(sched.data || []);
@@ -1170,8 +1191,8 @@ function FinancesTab({ authGet }: any) {
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
               <div className="text-xs text-gray-500 mb-1">🔒 Séquestre investisseurs</div>
-              <div className="text-xl font-bold text-blue-700">{(adminWallet.escrowInvestors || 0).toLocaleString()} FCFA</div>
-              <div className="text-xs text-gray-400 mt-1">Fonds en attente de retour</div>
+              <div className="text-xl font-bold text-blue-700">{(escrowData?.totalEscrowInvestors || 0).toLocaleString()} FCFA</div>
+              <div className="text-xs text-gray-400 mt-1">Capital investi en cours de projet</div>
             </div>
             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
               <div className="text-xs text-gray-500 mb-1">🛡️ Fonds de garantie</div>
@@ -1184,8 +1205,20 @@ function FinancesTab({ authGet }: any) {
               <div className="text-xs text-gray-400 mt-1">Disponible immédiatement</div>
             </div>
           </div>
+          {escrowData && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="bg-gray-50 rounded-xl p-3">
+                <div className="text-xs text-gray-500">💰 Soldes disponibles investisseurs</div>
+                <div className="font-bold text-gray-700">{(escrowData.totalInvestorBalances || 0).toLocaleString()} FCFA</div>
+              </div>
+              <div className="bg-emerald-50 rounded-xl p-3">
+                <div className="text-xs text-gray-500">📈 Gains cumulés investisseurs</div>
+                <div className="font-bold text-emerald-700">{(escrowData.totalGainBalances || 0).toLocaleString()} FCFA</div>
+              </div>
+            </div>
+          )}
           <div className="mt-3 bg-gray-50 rounded-xl p-3 text-xs text-gray-500">
-            <strong>Logique :</strong> Commissions = revenus BAOBAB | Séquestre = argent des investisseurs à redistribuer | Garantie = filet de sécurité (2% par investissement)
+            <strong>Logique :</strong> Commissions = revenus BAOBAB encaissés | Séquestre = capital investi bloqué jusqu'au remboursement | Garantie = fonds assurance (2% par investisseur assuré)
           </div>
         </div>
       )}

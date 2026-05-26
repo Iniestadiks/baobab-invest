@@ -154,7 +154,7 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
   try {
     const projects = await prisma.project.findMany({
       include: {
-        investments: { select: { amount: true, expectedReturn: true, status: true, createdAt: true, user: { select: { firstName: true, lastName: true } } } },
+        investments: { select: { amount: true, expectedReturn: true, guaranteeContribution: true, sharePercent: true, status: true, createdAt: true, user: { select: { firstName: true, lastName: true } } } },
         milestones: { include: { payments: { include: { supplier: { select: { companyName: true } } } } } },
         entrepreneur: { select: { firstName: true, lastName: true } },
         mentor: { select: { firstName: true, lastName: true } },
@@ -166,74 +166,78 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
     const feeMap: any = {}
     fees.forEach((f: any) => { feeMap[f.key] = f.value })
 
-    const projectsDetails = projects.map(p => {
-      const totalInvested = p.investments.reduce((s, i) => s + i.amount, 0)
-      const totalExpectedReturn = p.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
-      const baobabOnCollection = Math.round(totalInvested * (feeMap.commission_baobab_collection || 5) / 100)
-      const mentorFee = p.mentorId ? Math.round(totalInvested * (feeMap.commission_mentor || 2) / 100) : 0
-      const guaranteeFee = Math.round(totalInvested * (feeMap.commission_guarantee || 2) / 100)
-      const paydunyaPayin = Math.round(totalInvested * (feeMap.payin_recovery || 4) / 100)
-      const cagnotteNette = totalInvested - baobabOnCollection - mentorFee - guaranteeFee
-      // Au remboursement (projections) — nouvelle stratégie
-      // 0% commission retour BAOBAB, Payin 4% sur mensualités seulement
-      const payinRepayment = feeMap.payin_repayment || 4
-      const payinOnRepayment = Math.round(totalExpectedReturn * payinRepayment / 100)
-      const netInvestors = totalExpectedReturn - payinOnRepayment
-      const baobabOnReturn = payinOnRepayment  // pour affichage
-      const paydunyaPayout = 0  // supprimé
-      // Fournisseurs payés
-      const totalFournisseurs = p.milestones.reduce((s, m) =>
+    // MODÈLE FINANCIER VALIDÉ
+    const investorWallets = await prisma.wallet.findMany({
+      where: { user: { role: 'INVESTOR' } },
+      select: { escrowBalance: true, balance: true, gainBalance: true }
+    })
+    const totalEscrowInvestors = investorWallets.reduce((s: number, w: any) => s + w.escrowBalance, 0)
+    const totalInvestorBalances = investorWallets.reduce((s: number, w: any) => s + w.balance, 0)
+    const totalGainBalances = investorWallets.reduce((s: number, w: any) => s + w.gainBalance, 0)
+
+    const projectsDetails = projects.map((p: any) => {
+      const totalInvested = p.investments.reduce((s: number, i: any) => s + i.amount, 0)
+      const baobabPct     = feeMap.commission_baobab_collection || 6
+      const payinPct      = feeMap.payin_recovery || 4
+      const mentorPct     = feeMap.commission_mentor || 2
+      const payinRepayPct = feeMap.payin_repayment || 4
+      const fraisFixesPct = baobabPct + payinPct + (p.mentorId ? mentorPct : 0)
+
+      const baobabOnCollection = Math.round(totalInvested * baobabPct / 100)
+      const mentorFee          = p.mentorId ? Math.round(totalInvested * mentorPct / 100) : 0
+      const paydunyaPayin      = Math.round(totalInvested * payinPct / 100)
+      // Assurance = somme réelle des guaranteeContribution
+      const guaranteeFee = p.investments.reduce((s: number, i: any) => s + (i.guaranteeContribution || 0), 0)
+      // netAmount = ce que l'entrepreneur reçoit
+      const netAmount = Math.round((p.goalAmount || 0) * (1 - fraisFixesPct / 100))
+      const cagnotteNette = netAmount
+      // Retour total
+      const returnRate = p.expectedReturn || (feeMap.return_min || 24)
+      const totalRemb = Math.round(netAmount * (1 + returnRate / 100))
+      const payinOnRepayment = Math.round(totalRemb * payinRepayPct / 100)
+      const baobabOnReturn = payinOnRepayment
+      // expectedReturn déjà calculés correctement à l'investissement
+      const totalExpectedReturn = p.investments.reduce((s: number, i: any) => s + (i.expectedReturn || 0), 0)
+      const netInvestors = totalExpectedReturn
+      // Fournisseurs
+      const totalFournisseurs = p.milestones.reduce((s: number, m: any) =>
         s + m.payments.filter((pay: any) => pay.status === 'COMPLETED').reduce((ss: number, pay: any) => ss + pay.amount, 0), 0)
-      const fournisseursPending = p.milestones.reduce((s, m) =>
+      const fournisseursPending = p.milestones.reduce((s: number, m: any) =>
         s + m.payments.filter((pay: any) => pay.status === 'PENDING').reduce((ss: number, pay: any) => ss + pay.amount, 0), 0)
-      // Revenu net BAOBAB sur ce projet
-      const revenueNetBAOBABProjet = baobabOnCollection
+      // Revenu net BAOBAB = commission + payin collecte + payin mensualités
+      const revenueNetBAOBABProjet = baobabOnCollection + paydunyaPayin + baobabOnReturn
 
       return {
-        id: p.id,
-        title: p.title,
-        sector: p.sector,
-        status: p.status,
+        id: p.id, title: p.title, sector: p.sector, status: p.status,
         entrepreneur: `${p.entrepreneur?.firstName} ${p.entrepreneur?.lastName}`,
         mentor: p.mentor ? `${p.mentor?.firstName} ${p.mentor?.lastName}` : null,
-        goalAmount: p.goalAmount,
-        totalInvested,
-        cagnotteNette,
-        investorCount: p.investments.length,
-        expectedReturn: p.expectedReturn,
-        totalExpectedReturn,
-        netInvestors,
-        baobabOnCollection,
-        mentorFee,
-        guaranteeFee,
-        paydunyaPayin,
-        baobabOnReturn,
-        paydunyaPayout,
-        revenueNetBAOBABProjet,
-        totalFournisseurs,
-        fournisseursPending,
-        milestones: p.milestones.map(m => ({
-          title: m.title,
-          amount: m.amount,
-          status: m.status,
+        goalAmount: p.goalAmount, netAmount, totalInvested, cagnotteNette,
+        investorCount: p.investments.length, expectedReturn: p.expectedReturn,
+        totalExpectedReturn, netInvestors, baobabOnCollection, mentorFee,
+        guaranteeFee, paydunyaPayin, baobabOnReturn, paydunyaPayout: 0,
+        revenueNetBAOBABProjet, totalFournisseurs, fournisseursPending,
+        milestones: p.milestones.map((m: any) => ({
+          title: m.title, amount: m.amount, status: m.status,
           payments: m.payments.map((pay: any) => ({
-            supplier: pay.supplier?.companyName,
-            amount: pay.amount,
-            status: pay.status,
+            supplier: pay.supplier?.companyName, amount: pay.amount, status: pay.status
           }))
         })),
-        investors: p.investments.map(i => ({
+        investors: p.investments.map((i: any) => ({
           name: `${i.user?.firstName} ${i.user?.lastName}`,
           amount: i.amount,
-          expectedReturn: i.expectedReturn,
-          netReturn: Math.round((i.expectedReturn || 0) * (1 - (0)/100 - (feeMap.withdrawal_fee_standard||3)/100)),
-          date: i.createdAt,
-          status: i.status
+          expectedReturn: i.expectedReturn || 0,
+          guaranteeContribution: i.guaranteeContribution || 0,
+          withInsurance: (i.guaranteeContribution || 0) > 0,
+          netReturn: i.expectedReturn || 0,
+          gain: (i.expectedReturn || 0) - i.amount - (i.guaranteeContribution || 0),
+          date: i.createdAt, status: i.status
         }))
       }
     })
-
-    successResponse(res, { projects: projectsDetails })
+    successResponse(res, {
+      projects: projectsDetails,
+      escrow: { totalEscrowInvestors, totalInvestorBalances, totalGainBalances }
+    })
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
