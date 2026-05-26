@@ -243,6 +243,7 @@ model Project {
   durationMonths      Int
   status              ProjectStatus @default(DRAFT)
   riskLevel           RiskLevel     @default(MEDIUM)
+  useOfFunds          String?
   pitchVideoUrl       String?
   coverImageUrl       String?
   businessPlanUrl     String?

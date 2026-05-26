@@ -232,7 +232,7 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         const data = projectSchema.parse(req.body)
         const score = calculateBankabilityScore({ ...data, description: data.description })
         const waitlistedProject = await prisma.project.create({
-          data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED' }
+          data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED', useOfFunds: data.useOfFunds || null }
         })
         await prisma.notification.create({
           data: { userId: req.userId!, title: 'Projet en liste d attente', body: `Votre projet "${waitlistedProject.title}" est en position ${waitlistCount + 1} dans la liste d attente.`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id, position: waitlistCount + 1 }) }
@@ -262,6 +262,7 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null,
         bankabilityScore: score,
         status: 'PENDING_REVIEW',
+        useOfFunds: data.useOfFunds || null,
       }
     })
 

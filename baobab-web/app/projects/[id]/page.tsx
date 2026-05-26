@@ -139,6 +139,12 @@ export default function ProjectDetailPage() {
                   </div>
                   <h1 className="text-2xl font-bold text-gray-900 mb-2 overflow-hidden w-full" style={{wordBreak:"break-all", overflowWrap:"anywhere"}}>{project.title}</h1>
                   <p className="text-gray-600 text-sm leading-relaxed overflow-hidden w-full" style={{wordBreak:"break-all", overflowWrap:"anywhere", whiteSpace:"pre-wrap"}}>{project.description}</p>
+                  {project.useOfFunds && (
+                    <div className="mt-4 bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                      <div className="font-semibold text-blue-900 text-sm mb-2">💡 Utilisation des fonds</div>
+                      <p className="text-blue-800 text-sm leading-relaxed" style={{whiteSpace:"pre-wrap"}}>{project.useOfFunds}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
