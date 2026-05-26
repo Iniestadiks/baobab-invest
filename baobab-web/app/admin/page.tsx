@@ -1058,6 +1058,75 @@ function StatsTab({ authGet }: any) {
 
   return (
     <div className="space-y-5">
+      {/* KPIs temps réel */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
+          {[
+            { label: "Total utilisateurs", value: stats.totalUsers, icon: "👥", color: "text-blue-700", bg: "bg-blue-50" },
+            { label: "Investisseurs actifs", value: stats.activeInvestors, icon: "💼", color: "text-green-700", bg: "bg-green-50" },
+            { label: "KYC en attente", value: stats.pendingKyc, icon: "🪪", color: "text-orange-700", bg: "bg-orange-50" },
+            { label: "Bâtisseurs", value: stats.builders, icon: "🏗️", color: "text-yellow-700", bg: "bg-yellow-50" },
+          ].map(k => (
+            <div key={k.label} className={`${k.bg} rounded-2xl p-4`}>
+              <div className="text-2xl mb-1">{k.icon}</div>
+              <div className={`text-2xl font-bold ${k.color}`}>{k.value}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{k.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
+          {[
+            { label: "Total levé", value: (stats.totalLeve||0).toLocaleString()+" FCFA", icon: "💰", color: "text-green-700", bg: "bg-green-50" },
+            { label: "Revenus BAOBAB", value: (stats.totalRevenuBAOBAB||0).toLocaleString()+" FCFA", icon: "🏦", color: "text-purple-700", bg: "bg-purple-50" },
+            { label: "Fonds garantie", value: (stats.guaranteeBalance||0).toLocaleString()+" FCFA", icon: "🛡️", color: "text-orange-700", bg: "bg-orange-50" },
+            { label: "Transactions en attente", value: stats.txPending, icon: "⏳", color: "text-red-700", bg: "bg-red-50" },
+          ].map(k => (
+            <div key={k.label} className={`${k.bg} rounded-2xl p-4`}>
+              <div className="text-2xl mb-1">{k.icon}</div>
+              <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{k.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {stats?.projectsByStatus && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <h3 className="font-bold text-gray-900 mb-4">📊 Projets par statut</h3>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            {stats.projectsByStatus.map((p: any) => (
+              <div key={p.status} className="text-center bg-gray-50 rounded-xl p-3">
+                <div className="text-xl font-bold text-gray-900">{p._count}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{p.status}</div>
+                <div className="text-xs text-gray-400">{((p._sum?.raisedAmount||0)/1000).toFixed(0)}k FCFA</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {stats && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <h3 className="font-bold text-gray-900 mb-4">💵 Détail revenus BAOBAB</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Commission collecte (6%)", value: stats.commissionBalance||0, color: "text-green-700", bg: "bg-green-50" },
+              { label: "Payin remboursements (4%)", value: stats.totalPayinRepayment||0, color: "text-blue-700", bg: "bg-blue-50" },
+              { label: "Mentor commissions (2%)", value: stats.totalMentorCommission||0, color: "text-purple-700", bg: "bg-purple-50" },
+              { label: "Fonds garantie collecté", value: stats.totalGuaranteeFund||0, color: "text-orange-700", bg: "bg-orange-50" },
+            ].map(k => (
+              <div key={k.label} className={`${k.bg} rounded-xl p-3`}>
+                <div className={`font-bold text-lg ${k.color}`}>{k.value.toLocaleString()} FCFA</div>
+                <div className="text-xs text-gray-500 mt-0.5">{k.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 bg-gray-50 rounded-xl p-3 flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-600">💰 Total encaissé BAOBAB</span>
+            <span className="font-bold text-green-700 text-lg">{((stats.revenueTotal||0)+(stats.totalMentorCommission||0)).toLocaleString()} FCFA</span>
+          </div>
+        </div>
+      )}
       {/* En-tête avec filtres de période */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
