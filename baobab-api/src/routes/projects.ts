@@ -10,7 +10,7 @@ const router = Router()
 const projectSchema = z.object({
   title: z.string().min(5, 'Titre trop court'),
   description: z.string().min(50, 'Description trop courte (min 50 caractères)'),
-  sector: z.enum(['AGRICULTURE','COMMERCE','TECH','ARTISANAT','EDUCATION','SANTE','SERVICES','ENERGIE','TRANSPORT','AUTRE']),
+  sector: z.enum(['AGRICULTURE','ELEVAGE','COMMERCE','TRANSPORT','TECH','RESTAURATION','ARTISANAT','SANTE','EDUCATION','ENERGIE','SERVICES','IMMOBILIER','AUTRE']),
   subSector: z.string().optional(),
   city: z.string(),
   country: z.string().default('SN'),
