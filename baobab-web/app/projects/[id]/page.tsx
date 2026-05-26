@@ -493,12 +493,12 @@ export default function ProjectDetailPage() {
                           // Le retour reste identique
                           // Assurance = coût additionnel
                           // Sans assurance → même retour brut, gain net supérieur car coût total moindre
+                          // Assurance = coût séparé — le gain net est toujours calculé sur amt
                           const guarFee  = withInsurance ? Math.round(amt * guarPct / 100) : 0
                           const totalPaid = amt + guarFee
-                          const gain    = investorReturn - totalPaid
-                          const gainPct = ((gain / totalPaid) * 100).toFixed(1)
-                          const gainNoIns    = investorReturn - amt
-                          const gainPctNoIns = ((gainNoIns / amt) * 100).toFixed(1)
+                          // Gain net = retour - montant investi (identique avec/sans assurance)
+                          const gain    = investorReturn - amt
+                          const gainPct = ((gain / amt) * 100).toFixed(1)
 
                           return (
                             <div className="space-y-2">
