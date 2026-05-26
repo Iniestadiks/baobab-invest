@@ -483,10 +483,14 @@ export default function ProjectDetailPage() {
                           // Assurance = addon : si prise, investisseur paie amt + guarFee
                           // Le projet progresse toujours de amt (inchangé)
                           // Le retour reste identique
-                          const guarFee = withInsurance ? Math.round(amt * guarPct / 100) : 0
-                          const totalPaid = amt + guarFee  // ce que l'investisseur débourse réellement
-                          const gain = investorReturn - totalPaid
+                          // Assurance = coût additionnel
+                          // Sans assurance → investisseur paie moins → gain net supérieur
+                          const guarFee  = withInsurance ? Math.round(amt * guarPct / 100) : 0
+                          const totalPaid = amt + guarFee
+                          const gain    = investorReturn - totalPaid
                           const gainPct = ((gain / totalPaid) * 100).toFixed(1)
+                          const gainNoIns    = investorReturn - amt
+                          const gainPctNoIns = ((gainNoIns / amt) * 100).toFixed(1)
 
                           return (
                             <div className="space-y-2">
@@ -522,8 +526,15 @@ export default function ProjectDetailPage() {
                                 <span>{gain >= 0 ? '+' : ''}{fmt(gain)} FCFA ({gainPct}%)</span>
                               </div>
                               {!withInsurance && (
-                                <div className="text-xs text-gray-400 italic">
-                                  Sans assurance — votre capital n'est pas protégé en cas de défaillance
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-1">
+                                  <div className="flex justify-between text-green-700 font-bold text-sm">
+                                    <span>💰 Gain sans assurance</span>
+                                    <span>+{fmt(gainNoIns)} FCFA ({gainPctNoIns}%)</span>
+                                  </div>
+                                  <div className="text-xs text-green-600 mt-0.5">
+                                    Vous économisez {fmt(guarFee === 0 ? Math.round(amt * guarPct / 100) : guarFee)} FCFA (pas d'assurance)
+                                    — capital non protégé en cas de défaillance
+                                  </div>
                                 </div>
                               )}
                             </div>

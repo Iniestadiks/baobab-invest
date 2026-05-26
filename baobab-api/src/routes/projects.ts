@@ -150,12 +150,15 @@ router.post('/:id/simulate', async (req: Request, res: Response): Promise<void> 
     const platformFee    = Math.round(amount * fees.commission_baobab_collection / 100)
     const payinFee       = Math.round(amount * fees.payin_recovery / 100)
     const mentorFee      = hasMentor ? Math.round(amount * fees.commission_mentor / 100) : 0
-    const guaranteeFee   = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
-    const reinvested     = withInsurance ? 0 : Math.round(amount * fees.commission_guarantee / 100)
-    const netToProject   = amount - platformFee - payinFee - mentorFee - guaranteeFee + reinvested
-    const netAmount      = (project as any).netAmount || project.goalAmount
-    const totalReturn    = Math.round(netAmount * (1 + returnRate / 100))
+    // Assurance = addon individuel hors cagnotte
+    const guarPct      = fees.commission_guarantee || 2
+    const guaranteeFee = withInsurance ? Math.round(amount * guarPct / 100) : 0
+    // frais fixes dans la cagnotte : BAOBAB + payin + mentor
+    const fraisFixesPct = (fees.commission_baobab_collection + fees.payin_recovery + (project.mentorId ? fees.commission_mentor : 0)) / 100
+    const netAmount    = Math.round(project.goalAmount * (1 - fraisFixesPct))
+    const totalReturn  = Math.round(netAmount * (1 + returnRate / 100))
     const netDistributed = Math.round(totalReturn * (1 - fees.payin_repayment / 100))
+    const netToProject = netAmount
     const investorTotal  = Math.round(netDistributed * sharePercent)
     const gain           = investorTotal - amount
     successResponse(res, {
@@ -164,7 +167,10 @@ router.post('/:id/simulate', async (req: Request, res: Response): Promise<void> 
       returnRate: returnRate + '%',
       hasMentor,
       withInsurance,
-      fees: { platformFee, payinFee, mentorFee, guaranteeFee, reinvested, netToProject },
+      fees: { platformFee, payinFee, mentorFee, guaranteeFee, netToProject },
+      // Gain sans assurance = investorReturn - amount (économie de guarFee)
+      gainWithInsurance: Math.round(netDistributed * sharePercent) - (amount + guaranteeFee),
+      gainWithoutInsurance: Math.round(netDistributed * sharePercent) - amount,
       returns: {
         totalReturn, netDistributed, investorTotal, gain,
         gainPercent: ((gain / amount) * 100).toFixed(2) + '%',
