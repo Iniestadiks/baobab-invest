@@ -547,42 +547,71 @@ router.post('/project-failed/:projectId', authenticate, async (req: AuthRequest,
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
 
     const fees = await getFees()
-    const guaranteeRate = fees.commission_guarantee || 2
-    const totalInvested = project.investments.reduce((s, i) => s + i.amount, 0)
-    const guaranteeFund = Math.round(totalInvested * guaranteeRate / 100)
+    const fees = await getFees()
+    const maxCoverageRate = 80  // BAOBAB rembourse jusqu'à 80% du capital assuré
+
+    // Seuls les investisseurs ayant payé l'assurance (guaranteeContribution > 0)
+    const insuredInvs = project.investments.filter((i: any) => (i.guaranteeContribution || 0) > 0)
+    const totalInsured = insuredInvs.reduce((s: number, i: any) => s + i.amount, 0)
+
+    // Fonds disponible = guaranteeBalance réel du wallet admin
+    const adminUser = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
+    const adminWallet = adminUser ? await prisma.wallet.findUnique({ where: { userId: adminUser.id } }) : null
+    const availableGuarantee = adminWallet?.guaranteeBalance || 0
+
+    // Montant distribué = min(80% du capital assuré, fonds disponible)
+    const maxRemboursable = Math.round(totalInsured * maxCoverageRate / 100)
+    const guaranteeFund = Math.min(maxRemboursable, availableGuarantee)
 
     await prisma.$transaction(async (tx) => {
       // Passer le projet en FAILED
       await tx.project.update({ where: { id: project.id }, data: { status: 'FAILED' } })
 
-      // Distribuer le fonds de garantie proportionnellement
-      for (const inv of project.investments) {
-        const proportion = totalInvested > 0 ? inv.amount / totalInvested : 0
+      // Distribuer aux investisseurs ASSURÉS uniquement
+      let totalDistributed = 0
+      for (const inv of insuredInvs) {
+        const proportion = totalInsured > 0 ? inv.amount / totalInsured : 0
         const guaranteeShare = Math.round(guaranteeFund * proportion)
         if (guaranteeShare <= 0) continue
-
+        totalDistributed += guaranteeShare
         await tx.wallet.update({
           where: { userId: inv.userId },
-          data: { balance: { increment: guaranteeShare } }
+          data: {
+            balance:     { increment: guaranteeShare },
+            gainBalance: { increment: guaranteeShare },
+            totalEarned: { increment: guaranteeShare },
+          }
         })
-
         await tx.notification.create({
           data: {
             userId: inv.userId,
-            title: 'Projet echoue — remboursement garantie',
-            body: 'Le projet "' + project.title + '" a echoue. Vous recevez ' + guaranteeShare.toLocaleString() + ' FCFA du fonds de garantie (2% de votre investissement). Nous sommes desoles pour ce resultat.',
+            title: '🛡️ Remboursement assurance capital',
+            body: 'Le projet "' + project.title + '" a echoue. Votre assurance couvre ' + guaranteeShare.toLocaleString() + ' FCFA (jusqu\'à ' + maxCoverageRate + '% de votre mise). Motif: ' + (reason || 'Non précisé'),
             type: 'PROJECT_FAILED',
-            data: JSON.stringify({ projectId: project.id, guaranteeShare })
+            data: JSON.stringify({ projectId: project.id, guaranteeShare, covered: maxCoverageRate })
+          }
+        })
+      }
+
+      // Notifier les non-assurés — perte sèche
+      const uninsuredInvs = project.investments.filter((i: any) => !(i.guaranteeContribution > 0))
+      for (const inv of uninsuredInvs) {
+        await tx.notification.create({
+          data: {
+            userId: inv.userId,
+            title: '❌ Projet en échec — capital non protégé',
+            body: 'Le projet "' + project.title + '" a echoue. Sans assurance capital, votre mise de ' + inv.amount.toLocaleString() + ' FCFA n\'est pas couverte.',
+            type: 'PROJECT_FAILED',
+            data: JSON.stringify({ projectId: project.id, guaranteeShare: 0 })
           }
         })
       }
 
       // Débiter le fonds de garantie du wallet admin
-      const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
-      if (adminUser) {
+      if (adminUser && totalDistributed > 0) {
         await tx.wallet.update({
           where: { userId: adminUser.id },
-          data: { guaranteeBalance: { decrement: guaranteeFund } }
+          data: { guaranteeBalance: { decrement: totalDistributed } }
         })
       }
 
