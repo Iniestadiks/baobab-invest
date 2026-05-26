@@ -540,15 +540,8 @@ export default function ProjectDetailPage() {
                                 <span>{gain >= 0 ? '+' : ''}{fmt(gain)} FCFA ({gainPct}%)</span>
                               </div>
                               {!withInsurance && (
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-1">
-                                  <div className="flex justify-between text-green-700 font-bold text-sm">
-                                    <span>💰 Gain sans assurance</span>
-                                    <span>+{fmt(gainNoIns)} FCFA ({gainPctNoIns}%)</span>
-                                  </div>
-                                  <div className="text-xs text-green-600 mt-0.5">
-                                    Vous économisez {fmt(guarFee === 0 ? Math.round(amt * guarPct / 100) : guarFee)} FCFA (pas d'assurance)
-                                    ⚠️ Capital non protégé en cas d'échec du projet
-                                  </div>
+                                <div className="text-xs text-orange-600 mt-1 bg-orange-50 rounded p-1.5">
+                                  ⚠️ Capital non protégé en cas d'échec du projet
                                 </div>
                               )}
                             </div>
