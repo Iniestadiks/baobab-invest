@@ -547,7 +547,6 @@ router.post('/project-failed/:projectId', authenticate, async (req: AuthRequest,
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
 
     const fees = await getFees()
-    const fees = await getFees()
     const maxCoverageRate = 80  // BAOBAB rembourse jusqu'à 80% du capital assuré
 
     // Seuls les investisseurs ayant payé l'assurance (guaranteeContribution > 0)
