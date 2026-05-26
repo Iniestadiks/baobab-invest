@@ -99,7 +99,11 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
       })
       await p.wallet.update({
         where: { userId },
-        data: { balance: { increment: amount }, depositBalance: { increment: amount } }
+        data: {
+          balance:        { increment: amount },
+          depositBalance: { increment: amount },
+          totalDeposited: { increment: amount },
+        }
       })
       await p.notification.create({
         data: {
@@ -290,7 +294,7 @@ router.post('/deposit/force-confirm/:txId', authenticate, async (req: AuthReques
       if (confirmation.status === 'completed') {
         await prisma.$transaction(async (p) => {
           await p.walletTransaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', processedAt: new Date() } })
-          await p.wallet.update({ where: { userId: tx.userId }, data: { balance: { increment: tx.amount } } })
+          await p.wallet.update({ where: { userId: tx.userId }, data: { balance: { increment: tx.amount }, depositBalance: { increment: tx.amount }, totalDeposited: { increment: tx.amount } } })
           await p.notification.create({
             data: { userId: tx.userId, title: 'Depot confirme', body: `${tx.amount.toLocaleString()} FCFA credites sur votre wallet.`, type: 'DEPOSIT_CONFIRMED', data: JSON.stringify({ amount: tx.amount }) }
           })

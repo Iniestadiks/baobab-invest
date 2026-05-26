@@ -32,15 +32,21 @@ export default function DepositPage() {
         if (res.success && res.data?.status === "COMPLETED") {
           clearInterval(poll);
           setVerifying(false);
-          setMsg(`✅ Dépôt confirmé ! Votre wallet a été crédité.`);
+          setMsg(`✅ Dépôt confirmé ! Redirection...`);
           authGet("/api/auth/me").then((r: any) => { if (r.success) setWallet(r.data.wallet); });
+          setTimeout(() => router.push("/dashboard"), 2000);
         } else if (attempts >= 10) {
           clearInterval(poll);
           setVerifying(false);
           // Forcer la confirmation côté serveur
-          await authPost(`/api/wallet/deposit/force-confirm/${txId}`, {});
+          const forceRes = await authPost(`/api/wallet/deposit/force-confirm/${txId}`, {});
           authGet("/api/auth/me").then((r: any) => { if (r.success) setWallet(r.data.wallet); });
-          setMsg("✅ Paiement traité ! Votre wallet a été mis à jour.");
+          if (forceRes.success) {
+            setMsg("✅ Paiement confirmé ! Redirection...");
+            setTimeout(() => router.push("/dashboard"), 2000);
+          } else {
+            setMsg("⏳ Paiement en cours de traitement — votre wallet sera crédité dans quelques minutes. Vous pouvez quitter cette page.");
+          }
         }
       }, 3000);
     } else if (status === "cancel") {
