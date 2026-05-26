@@ -16,13 +16,14 @@ const projectSchema = z.object({
   country: z.string().default('SN'),
   goalAmount: z.number().min(100000, 'Montant minimum 100 000 FCFA'),
   minimumInvestment: z.number().min(5000).default(5000),
-  expectedReturn: z.number().min(22, 'Taux de retour minimum : 22%').max(100),
+  expectedReturn: z.number().min(24, 'Taux de retour minimum : 24%').max(100),
   durationMonths: z.number().min(1).max(60),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
   mentorId: z.string().optional(),
   pitchVideoUrl: z.string().url().optional(),
   coverImageUrl: z.string().url().optional(),
   campaignEndsAt: z.string().optional(),
+  useOfFunds: z.string().optional(),
 })
 
 // Calculer le score de bankabilité
