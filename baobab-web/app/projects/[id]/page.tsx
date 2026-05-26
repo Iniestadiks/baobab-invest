@@ -21,7 +21,7 @@ export default function ProjectDetailPage() {
   const [simResult, setSimResult] = useState<any>(null);
   const [investing, setInvesting] = useState(false);
   const [investAmount, setInvestAmount] = useState("");
-  const [withInsurance, setWithInsurance] = useState(true);
+  const [withInsurance, setWithInsurance] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const { config: fees } = usePlatformConfig();
@@ -436,20 +436,22 @@ export default function ProjectDetailPage() {
                             ✅ Sans mentor — {fees.commission_mentor}% bonus pour vous !
                           </div>
                         )}
-                        {/* Case assurance — cochée par défaut */}
-                        <div className={`rounded-lg p-3 border-2 cursor-pointer transition-all ${withInsurance ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-gray-50'}`}
+                        {/* Case assurance — optionnelle, décochée par défaut */}
+                        <div className={`rounded-lg p-3 border-2 cursor-pointer transition-all ${withInsurance ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}
                           onClick={() => setWithInsurance(!withInsurance)}>
                           <div className="flex items-center gap-2">
                             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${withInsurance ? 'bg-green-500 border-green-500' : 'border-gray-400'}`}>
                               {withInsurance && <span className="text-white text-xs font-bold">✓</span>}
                             </div>
                             <div>
-                              <span className="font-semibold text-gray-800 text-xs">🛡️ Assurance capital 2% — Conseillée</span>
+                              <span className="font-semibold text-gray-800 text-xs">🛡️ Assurance capital +2% — Optionnelle</span>
                               <p className="text-xs text-gray-500 mt-0.5">Protège votre capital en cas de défaillance du projet</p>
                             </div>
                           </div>
                           {!withInsurance && (
-                            <p className="text-xs text-blue-600 mt-1.5 ml-7">✨ Les 2% sont réinjectés dans votre part de projet</p>
+                            <p className="text-xs text-orange-600 mt-1.5 ml-7">
+                              ⚠️ Sans assurance — en cas d'échec du projet, votre capital n'est pas remboursé.
+                            </p>
                           )}
                         </div>
                         {/* Décomposition — modèle financier correct */}
@@ -484,7 +486,7 @@ export default function ProjectDetailPage() {
                           // Le projet progresse toujours de amt (inchangé)
                           // Le retour reste identique
                           // Assurance = coût additionnel
-                          // Sans assurance → investisseur paie moins → gain net supérieur
+                          // Sans assurance → même retour brut, gain net supérieur car coût total moindre
                           const guarFee  = withInsurance ? Math.round(amt * guarPct / 100) : 0
                           const totalPaid = amt + guarFee
                           const gain    = investorReturn - totalPaid
@@ -506,9 +508,15 @@ export default function ProjectDetailPage() {
                                 </div>
                               )}
                               {withInsurance && (
-                                <div className="flex justify-between text-gray-500 text-xs border-b border-gray-100 pb-2">
-                                  <span>Total débité de votre wallet</span>
-                                  <span className="font-bold">{fmt(totalPaid)} FCFA</span>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-gray-500 text-xs border-b border-gray-100 pb-2">
+                                    <span>Total débité de votre wallet</span>
+                                    <span className="font-bold">{fmt(totalPaid)} FCFA</span>
+                                  </div>
+                                  <div className="text-xs text-orange-600 bg-orange-50 rounded p-1.5">
+                                    🛡️ En cas d'échec du projet, vous êtes remboursé de votre perte nette
+                                    dans la limite de 80% et du solde du fonds de garantie.
+                                  </div>
                                 </div>
                               )}
                               {/* Progression cagnotte — toujours = amt */}
@@ -533,7 +541,7 @@ export default function ProjectDetailPage() {
                                   </div>
                                   <div className="text-xs text-green-600 mt-0.5">
                                     Vous économisez {fmt(guarFee === 0 ? Math.round(amt * guarPct / 100) : guarFee)} FCFA (pas d'assurance)
-                                    — capital non protégé en cas de défaillance
+                                    ⚠️ Capital non protégé en cas d'échec du projet
                                   </div>
                                 </div>
                               )}
