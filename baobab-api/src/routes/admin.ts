@@ -114,23 +114,66 @@ router.post('/users/:id/unban', authenticate, requireAdmin, async (req: AuthRequ
 router.get('/stats', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const [
-      totalUsers, totalProjects, activeProjects,
-      pendingProjects, totalInvestments, pendingKyc,
+      totalUsers, totalProjects, pendingReviewProjects,
+      totalInvestments, pendingKyc, revenues,
+      investmentsAgg, walletAgg, txPending, builders
     ] = await Promise.all([
       prisma.user.count(),
       prisma.project.count(),
-      prisma.project.count({ where: { status: 'PENDING' } }),
       prisma.project.count({ where: { status: 'PENDING_REVIEW' } }),
       prisma.investment.count(),
       prisma.user.count({ where: { kycStatus: 'PENDING' } }),
+      prisma.platformRevenue.groupBy({ by: ['type'], _sum: { amount: true } }),
+      prisma.investment.aggregate({ _sum: { amount: true, guaranteeContribution: true }, _count: true }),
+      prisma.wallet.aggregate({
+        where: { user: { role: 'ADMIN' } },
+        _sum: { balance: true, commissionBalance: true, guaranteeBalance: true }
+      }),
+      prisma.walletTransaction.count({ where: { status: 'PENDING' } }),
+      prisma.user.count({ where: { role: 'BUILDER' } }),
     ])
-    successResponse(res, {
-      totalUsers, totalProjects, activeProjects,
-      pendingProjects, totalInvestments, pendingKyc,
+    // Projets par statut
+    const projectsByStatus = await prisma.project.groupBy({
+      by: ['status'], _count: true, _sum: { raisedAmount: true, goalAmount: true }
     })
-  } catch {
-    errorResponse(res)
-  }
+    // Investisseurs actifs
+    const activeInvestors = await prisma.user.count({
+      where: { role: 'INVESTOR', investments: { some: {} } }
+    })
+    // Revenus map
+    const revenueMap: any = {}
+    revenues.forEach((r: any) => { revenueMap[r.type] = r._sum.amount || 0 })
+    const totalRevenuBAOBAB = (revenueMap.COMMISSION_COLLECTION || 0) + (revenueMap.PAYIN_RECOVERY || 0)
+    const totalPayinRepayment = revenueMap.PAYIN_REPAYMENT || 0
+    const totalMentorCommission = revenueMap.MENTOR_COMMISSION || 0
+    const totalGuaranteeFund = revenueMap.GUARANTEE_FEE || 0
+    const totalLeve = investmentsAgg._sum.amount || 0
+    const totalAssurance = investmentsAgg._sum.guaranteeContribution || 0
+
+    successResponse(res, {
+      // Utilisateurs
+      totalUsers, activeInvestors, pendingKyc, builders,
+      // Projets
+      totalProjects, pendingReviewProjects,
+      projectsByStatus,
+      activeProjects: projectsByStatus.find((p: any) => p.status === 'ACTIVE')?._count || 0,
+      fundedProjects: projectsByStatus.find((p: any) => p.status === 'FUNDED')?._count || 0,
+      completedProjects: projectsByStatus.find((p: any) => p.status === 'COMPLETED')?._count || 0,
+      // Investissements
+      totalInvestments, totalLeve, totalAssurance,
+      // Finances BAOBAB
+      adminBalance: walletAgg._sum.balance || 0,
+      commissionBalance: walletAgg._sum.commissionBalance || 0,
+      guaranteeBalance: walletAgg._sum.guaranteeBalance || 0,
+      totalRevenuBAOBAB,
+      totalPayinRepayment,
+      totalMentorCommission,
+      totalGuaranteeFund,
+      revenueTotal: totalRevenuBAOBAB + totalPayinRepayment,
+      // Transactions
+      txPending,
+    })
+  } catch (e) { console.error(e); errorResponse(res) }
 })
 
 // Changer le rôle d'un utilisateur

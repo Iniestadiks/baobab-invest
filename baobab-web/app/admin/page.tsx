@@ -998,7 +998,14 @@ function StatsTab({ authGet }: any) {
   const [period, setPeriod] = React.useState("all");
   const [dateFrom, setDateFrom] = React.useState("");
   const [dateTo, setDateTo] = React.useState("");
+  const [stats, setStats] = React.useState<any>(null);
+  const [loadingStats, setLoadingStats] = React.useState(true);
   const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+  React.useEffect(() => {
+    authGet("/api/admin/stats").then((res: any) => {
+      if (res.success) setStats(res.data);
+    }).finally(() => setLoadingStats(false));
+  }, []);
 
   const getDateRange = (p: string) => {
     const now = new Date();
