@@ -133,7 +133,7 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
           type: 'INVESTMENT',
           amount,
           status: 'COMPLETED',
-          description: `Investissement — \${project.title}`,
+          description: `Investissement — ${project.title}`,
           processedAt: new Date()
         }
       })
@@ -145,7 +145,7 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
             type: 'INSURANCE',
             amount: guaranteeFee,
             status: 'COMPLETED',
-            description: `Assurance capital 2% — \${project.title}`,
+            description: `Assurance capital 2% — ${project.title}`,
             processedAt: new Date()
           }
         })
