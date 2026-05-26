@@ -68,17 +68,24 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       res.status(400).json({ success: false, message: "Ce projet n'accepte plus d'investissements" }); return
     }
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
-    if (!wallet || wallet.balance < amount) {
-      res.status(400).json({ success: false, message: `Solde insuffisant. Disponible : ${wallet?.balance?.toLocaleString() || 0} FCFA` }); return
-    }
-
-    // CALCUL DES COMMISSIONS — NOUVELLE STRATÉGIE FINANCIÈRE
+    // CALCUL DES COMMISSIONS — MODÈLE FINANCIER VALIDÉ
     const fees = await getFees()
-    const withInsurance = req.body.withInsurance !== false  // true par défaut
-    const platformFee         = Math.round(amount * fees.commission_baobab_collection / 100)
-    const payinFee            = Math.round(amount * fees.payin_recovery / 100)
-    const mentorFee           = project.mentorId ? Math.round(amount * fees.commission_mentor / 100) : 0
-    const guaranteeFee        = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
+    const withInsurance = req.body.withInsurance === true  // false par défaut — choix explicite
+    const platformFee  = Math.round(amount * fees.commission_baobab_collection / 100)
+    const payinFee     = Math.round(amount * fees.payin_recovery / 100)
+    const mentorFee    = project.mentorId ? Math.round(amount * fees.commission_mentor / 100) : 0
+    const guaranteeFee = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
+    // Vérification solde : investissement + assurance si prise
+    const totalRequired = amount + guaranteeFee
+    if (!wallet || wallet.balance < totalRequired) {
+      const manque = totalRequired - (wallet?.balance || 0)
+      res.status(400).json({
+        success: false,
+        message: withInsurance
+          ? `Solde insuffisant pour couvrir l'investissement et l'assurance. Il vous manque ${manque.toLocaleString()} FCFA — rechargez votre wallet.`
+          : `Solde insuffisant. Disponible : ${wallet?.balance?.toLocaleString() || 0} FCFA`
+      }); return
+    }
     const sharePercent        = amount / project.goalAmount
     const minRate             = fees.return_min
     const returnRate          = Math.max(project.expectedReturn || 0, minRate)
@@ -101,22 +108,48 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
     // Payin prélevé sur les remboursements (4%)
     const payinRepay = Math.round(totalRemb * payinRepayPct / 100)
     const netDistributed = totalRemb - payinRepay
-    // Part de l'investisseur = sharePercent * netDistributed
-    // + bonus assurance réinjectée si pas d'assurance prise
-    const bonusNoInsurance = withInsurance ? 0 : guaranteeFee
-    const expectedReturn = Math.round(netDistributed * sharePercent) + bonusNoInsurance
+    // expectedReturn IDENTIQUE avec ou sans assurance
+    // L'assurance est un coût séparé — elle ne change pas le retour brut
+    // Sans assurance = gain net supérieur car coût total moindre
+    const expectedReturn = Math.round(netDistributed * sharePercent)
 
     await prisma.$transaction(async (tx) => {
       // 1. Débiter wallet investisseur
+      // amount → escrow (investissement)
+      // guaranteeFee → guaranteeBalance admin (assurance, si prise)
       await tx.wallet.update({
         where: { userId: req.userId! },
         data: {
-          balance:        { decrement: amount },
-          escrowBalance:  { increment: amount },
-          depositBalance: { decrement: amount },
+          balance:        { decrement: totalRequired },  // amount + guaranteeFee
+          escrowBalance:  { increment: amount },          // seul amount en escrow
+          depositBalance: { decrement: totalRequired },
           totalInvested:  { increment: amount },
         }
       })
+      // Enregistrer transaction investissement
+      await tx.walletTransaction.create({
+        data: {
+          userId: req.userId!,
+          type: 'INVESTMENT',
+          amount,
+          status: 'COMPLETED',
+          description: `Investissement — \${project.title}`,
+          processedAt: new Date()
+        }
+      })
+      // Enregistrer transaction assurance séparément
+      if (withInsurance && guaranteeFee > 0) {
+        await tx.walletTransaction.create({
+          data: {
+            userId: req.userId!,
+            type: 'INSURANCE',
+            amount: guaranteeFee,
+            status: 'COMPLETED',
+            description: `Assurance capital 2% — \${project.title}`,
+            processedAt: new Date()
+          }
+        })
+      }
       // 2. Créer l'investissement
       await tx.investment.create({
         data: { userId: req.userId!, projectId, amount, status: 'PENDING', expectedReturn, guaranteeContribution: guaranteeFee, sharePercent }

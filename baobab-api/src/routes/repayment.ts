@@ -540,8 +540,20 @@ router.post('/project-failed/:projectId', authenticate, async (req: AuthRequest,
     const project = await prisma.project.findUnique({
       where: { id: req.params.projectId },
       include: {
-        investments: { include: { user: { select: { id: true, firstName: true } } } },
-        entrepreneur: { select: { id: true, firstName: true } }
+        investments: {
+          include: {
+            user: { select: { id: true, firstName: true } }
+          }
+        },
+        entrepreneur: { select: { id: true, firstName: true } },
+        // Récupérer les échéanciers pour calculer ce qui a déjà été versé
+        repaymentSchedules: {
+          include: {
+            payments: {
+              where: { status: 'COMPLETED' }
+            }
+          }
+        }
       }
     })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
@@ -567,12 +579,37 @@ router.post('/project-failed/:projectId', authenticate, async (req: AuthRequest,
       await tx.project.update({ where: { id: project.id }, data: { status: 'FAILED' } })
 
       // Distribuer aux investisseurs ASSURÉS uniquement
+      // Calcul basé sur la PERTE RÉELLE NETTE de chaque investisseur
       let totalDistributed = 0
+
+      // Total déjà versé via remboursements entrepreneur (tous investisseurs confondus)
+      const totalPaidBySchedules = (project as any).repaymentSchedules?.reduce(
+        (sum: number, sch: any) => sum + sch.payments.reduce(
+          (s: number, p: any) => s + (p.amount || 0), 0
+        ), 0) || 0
+      const totalProjectInvested = project.investments.reduce((s, i) => s + i.amount, 0) || 1
+
       for (const inv of insuredInvs) {
+        // Part proportionnelle des remboursements déjà reçus par cet investisseur
+        const shareOfTotal = inv.amount / totalProjectInvested
+        const alreadyReceived = Math.round(totalPaidBySchedules * shareOfTotal)
+
+        // Perte réelle nette = mise - remboursements déjà reçus
+        const perteReelle = Math.max(0, inv.amount - alreadyReceived)
+
+        // Plafond 80% de la mise initiale
+        const plafond80 = Math.round(inv.amount * maxCoverageRate / 100)
+
+        // Prorata du fonds disponible pour cet investisseur
         const proportion = totalInsured > 0 ? inv.amount / totalInsured : 0
-        const guaranteeShare = Math.round(guaranteeFund * proportion)
+        const fondsProrata = Math.round(availableGuarantee * proportion)
+
+        // Remboursement = MIN(perte réelle, plafond 80%, prorata fonds dispo)
+        const guaranteeShare = Math.min(perteReelle, plafond80, fondsProrata)
+
         if (guaranteeShare <= 0) continue
         totalDistributed += guaranteeShare
+
         await tx.wallet.update({
           where: { userId: inv.userId },
           data: {
@@ -581,13 +618,26 @@ router.post('/project-failed/:projectId', authenticate, async (req: AuthRequest,
             totalEarned: { increment: guaranteeShare },
           }
         })
+
+        const couvertureMsg = guaranteeShare < perteReelle
+          ? `Fonds insuffisant : ${guaranteeShare.toLocaleString()} FCFA verses sur ${perteReelle.toLocaleString()} FCFA de perte reelle.`
+          : `Votre perte de ${perteReelle.toLocaleString()} FCFA est integralement couverte.`
+
         await tx.notification.create({
           data: {
             userId: inv.userId,
-            title: '🛡️ Remboursement assurance capital',
-            body: 'Le projet "' + project.title + '" a echoue. Votre assurance couvre ' + guaranteeShare.toLocaleString() + ' FCFA (jusqu\'à ' + maxCoverageRate + '% de votre mise). Motif: ' + (reason || 'Non précisé'),
+            title: 'Remboursement assurance capital',
+            body: `Le projet "${project.title}" a echoue. ${couvertureMsg} Motif: ${reason || 'Non precise'}`,
             type: 'PROJECT_FAILED',
-            data: JSON.stringify({ projectId: project.id, guaranteeShare, covered: maxCoverageRate })
+            data: JSON.stringify({
+              projectId: project.id,
+              guaranteeShare,
+              perteReelle,
+              alreadyReceived,
+              plafond80,
+              fondsProrata,
+              covered: maxCoverageRate
+            })
           }
         })
       }
