@@ -30,6 +30,12 @@ const app = express()
 app.use(helmet())
 app.use(cors({ origin: '*', credentials: true }))
 app.use(express.json({ limit: '10mb' }))
+// Timeout étendu pour les uploads vidéo (5 minutes)
+app.use('/api/upload', (req: any, res: any, next: any) => {
+  req.setTimeout(300000)  // 5 minutes
+  res.setTimeout(300000)
+  next()
+})
 app.use('/uploads', require('express').static('/home/baobab-invest/baobab-api/uploads'))
 
 app.get('/health', (_, res) => res.json({ status: 'ok' }))

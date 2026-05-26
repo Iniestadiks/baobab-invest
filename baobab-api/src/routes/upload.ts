@@ -49,13 +49,11 @@ router.post('/pitch-video', authenticate, upload.single('video'), async (req: Au
         {
           resource_type: 'video',
           folder: 'baobab-invest/pitch-videos',
-          // Limitation durée côté Cloudinary
-          transformation: [{ duration: MAX_DURATION }],
-          eager: [{ format: 'mp4', quality: 'auto' }],
-          eager_async: false,
-          // Tags pour traçabilité
+          // Pas de transformation synchrone — trop lent pour grandes vidéos
+          eager: [{ format: 'mp4', quality: 'auto:low' }],
+          eager_async: true,  // traitement asynchrone obligatoire pour grandes vidéos
+          chunk_size: 6000000, // upload par chunks de 6MB
           tags: [`user-${req.userId}`, 'pitch-video', 'baobab-invest'],
-          // Contexte pour retrouver qui a uploadé
           context: `uploaded_by=${req.userId}|platform=baobab-invest`,
         },
         (error, result) => {
