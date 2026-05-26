@@ -164,7 +164,7 @@ export default function NewProjectPage() {
   };
 
   const submit = async () => {
-    const minReturn = fees?.return_min || 23;
+    const minReturn = fees?.return_min || 24;
     if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) { setError(`Taux minimum : ${minReturn}%`); return; }
     if (!form.goalAmount || Number(form.goalAmount) < 100000) { setError("Montant minimum : 100 000 FCFA"); return; }
     setLoading(true); setError("");
@@ -203,7 +203,7 @@ export default function NewProjectPage() {
   // Assurance exclue du diviseur — c'est un addon individuel payé par l'investisseur
   const diviseur = 1 - (baobabPct + payinPct + mentorPct) / 100;
   const goalAmount = netAmount > 0 ? Math.ceil(netAmount / diviseur) : 0;
-  const retour = Number(form.expectedReturn) || (fees?.return_min || 23);
+  const retour = Number(form.expectedReturn) || (fees?.return_min || 24);
   const totalRemb = Math.round(netAmount * (1 + retour / 100));
   const duree = Number(form.durationMonths) || 12;
   const mensualite = Math.round(totalRemb / duree);
