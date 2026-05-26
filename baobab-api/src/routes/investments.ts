@@ -79,7 +79,6 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
     const payinFee            = Math.round(amount * fees.payin_recovery / 100)
     const mentorFee           = project.mentorId ? Math.round(amount * fees.commission_mentor / 100) : 0
     const guaranteeFee        = withInsurance ? Math.round(amount * fees.commission_guarantee / 100) : 0
-    const reinvestedGuarantee = withInsurance ? 0 : Math.round(amount * fees.commission_guarantee / 100)
     const sharePercent        = amount / project.goalAmount
     const minRate             = fees.return_min
     const returnRate          = Math.max(project.expectedReturn || 0, minRate)
