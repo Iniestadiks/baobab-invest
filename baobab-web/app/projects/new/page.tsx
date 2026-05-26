@@ -114,7 +114,7 @@ export default function NewProjectPage() {
   // Init taux depuis config
   useEffect(() => {
     if (fees?.return_min && !form.expectedReturn) {
-      setForm(f => ({ ...f, expectedReturn: String(fees.return_min) }));
+      setForm(f => ({ ...f, expectedReturn: String(fees.return_min || 24) }));
     }
   }, [fees]);
 
@@ -195,10 +195,13 @@ export default function NewProjectPage() {
   // Calculs simulation
   const netAmount = Number(form.goalAmount) || 0;
   const hasMentor = !!form.mentorId;
-  const baobabPct = fees?.commission_baobab_collection || 6;
-  const mentorPct = hasMentor ? (fees?.commission_mentor || 2) : 0;
-  const assurancePct = fees?.commission_guarantee || 2;
-  const diviseur = 1 - (baobabPct + mentorPct + assurancePct) / 100;
+  const baobabPct   = fees?.commission_baobab_collection || 6;
+  const payinPct    = fees?.payin_recovery || 4;
+  const mentorPct   = hasMentor ? (fees?.commission_mentor || 2) : 0;
+  const assurancePct = fees?.commission_guarantee || 2; // addon individuel — hors cagnotte
+  // MODÈLE VALIDÉ : goalAmount = netBesoin / (1 - BAOBAB% - payin% - mentor%)
+  // Assurance exclue du diviseur — c'est un addon individuel payé par l'investisseur
+  const diviseur = 1 - (baobabPct + payinPct + mentorPct) / 100;
   const goalAmount = netAmount > 0 ? Math.ceil(netAmount / diviseur) : 0;
   const retour = Number(form.expectedReturn) || (fees?.return_min || 23);
   const totalRemb = Math.round(netAmount * (1 + retour / 100));
@@ -491,9 +494,9 @@ export default function NewProjectPage() {
                 <div>
                   <label className={labelClass}>Taux de retour promis (%) *</label>
                   <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange}
-                    min={fees?.return_min || 23} max="100" placeholder={String(fees?.return_min || 23)} className={inputClass}
-                    onBlur={e => { if (Number(e.target.value) < (fees?.return_min || 23)) setForm(f => ({ ...f, expectedReturn: String(fees?.return_min || 23) })); }} />
-                  <div className="text-xs text-gray-400 mt-1">Minimum {fees?.return_min || 23}%. Taux promis sur le montant net reçu. Un taux élevé attire plus d'investisseurs.</div>
+                    min={fees?.return_min || 24} max="100" placeholder={String(fees?.return_min || 24)} className={inputClass}
+                    onBlur={e => { if (Number(e.target.value) < (fees?.return_min || 24)) setForm(f => ({ ...f, expectedReturn: String(fees?.return_min || 24) })); }} />
+                  <div className="text-xs text-gray-400 mt-1">Minimum {fees?.return_min || 24}%. Taux promis sur le montant net reçu. Un taux élevé attire plus d'investisseurs.</div>
                 </div>
                 <div>
                   <label className={labelClass}>Niveau de risque</label>
@@ -567,8 +570,8 @@ export default function NewProjectPage() {
                     <span className="font-bold text-gray-900">{fmt(netAmount)} FCFA</span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-500">
-                    <span>BAOBAB {baobabPct}% + Assurance {assurancePct}%{hasMentor ? ` + Mentor ${mentorPct}%` : ""}</span>
-                    <span>prélevés sur collecte</span>
+                    <span>BAOBAB {baobabPct}% + Payin {payinPct}%{hasMentor ? ` + Mentor ${mentorPct}%` : ""} — prélevés sur collecte</span>
+                    <span className="text-xs text-gray-400">Assurance +{assurancePct}% optionnelle (à la charge de l'investisseur)</span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-green-700 border-t border-gray-100 pt-2">
                     <span>Objectif affiché aux investisseurs</span>
@@ -621,7 +624,7 @@ export default function NewProjectPage() {
             <div className="flex gap-3">
               <button onClick={() => { setError(""); setStep(2); }} className="flex-1 border border-gray-200 text-gray-600 font-bold py-3 rounded-2xl hover:bg-gray-50">← Retour</button>
               <button onClick={() => {
-                const minReturn = fees?.return_min || 23;
+                const minReturn = fees?.return_min || 24;
                 if (!form.goalAmount || Number(form.goalAmount) < 100000) { setError("Montant minimum : 100 000 FCFA"); return; }
                 if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) { setError(`Taux minimum : ${minReturn}%`); return; }
                 setError(""); setStep(4);
