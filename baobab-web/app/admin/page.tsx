@@ -750,20 +750,18 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
           <div className="font-semibold text-gray-700">✅ Projets éligibles — collecte terminée (FUNDED)</div>
           {fundedProjects.map((p: any) => {
             const det = details[p.id];
-            // MODÈLE VALIDÉ : retour basé sur netAmount (besoin net entrepreneur)
-            // netAmount = goalAmount * (1 - BAOBAB% - payin% - mentor%)
-            const fraisFixesPct = (fees.commission_baobab_collection || 6)
-              + (fees.payin_recovery || 4)
-              + (p.mentor ? (fees.commission_mentor || 2) : 0);
-            const netAmount = Math.round((p.goalAmount || p.raisedAmount || 0) * (1 - fraisFixesPct / 100));
+            // MODÈLE VALIDÉ — utiliser netAmount de la DB directement
+            const netAmount = p.netAmount || Math.round((p.goalAmount || 0) * 0.90);
             const payinRepayment = fees.payin_repayment || 4;
-            const grossReturn = Math.round(netAmount * (1 + (p.expectedReturn || 24) / 100));
+            const returnRate = p.expectedReturn || 24;
+            // Retour calculé sur netAmount (besoin net entrepreneur)
+            const grossReturn = Math.round(netAmount * (1 + returnRate / 100));
             const payinOnReturn = Math.round(grossReturn * payinRepayment / 100);
             const netInvestors = grossReturn - payinOnReturn;
-            const baobabOnReturn = payinOnReturn;
-            const paydunyaPayout = 0;
+            // Revenu BAOBAB = commission collecte déjà encaissée + payin mensualités
             const revenueBAOBAB = Math.round((p.raisedAmount || 0) * (fees.commission_baobab_collection || 6) / 100) + payinOnReturn;
-            const garantie = Math.round((p.raisedAmount || 0) * (fees.commission_guarantee || 2) / 100);
+            // Assurance = hors cagnotte — montant réel des guaranteeContribution
+            const garantie = p.investments?.reduce((s: number, i: any) => s + (i.guaranteeContribution || 0), 0) || 0;
 
             return (
               <div key={p.id} className="bg-white rounded-2xl border border-green-200 shadow-sm overflow-hidden">
@@ -869,7 +867,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                       </div>
                       <button onClick={() => reimburse(p.id)} disabled={processing === p.id}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 transition-colors">
-                        {processing === p.id ? "⏳ Creation en cours..." : `📅 Creer l echeancier — ${(p.monthlyAmount || Math.ceil(netInvestors / (p.durationMonths || 12))).toLocaleString()} FCFA/mois x ${p.durationMonths || 12} mois`}
+                        {processing === p.id ? "⏳ Creation en cours..." : `📅 Créer l'échéancier — ${Math.ceil(grossReturn / (p.durationMonths || 12)).toLocaleString()} FCFA/mois × ${p.durationMonths || 12} mois (entrepreneur)`}
                       </button>
                     </div>
                   </div>
@@ -1493,7 +1491,7 @@ function FinancesTab({ authGet }: any) {
                       <div className="bg-white rounded-xl p-3 border border-green-100">
                         <div className="text-gray-400">Cagnotte nette entrepreneur</div>
                         <div className="font-bold text-green-700">{p.cagnotteNette.toLocaleString()} FCFA</div>
-                        <div className="text-gray-400 mt-1">Après -BAOBAB {p.baobabOnCollection.toLocaleString()} -mentor {p.mentorFee.toLocaleString()} -garantie {p.guaranteeFee.toLocaleString()}</div>
+                        <div className="text-gray-400 mt-1">Après -BAOBAB {p.baobabOnCollection.toLocaleString()} -payin {p.paydunyaPayin.toLocaleString()}{p.mentorFee > 0 ? ` -mentor ${p.mentorFee.toLocaleString()}` : ""} | Assurance {p.guaranteeFee.toLocaleString()} FCFA hors cagnotte</div>
                       </div>
                       <div className="bg-white rounded-xl p-3 border border-orange-100">
                         <div className="text-gray-400">Retour projeté investisseurs (net)</div>

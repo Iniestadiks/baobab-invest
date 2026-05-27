@@ -454,85 +454,93 @@ router.post('/check-inactive-projects', authenticate, requireAdmin, async (req: 
 // Rembourser les investisseurs d'un projet terminé
 router.post('/projects/:projectId/reimburse', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const { note } = req.body
     const project = await prisma.project.findUnique({
       where: { id: req.params.projectId },
       include: { investments: { include: { user: { include: { wallet: true } } } } }
     })
-
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
-    if (project.status === 'COMPLETED') { res.status(400).json({ success: false, message: 'Projet déjà remboursé' }); return }
-
-    let totalReimbursed = 0
-    const results = []
-
-    for (const inv of project.investments) {
-      if (!inv.user.wallet) continue
-      const commission = inv.expectedReturn * 0.04
-      const mentorCommission = inv.expectedReturn * 0.01
-      const netReturn = inv.expectedReturn - commission - mentorCommission
-      const totalReceived = inv.amount + netReturn
-
-      await prisma.$transaction([
-        prisma.wallet.update({
-          where: { userId: inv.userId },
-          data: {
-            balance: { increment: totalReceived },
-            escrowBalance: { decrement: inv.amount },
-            totalEarned: { increment: netReturn },
-          }
-        }),
-        prisma.investment.update({
-          where: { id: inv.id },
-          data: { status: 'COMPLETED', returnedAmount: totalReceived }
-        }),
-        prisma.transaction.create({
-          data: {
-            userId: inv.userId,
-            type: 'RETURN',
-            amount: totalReceived,
-            status: 'COMPLETED',
-            description: `Remboursement projet "${project.title}" — Capital + retour net`,
-          }
-        }),
-        prisma.notification.create({
-          data: {
-            userId: inv.userId,
-            title: '🎉 Remboursement reçu !',
-            body: `Tu as reçu ${totalReceived.toLocaleString()} FCFA du projet "${project.title}" (capital + retour net après commissions).`,
-            type: 'REIMBURSEMENT',
-            data: { projectId: project.id }
-          }
-        }),
-      ])
-
-      totalReimbursed += totalReceived
-      results.push({ investor: `${inv.user.firstName} ${inv.user.lastName}`, received: totalReceived })
+    if (!['FUNDED', 'ACTIVE'].includes(project.status)) {
+      res.status(400).json({ success: false, message: 'Projet non éligible' }); return
     }
+    const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } })
+    if (existing) { res.status(400).json({ success: false, message: 'Échéancier déjà créé' }); return }
 
-    // Si mentor, lui verser sa commission
-    if (project.mentorId) {
-      const totalMentorCommission = project.investments.reduce((s, i) => s + (i.expectedReturn * 0.01), 0)
-      const mentorWallet = await prisma.wallet.findUnique({ where: { userId: project.mentorId } })
-      if (mentorWallet) {
-        await prisma.wallet.update({
-          where: { userId: project.mentorId },
-          data: { balance: { increment: totalMentorCommission } }
-        })
-        await prisma.notification.create({
-          data: {
-            userId: project.mentorId,
-            title: '💰 Commission mentor reçue !',
-            body: `Tu as reçu ${totalMentorCommission.toLocaleString()} FCFA de commission (1%) pour ton parrainage de "${project.title}".`,
-            type: 'MENTOR_COMMISSION',
-          }
-        })
+    const fees = await prisma.platformConfig.findMany()
+    const feeMap: any = {}
+    fees.forEach((f: any) => { feeMap[f.key] = f.value })
+    const payinRepayPct = feeMap.payin_repayment || 4
+    const gracePeriod = project.gracePeriodMonths || 0
+    const netAmount = project.netAmount || Math.round((project.goalAmount || 0) * 0.90)
+    const returnRate = project.expectedReturn || 24
+    const totalGross = Math.round(netAmount * (1 + returnRate / 100))
+    const totalPayin = Math.round(totalGross * payinRepayPct / 100)
+    const totalNet = totalGross - totalPayin
+    const durationMonths = project.durationMonths || 12
+    const monthlyGross = Math.ceil(totalGross / durationMonths)
+    const monthlyNet = Math.floor(totalNet / durationMonths)
+
+    const startDate = new Date()
+    startDate.setMonth(startDate.getMonth() + gracePeriod)
+
+    const schedule = await prisma.repaymentSchedule.create({
+      data: {
+        projectId: project.id,
+        totalAmount: totalGross,
+        remainingAmount: totalGross,
+        monthlyAmount: monthlyGross,
+        totalMonths: durationMonths,
+        paidMonths: 0,
+        status: 'ACTIVE',
+        nextDueDate: startDate,
+        adminNote: note || null,
       }
+    })
+
+    for (let month = 1; month <= durationMonths; month++) {
+      const dueDate = new Date()
+      dueDate.setMonth(dueDate.getMonth() + gracePeriod + month - 1)
+      await prisma.repaymentPayment.create({
+        data: {
+          scheduleId: schedule.id,
+          projectId: project.id,
+          monthNumber: month,
+          amount: month === durationMonths ? totalGross - monthlyGross * (durationMonths - 1) : monthlyGross,
+          dueDate,
+          status: 'PENDING',
+        }
+      })
     }
 
-    await prisma.project.update({ where: { id: req.params.projectId }, data: { status: 'COMPLETED' } })
+    await prisma.project.update({ where: { id: project.id }, data: { status: 'IN_PROGRESS' } })
 
-    successResponse(res, { totalReimbursed, investorsReimbursed: results.length, details: results },
-      `✅ ${results.length} investisseur(s) remboursé(s) — ${totalReimbursed.toLocaleString()} FCFA distribués`)
+    await prisma.notification.create({
+      data: {
+        userId: project.entrepreneurId,
+        title: 'Écheancier de remboursement créé',
+        body: `Votre projet "${project.title}" — première mensualité : ${monthlyGross.toLocaleString()} FCFA le ${startDate.toLocaleDateString('fr-FR')}.`,
+        type: 'SCHEDULE_CREATED',
+        data: JSON.stringify({ projectId: project.id, scheduleId: schedule.id })
+      }
+    })
+
+    const investorIds = [...new Set(project.investments.map((i: any) => i.userId))]
+    if (investorIds.length > 0) {
+      await prisma.notification.createMany({
+        data: investorIds.map((userId: any) => ({
+          userId,
+          title: 'Remboursement planifié',
+          body: `L'entrepreneur rembourse "${project.title}" — ${durationMonths} mensualités de ${monthlyGross.toLocaleString()} FCFA.`,
+          type: 'SCHEDULE_CREATED',
+          data: JSON.stringify({ projectId: project.id })
+        }))
+      })
+    }
+
+    successResponse(res, {
+      scheduleId: schedule.id,
+      totalGross, totalNet, monthlyGross, monthlyNet, durationMonths, gracePeriod, startDate
+    }, `Échéancier créé — ${monthlyGross.toLocaleString()} FCFA/mois × ${durationMonths} mois`)
   } catch (e) {
     console.error(e)
     errorResponse(res)
