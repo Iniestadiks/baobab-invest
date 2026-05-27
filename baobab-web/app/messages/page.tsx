@@ -31,6 +31,7 @@ export default function MessagesPage() {
   const [newMsg, setNewMsg] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [suggestedContacts, setSuggestedContacts] = useState<any[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -65,7 +66,30 @@ export default function MessagesPage() {
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!token) { router.push("/auth/login"); return; }
-    authGet("/api/auth/me").then(d => { if (d.success) setMe(d.data); });
+    authGet("/api/auth/me").then(d => {
+      if (d.success) {
+        setMe(d.data);
+        // Charger contacts liés selon le rôle
+        if (d.data.role === 'INVESTOR') {
+          authGet("/api/investments/my").then(inv => {
+            if (inv.success) {
+              const contacts: any[] = []
+              ;(inv.data.investments || []).forEach((i: any) => {
+                if (i.project?.entrepreneur) {
+                  contacts.push({ ...i.project.entrepreneur, projectId: i.projectId, projectTitle: i.project.title, role: 'ENTREPRENEUR' })
+                }
+                if (i.project?.mentor) {
+                  contacts.push({ ...i.project.mentor, projectId: i.projectId, projectTitle: i.project.title, role: 'MENTOR' })
+                }
+              })
+              // Dédupliquer
+              const seen = new Set()
+              setSuggestedContacts(contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; }))
+            }
+          })
+        }
+      }
+    });
     loadConversations().finally(() => setLoading(false));
   }, [router, loadConversations]);
 
@@ -183,12 +207,30 @@ export default function MessagesPage() {
               </div>
               <div className="flex-1 overflow-y-auto">
                 {conversations.length === 0 ? (
-                  <div className="p-6 text-center text-gray-400">
-                    <div className="text-3xl mb-2">💬</div>
-                    <p className="text-sm font-medium">Aucune conversation</p>
-                    <p className="text-xs mt-1 leading-relaxed">
-                      Va sur une fiche projet et clique "Contacter" pour démarrer
-                    </p>
+                  <div className="p-4">
+                    {suggestedContacts.length > 0 ? (
+                      <div>
+                        <p className="text-xs text-gray-400 font-medium mb-3">📋 Contacts de vos projets</p>
+                        {suggestedContacts.map((c: any) => (
+                          <div key={c.id} onClick={() => openConversation(c.id, c.projectId)}
+                            className="flex items-center gap-3 p-3 rounded-xl hover:bg-green-50 cursor-pointer mb-2 border border-gray-100">
+                            <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-sm font-bold text-green-700 flex-shrink-0">
+                              {c.firstName?.[0]}{c.lastName?.[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 text-sm truncate">{c.firstName} {c.lastName}</div>
+                              <div className="text-xs text-gray-400 truncate">{c.role === 'MENTOR' ? '🎓 Mentor' : '🚀 Entrepreneur'} · {c.projectTitle?.substring(0,20)}...</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-400 pt-4">
+                        <div className="text-3xl mb-2">💬</div>
+                        <p className="text-sm font-medium">Aucune conversation</p>
+                        <p className="text-xs mt-1">Va sur une fiche projet et clique "Contacter"</p>
+                      </div>
+                    )}
                   </div>
                 ) : conversations.map((conv: any) => (
                   <div key={conv.contact.id}
