@@ -70,19 +70,45 @@ export default function MessagesPage() {
       if (d.success) {
         setMe(d.data);
         // Charger contacts liés selon le rôle
-        if (d.data.role === 'INVESTOR') {
+        const role = d.data.role
+        if (role === 'INVESTOR') {
           authGet("/api/investments/my").then(inv => {
             if (inv.success) {
               const contacts: any[] = []
               ;(inv.data.investments || []).forEach((i: any) => {
-                if (i.project?.entrepreneur) {
-                  contacts.push({ ...i.project.entrepreneur, projectId: i.projectId, projectTitle: i.project.title, role: 'ENTREPRENEUR' })
-                }
-                if (i.project?.mentor) {
-                  contacts.push({ ...i.project.mentor, projectId: i.projectId, projectTitle: i.project.title, role: 'MENTOR' })
-                }
+                if (i.project?.entrepreneur) contacts.push({ ...i.project.entrepreneur, projectId: i.projectId, projectTitle: i.project.title, role: 'ENTREPRENEUR' })
+                if (i.project?.mentor) contacts.push({ ...i.project.mentor, projectId: i.projectId, projectTitle: i.project.title, role: 'MENTOR' })
               })
-              // Dédupliquer
+              const seen = new Set()
+              setSuggestedContacts(contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; }))
+            }
+          })
+        } else if (role === 'ENTREPRENEUR') {
+          // Entrepreneur → ses investisseurs + son mentor
+          authGet("/api/projects/my/projects").then(proj => {
+            if (proj.success) {
+              const contacts: any[] = []
+              ;(proj.data || []).forEach((p: any) => {
+                if (p.mentor) contacts.push({ ...p.mentor, projectId: p.id, projectTitle: p.title, role: 'MENTOR' })
+                ;(p.investments || []).forEach((inv: any) => {
+                  if (inv.user) contacts.push({ ...inv.user, projectId: p.id, projectTitle: p.title, role: 'INVESTOR' })
+                })
+              })
+              const seen = new Set()
+              setSuggestedContacts(contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; }))
+            }
+          })
+        } else if (role === 'MENTOR') {
+          // Mentor → entrepreneurs + investisseurs de ses projets
+          authGet("/api/projects/mentor/my-projects").then(proj => {
+            if (proj.success) {
+              const contacts: any[] = []
+              ;(proj.data || []).forEach((p: any) => {
+                if (p.entrepreneur) contacts.push({ ...p.entrepreneur, projectId: p.id, projectTitle: p.title, role: 'ENTREPRENEUR' })
+                ;(p.investments || []).forEach((inv: any) => {
+                  if (inv.user) contacts.push({ ...inv.user, projectId: p.id, projectTitle: p.title, role: 'INVESTOR' })
+                })
+              })
               const seen = new Set()
               setSuggestedContacts(contacts.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true; }))
             }

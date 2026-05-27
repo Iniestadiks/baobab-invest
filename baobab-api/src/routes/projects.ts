@@ -293,6 +293,13 @@ router.get('/my/projects', authenticate, async (req: AuthRequest, res: Response)
       where: { entrepreneurId: req.userId },
       include: {
         milestones: true,
+        mentor: { select: { id: true, firstName: true, lastName: true, profileImageUrl: true } },
+        investments: {
+          select: {
+            id: true, amount: true, expectedReturn: true, status: true,
+            user: { select: { id: true, firstName: true, lastName: true, profileImageUrl: true } }
+          }
+        },
         _count: { select: { investments: true, posts: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -652,8 +659,8 @@ router.get('/mentor/my-projects', authenticate, requireRole(['MENTOR']), async (
     const projects = await prisma.project.findMany({
       where: { mentorId: req.userId },
       include: {
-        entrepreneur: { select: { firstName: true, lastName: true, city: true, reputationScore: true } },
-        investments: { select: { amount: true, expectedReturn: true } },
+        entrepreneur: { select: { id: true, firstName: true, lastName: true, city: true, reputationScore: true, profileImageUrl: true } },
+        investments: { select: { amount: true, expectedReturn: true, user: { select: { id: true, firstName: true, lastName: true, profileImageUrl: true } } } },
         milestones: { select: { status: true, amount: true } },
         _count: { select: { investments: true } }
       },
