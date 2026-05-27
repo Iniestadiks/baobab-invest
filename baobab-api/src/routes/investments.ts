@@ -13,7 +13,13 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response): Promise
   try {
     const investments = await prisma.investment.findMany({
       where: { userId: req.userId },
-      include: { project: { select: { title: true, sector: true, status: true, expectedReturn: true, id: true } } },
+      include: { project: { select: {
+        title: true, sector: true, status: true, expectedReturn: true, id: true,
+        goalAmount: true, raisedAmount: true, netAmount: true, durationMonths: true,
+        entrepreneurId: true,
+        entrepreneur: { select: { id: true, firstName: true, lastName: true, profileImageUrl: true } },
+        mentor: { select: { id: true, firstName: true, lastName: true } }
+      } } },
       orderBy: { createdAt: 'desc' }
     })
     const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
