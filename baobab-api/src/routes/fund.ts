@@ -275,50 +275,31 @@ router.post('/admin/confirm/:id', authenticate, requireAdmin, async (req: AuthRe
 // ─── ADMIN — ALLOUER FONDS À UN PROJET ──────────────────────────────────────
 router.post('/admin/allocate', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { projectId, amount, note } = req.body
+    const { projectId, amount, note, justification } = req.body
     if (!projectId || !amount) { errorResponse(res, 'Projet et montant requis', 400); return }
-
-    // Vérifier fonds disponible
-    const contributions = await prisma.fundContribution.aggregate({
-      where: { status: 'COMPLETED' }, _sum: { netAmount: true }
-    })
+    if (!justification) { errorResponse(res, 'Justification obligatoire pour toute allocation du Fonds Solidaire', 400); return }
+    const contributions = await prisma.fundContribution.aggregate({ where: { status: 'COMPLETED' }, _sum: { netAmount: true } })
     const allocations = await prisma.fundAllocation.aggregate({ _sum: { amount: true } })
     const available = (contributions._sum.netAmount || 0) - (allocations._sum.amount || 0)
-
     if (amount > available) { errorResponse(res, `Fonds insuffisant. Disponible: ${Math.round(available).toLocaleString()} FCFA`, 400); return }
-
-    const allocation = await prisma.fundAllocation.create({
-      data: { projectId, amount, adminId: req.userId!, note }
-    })
-
-    // Créditer wallet entrepreneur
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: { entrepreneur: true }
-    })
-    if (project) {
-      await prisma.wallet.update({
-        where: { userId: project.entrepreneurId },
-        data: { balance: { increment: amount } }
+    const project = await prisma.project.findUnique({ where: { id: projectId }, include: { entrepreneur: true } })
+    if (!project) { errorResponse(res, 'Projet introuvable', 404); return }
+    await prisma.$transaction(async (tx) => {
+      await tx.fundAllocation.create({ data: { projectId, amount, adminId: req.userId!, note: `${justification}${note ? ' | ' + note : ''}` } })
+      await tx.wallet.update({ where: { userId: project.entrepreneurId }, data: { balance: { increment: amount }, depositBalance: { increment: amount } } })
+      await tx.walletTransaction.create({
+        data: { userId: project.entrepreneurId, type: 'FUND_ALLOCATION', amount, status: 'COMPLETED', description: `Fonds Solidaire BAOBAB — ${project.title} | ${justification}`, operator: 'FONDS_SOLIDAIRE' }
       })
-      await prisma.notification.create({
-        data: {
-          userId: project.entrepreneurId,
-          title: '🎉 Fonds Solidaire — Financement reçu !',
-          body: `Votre projet "${project.title}" vient de recevoir ${amount.toLocaleString()} FCFA du Fonds Solidaire BAOBAB INVEST.`,
-          type: 'FUND_ALLOCATION',
-          data: JSON.stringify({ projectId, amount })
-        }
+      await tx.notification.create({
+        data: { userId: project.entrepreneurId, title: '🌱 Fonds Solidaire — Financement reçu !', body: `Votre projet "${project.title}" a reçu ${amount.toLocaleString()} FCFA du Fonds Solidaire. Justification : ${justification}`, type: 'FUND_ALLOCATION', data: JSON.stringify({ projectId, amount, justification }) }
       })
-    }
-
-    await prisma.solidaryFund.update({
-      where: { id: FUND_ID },
-      data: { totalAllocated: { increment: amount }, totalProjects: { increment: 1 } }
+      try {
+        await tx.solidaryFund.update({ where: { id: FUND_ID }, data: { totalAllocated: { increment: amount }, totalProjects: { increment: 1 } } })
+      } catch {}
     })
-
-    successResponse(res, allocation, 'Fonds alloués avec succès')
+    successResponse(res, { projectId, amount, justification }, `✅ ${amount.toLocaleString()} FCFA alloués à "${project.title}"`)
   } catch (e) { console.error(e); errorResponse(res) }
+})
 })
 
 // ─── ADMIN — LISTE CONTRIBUTIONS (avec filtres) ──────────────────────────────

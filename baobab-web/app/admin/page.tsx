@@ -3464,15 +3464,31 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Note (optionnel)</label>
-                <input type="text" value={allocForm.note}
-                  onChange={e => setAllocForm(f => ({ ...f, note: e.target.value }))}
-                  placeholder="Raison de l'allocation..."
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Justification * <span className="text-red-500">(obligatoire)</span></label>
+                <input type="text" value={(allocForm as any).justification || ""}
+                  onChange={e => setAllocForm(f => ({ ...f, justification: e.target.value } as any))}
+                  placeholder="Ex: Projet à fort impact social, soutien jeune entrepreneur 1ère génération..."
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
               </div>
-              <button onClick={allocate} disabled={processing || !allocForm.projectId || !allocForm.amount}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Note complémentaire (optionnel)</label>
+                <input type="text" value={allocForm.note}
+                  onChange={e => setAllocForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="Informations supplémentaires..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-800">
+                ⚠️ <strong>Rappel :</strong> Ces fonds proviennent des Bâtisseurs BAOBAB et sont destinés aux jeunes entrepreneurs. Toute allocation est publique et visible par la communauté.
+              </div>
+              <button onClick={() => {
+                if (!(allocForm as any).justification) { alert("La justification est obligatoire"); return; }
+                if (!confirm(`Confirmer l'allocation de ${Number(allocForm.amount).toLocaleString()} FCFA au projet sélectionné ?
+
+Justification : ${(allocForm as any).justification}`)) return;
+                allocate();
+              }} disabled={processing || !allocForm.projectId || !allocForm.amount}
                 className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 disabled:opacity-50">
-                {processing ? "Traitement..." : "🚀 Allouer les fonds"}
+                {processing ? "Traitement..." : "🌱 Allouer les fonds du Fonds Solidaire"}
               </button>
             </div>
           </div>
