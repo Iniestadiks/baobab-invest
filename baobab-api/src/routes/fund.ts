@@ -300,7 +300,6 @@ router.post('/admin/allocate', authenticate, requireAdmin, async (req: AuthReque
     successResponse(res, { projectId, amount, justification }, `✅ ${amount.toLocaleString()} FCFA alloués à "${project.title}"`)
   } catch (e) { console.error(e); errorResponse(res) }
 })
-})
 
 // ─── ADMIN — LISTE CONTRIBUTIONS (avec filtres) ──────────────────────────────
 router.get('/admin/contributions', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
