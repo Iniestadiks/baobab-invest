@@ -1249,6 +1249,162 @@ function StatsTab({ authGet }: any) {
   );
 }
 
+
+function ProjectsList({ projects, flash, authPost, loadData }: any) {
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("");
+  const [sectorFilter, setSectorFilter] = React.useState("");
+  const [expanded, setExpanded] = React.useState<string|null>(null);
+
+  const filtered = projects.filter((p: any) => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || p.title?.toLowerCase().includes(q) ||
+      (p.entrepreneur?.firstName + " " + p.entrepreneur?.lastName).toLowerCase().includes(q);
+    const matchStatus = !statusFilter || p.status === statusFilter;
+    const matchSector = !sectorFilter || p.sector === sectorFilter;
+    return matchSearch && matchStatus && matchSector;
+  });
+
+  const sectors = [...new Set(projects.map((p: any) => p.sector))].filter(Boolean);
+
+  return (
+    <div className="space-y-3">
+      {/* Filtres */}
+      <div className="flex gap-2 flex-wrap">
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="🔍 Rechercher titre, entrepreneur..."
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:border-green-400" />
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="text-xs border border-gray-200 rounded-xl px-3 py-2 bg-white">
+          <option value="">Tous statuts</option>
+          {["ACTIVE","FUNDED","IN_PROGRESS","COMPLETED","CANCELLED"].map(s =>
+            <option key={s} value={s}>{s} ({projects.filter((p:any)=>p.status===s).length})</option>
+          )}
+        </select>
+        <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)}
+          className="text-xs border border-gray-200 rounded-xl px-3 py-2 bg-white">
+          <option value="">Tous secteurs</option>
+          {sectors.map((s: any) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span className="text-xs text-gray-400 self-center">{filtered.length} projet(s)</span>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+          <div className="text-5xl mb-3">📭</div>
+          <p className="text-gray-400">Aucun projet trouvé</p>
+        </div>
+      )}
+
+      {filtered.map((p: any) => {
+        const pct = p.goalAmount > 0 ? Math.min(Math.round((p.raisedAmount/p.goalAmount)*100), 100) : 0;
+        const isExpanded = expanded === p.id;
+        const statusColors: any = {
+          ACTIVE: "bg-blue-100 text-blue-700",
+          FUNDED: "bg-purple-100 text-purple-700",
+          IN_PROGRESS: "bg-orange-100 text-orange-700",
+          COMPLETED: "bg-green-100 text-green-700",
+          CANCELLED: "bg-red-100 text-red-700",
+        };
+        return (
+          <div key={p.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            {/* En-tête projet */}
+            <div className="p-4 cursor-pointer" onClick={() => setExpanded(isExpanded ? null : p.id)}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusColors[p.status]||"bg-gray-100 text-gray-600"}`}>{p.status}</span>
+                    <span className="text-xs text-gray-400">{p.sector} · {p.city}</span>
+                    {p.currentPalier > 0 && <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">P{p.currentPalier} débloqué</span>}
+                  </div>
+                  <div className="font-bold text-gray-900">{p.title}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Par {p.entrepreneur?.firstName} {p.entrepreneur?.lastName}
+                    {p.mentor && <span className="ml-2 text-purple-600">· Mentor: {p.mentor?.firstName}</span>}
+                  </div>
+                  <div className="mt-2 bg-gray-100 rounded-full h-1.5 w-full">
+                    <div className="bg-green-500 h-1.5 rounded-full" style={{width: pct+"%"}} />
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {p.raisedAmount?.toLocaleString()} / {p.goalAmount?.toLocaleString()} FCFA ({pct}%)
+                    {p.netAmount && <span className="ml-2">· Net: {p.netAmount?.toLocaleString()} FCFA</span>}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-bold text-green-700">+{p.expectedReturn}%</div>
+                  <div className="text-xs text-gray-400">{p.durationMonths} mois</div>
+                  <div className="text-xs text-gray-400 mt-1">{p.investments?.length || p._count?.investments || 0} inv.</div>
+                  <div className="text-xs mt-1">{isExpanded ? "▲" : "▼"}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Détail expandé */}
+            {isExpanded && (
+              <div className="border-t border-gray-100 p-4 space-y-3 bg-gray-50">
+                {/* Paliers */}
+                {p.netAmount > 0 && (
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {[
+                      { n: 1, label: "40%", amount: Math.round(p.netAmount*0.40), done: p.currentPalier >= 1 },
+                      { n: 2, label: "35%", amount: Math.round(p.netAmount*0.35), done: p.currentPalier >= 2 },
+                      { n: 3, label: "25%", amount: Math.round(p.netAmount*0.25), done: p.currentPalier >= 3 },
+                    ].map(pl => (
+                      <div key={pl.n} className={`rounded-xl p-2 text-center ${pl.done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
+                        <div className="font-bold">{pl.done ? "✅" : "🔒"} P{pl.n} {pl.label}</div>
+                        <div>{pl.amount?.toLocaleString()} FCFA</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Investisseurs */}
+                {p.investments?.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-700 mb-1">👥 Investisseurs</div>
+                    {p.investments.map((inv: any) => (
+                      <div key={inv.id} className="flex justify-between text-xs py-1 border-b border-gray-100">
+                        <span>{inv.user?.firstName} {inv.user?.lastName}</span>
+                        <span className="font-medium text-blue-700">{inv.amount?.toLocaleString()} FCFA</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2 flex-wrap">
+                  <Link href={`/projects/${p.id}`} target="_blank"
+                    className="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-xl hover:bg-blue-100">
+                    🔍 Voir projet
+                  </Link>
+                  {p.earlyCloseRequested && (
+                    <button onClick={async () => {
+                      const res = await authPost(`/api/projects/${p.id}/approve-early-close`, {});
+                      if (res.success) { flash("✅ Clôture approuvée"); loadData(); }
+                      else flash("❌ " + res.message);
+                    }} className="text-xs bg-orange-600 text-white px-3 py-1.5 rounded-xl hover:bg-orange-700 font-bold">
+                      ✅ Approuver clôture anticipée
+                    </button>
+                  )}
+                  {p.extensionRequested && (
+                    <button onClick={async () => {
+                      const res = await authPost(`/api/projects/${p.id}/approve-extension`, {});
+                      if (res.success) { flash("✅ Prolongation approuvée"); loadData(); }
+                      else flash("❌ " + res.message);
+                    }} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-xl hover:bg-blue-700 font-bold">
+                      ✅ Approuver prolongation
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function TxList({ revenues }: { revenues: any[] }) {
   const [showAll, setShowAll] = React.useState(false);
   // Filtrer les lignes à 0 FCFA (Commission retour 0%)
@@ -2806,7 +2962,36 @@ export default function AdminPage() {
         {/* STATISTIQUES */}
         {tab === "active_projects" && (
           <div className="space-y-5">
-            <h2 className="text-xl font-bold text-gray-900">🚀 Projets actifs & financés ({allProjects.filter((p:any) => ["ACTIVE","FUNDED","IN_PROGRESS"].includes(p.status)).length})</h2>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h2 className="text-xl font-bold text-gray-900">🚀 Tous les projets ({allProjects.length})</h2>
+              <div className="flex gap-2 text-xs flex-wrap">
+                {["ACTIVE","FUNDED","IN_PROGRESS","COMPLETED","CANCELLED"].map(s => (
+                  <span key={s} className={`px-2 py-1 rounded-lg font-medium cursor-pointer ${STATUS_COLORS[s]||"bg-gray-100 text-gray-600"}`}>
+                    {s}: {allProjects.filter((p:any)=>p.status===s).length}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {/* Filtres */}
+            <div className="flex gap-2 flex-wrap">
+              <input id="proj-search" placeholder="🔍 Rechercher titre, entrepreneur..."
+                className="input-field text-sm flex-1 min-w-48"
+                onChange={e => { const el = document.getElementById('proj-search') as HTMLInputElement; el.dataset.val = e.target.value; }}
+              />
+              <select id="proj-status" className="text-xs border border-gray-200 rounded-xl px-3 py-2 bg-white">
+                <option value="">Tous statuts</option>
+                {["ACTIVE","FUNDED","IN_PROGRESS","COMPLETED","CANCELLED"].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select id="proj-sector" className="text-xs border border-gray-200 rounded-xl px-3 py-2 bg-white">
+                <option value="">Tous secteurs</option>
+                {[...new Set(allProjects.map((p:any)=>p.sector))].map((s:any) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <ProjectsList projects={allProjects} flash={flash} authPost={authPost} loadData={loadData} />
+          </div>
+        )}
+        {false && (
+          <div>
             {allProjects.filter((p:any) => ["ACTIVE","FUNDED","IN_PROGRESS"].includes(p.status)).length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <div className="text-5xl mb-3">📭</div>
