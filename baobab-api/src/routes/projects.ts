@@ -72,11 +72,12 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         where, orderBy, skip, take: Number(limit),
         select: {
           id: true, title: true, description: true, sector: true, subSector: true,
-          city: true, country: true, goalAmount: true, raisedAmount: true,
+          city: true, country: true, goalAmount: true, raisedAmount: true, netAmount: true,
           minimumInvestment: true, expectedReturn: true, durationMonths: true,
           status: true, riskLevel: true, coverImageUrl: true, pitchVideoUrl: true,
           investorCount: true, campaignEndsAt: true, bankabilityScore: true,
-          createdAt: true,
+          currentPalier: true, disbursedP1: true, disbursedP2: true, disbursedP3: true,
+          gracePeriodMonths: true, createdAt: true,
           entrepreneur: { select: { firstName: true, lastName: true, city: true, reputationScore: true } },
           mentor: { select: { firstName: true, lastName: true, reputationScore: true } },
           _count: { select: { investments: true, posts: true } }
