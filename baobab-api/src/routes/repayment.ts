@@ -321,6 +321,61 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
+// Admin — reporter une échéance
+router.patch('/admin/reschedule/:scheduleId', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { newDueDate, note, monthNumber } = req.body
+    if (!newDueDate) { res.status(400).json({ success: false, message: 'newDueDate requis' }); return }
+
+    const schedule = await prisma.repaymentSchedule.findUnique({
+      where: { id: req.params.scheduleId },
+      include: { project: { include: { investments: { select: { userId: true } }, entrepreneur: { select: { id: true } } } } }
+    })
+    if (!schedule) { res.status(404).json({ success: false, message: 'Échéancier introuvable' }); return }
+
+    // Mettre à jour la prochaine échéance
+    await prisma.repaymentSchedule.update({
+      where: { id: schedule.id },
+      data: { nextDueDate: new Date(newDueDate), adminNote: note || schedule.adminNote }
+    })
+
+    // Si monthNumber précisé, mettre à jour la mensualité spécifique
+    if (monthNumber) {
+      await prisma.repaymentPayment.updateMany({
+        where: { scheduleId: schedule.id, monthNumber: Number(monthNumber), status: 'PENDING' },
+        data: { dueDate: new Date(newDueDate) }
+      })
+    }
+
+    // Notifier entrepreneur
+    await prisma.notification.create({
+      data: {
+        userId: schedule.project.entrepreneurId,
+        title: '📅 Échéance reportée',
+        body: `Votre prochaine mensualité a été reportée au ${new Date(newDueDate).toLocaleDateString('fr-FR')}. ${note || ''}`,
+        type: 'SCHEDULE_UPDATED',
+        data: JSON.stringify({ scheduleId: schedule.id, newDueDate })
+      }
+    })
+
+    // Notifier investisseurs
+    const investorIds = [...new Set(schedule.project.investments.map(i => i.userId))]
+    if (investorIds.length > 0) {
+      await prisma.notification.createMany({
+        data: investorIds.map((userId: any) => ({
+          userId,
+          title: '📅 Échéance modifiée',
+          body: `Une mensualité du projet "${schedule.project.title}" a été reportée au ${new Date(newDueDate).toLocaleDateString('fr-FR')}.`,
+          type: 'SCHEDULE_UPDATED',
+          data: JSON.stringify({ projectId: schedule.projectId })
+        }))
+      })
+    }
+
+    successResponse(res, { scheduleId: schedule.id, newDueDate }, 'Échéance reportée avec succès')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
 export default router
 
 // Entrepreneur — rembourser plusieurs mensualités d'avance ou tout rembourser
