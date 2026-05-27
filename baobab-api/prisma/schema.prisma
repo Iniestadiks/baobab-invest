@@ -512,6 +512,7 @@ model RepaymentSchedule {
   remainingAmount Float
   nextDueDate     DateTime?
   status          String   @default("ACTIVE")
+  adminNote       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   project         Project  @relation(fields: [projectId], references: [id])
