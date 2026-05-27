@@ -758,6 +758,8 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
             const grossReturn = Math.round(netAmount * (1 + returnRate / 100));
             const payinOnReturn = Math.round(grossReturn * payinRepayment / 100);
             const netInvestors = grossReturn - payinOnReturn;
+            const baobabOnReturn = payinOnReturn;
+            const paydunyaPayout = 0;
             // Revenu BAOBAB = commission collecte déjà encaissée + payin mensualités
             const revenueBAOBAB = Math.round((p.raisedAmount || 0) * (fees.commission_baobab_collection || 6) / 100) + payinOnReturn;
             // Assurance = hors cagnotte — montant réel des guaranteeContribution
