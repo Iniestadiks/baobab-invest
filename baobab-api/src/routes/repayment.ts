@@ -194,10 +194,11 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
     }
 
     const fees = await getFees()
-    const fees2 = await getFees()
-    const payinRate = fees2.payin_repayment  // 4%
+    const payinRate = fees.payin_repayment || 4   // Payin mensualités 4%
+    const baobabRate = 0                           // 0% commission retour BAOBAB (modèle validé)
     const payinFee = Math.round(nextPayment.amount * payinRate / 100)
     const netToDistribute = nextPayment.amount - payinFee
+    // Distribution proportionnelle via sharePercent
     const goalAmount = schedule.project.goalAmount
 
     await prisma.$transaction(async (tx) => {
@@ -213,7 +214,8 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
       }
 
       for (const inv of schedule.project.investments) {
-        const proportion = goalAmount > 0 ? inv.amount / goalAmount : 0
+        // Utiliser sharePercent enregistré à l'investissement
+        const proportion = inv.sharePercent || (goalAmount > 0 ? inv.amount / goalAmount : 0)
         const investorShare = Math.round(netToDistribute * proportion)
         if (investorShare <= 0) continue
 
@@ -276,6 +278,13 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
       })
 
       if (newPaid >= schedule.totalMonths) {
+        // Libérer escrowBalance des investisseurs
+        for (const inv of schedule.project.investments) {
+          await tx.wallet.update({
+            where: { userId: inv.userId },
+            data: { escrowBalance: { decrement: inv.amount } }
+          })
+        }
         await tx.project.update({ where: { id: schedule.projectId }, data: { status: 'COMPLETED' } })
         await tx.notification.create({
           data: {
