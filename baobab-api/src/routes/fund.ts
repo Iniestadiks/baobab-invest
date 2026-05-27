@@ -6,6 +6,8 @@ const router = Router()
 const prisma = new PrismaClient()
 
 const FUND_ID = '00000000-0000-0000-0000-000000000001'
+const FUND_SYSTEM_USER_ID = 'baobab-fund-system-001' // Compte investisseur système Fonds Solidaire
+
 // Taux configurables — chargés depuis platformConfig
 const DEFAULT_FUND_FEE_RATE = 0.16    // 16% BAOBAB par défaut
 const DEFAULT_OPERATOR_FEE_RATE = 0.04 // 4% opérateur
@@ -284,15 +286,60 @@ router.post('/admin/allocate', authenticate, requireAdmin, async (req: AuthReque
     if (amount > available) { errorResponse(res, `Fonds insuffisant. Disponible: ${Math.round(available).toLocaleString()} FCFA`, 400); return }
     const project = await prisma.project.findUnique({ where: { id: projectId }, include: { entrepreneur: true } })
     if (!project) { errorResponse(res, 'Projet introuvable', 404); return }
+    // Calculer le sharePercent pour le Fonds Solidaire
+    const totalRaised = project.raisedAmount + amount
+    const sharePercent = amount / (project.goalAmount || totalRaised)
+    const expectedReturn = Math.round(amount * (1 + (project.expectedReturn || 24) / 100))
+
     await prisma.$transaction(async (tx) => {
+      // 1. Traçabilité allocation fonds
       await tx.fundAllocation.create({ data: { projectId, amount, adminId: req.userId!, note: `${justification}${note ? ' | ' + note : ''}` } })
-      await tx.wallet.update({ where: { userId: project.entrepreneurId }, data: { balance: { increment: amount }, depositBalance: { increment: amount } } })
+
+      // 2. Créer un vrai Investment au nom du Fonds Solidaire
+      await tx.investment.create({
+        data: {
+          userId: FUND_SYSTEM_USER_ID,
+          projectId,
+          amount,
+          expectedReturn,
+          sharePercent,
+          status: 'PENDING',
+          guaranteeContribution: 0,
+        }
+      })
+
+      // 3. Mettre à jour escrowBalance du compte Fonds Solidaire
+      await tx.wallet.update({
+        where: { userId: FUND_SYSTEM_USER_ID },
+        data: { escrowBalance: { increment: amount }, totalInvested: { increment: amount } }
+      })
+
+      // 4. Créditer wallet entrepreneur
+      await tx.wallet.update({
+        where: { userId: project.entrepreneurId },
+        data: { balance: { increment: amount }, depositBalance: { increment: amount } }
+      })
+
+      // 5. Mettre à jour raisedAmount du projet
+      await tx.project.update({
+        where: { id: projectId },
+        data: { raisedAmount: { increment: amount }, investorCount: { increment: 1 } }
+      })
+
+      // 6. Transaction traçable wallet entrepreneur
       await tx.walletTransaction.create({
-        data: { userId: project.entrepreneurId, type: 'FUND_ALLOCATION', amount, status: 'COMPLETED', description: `Fonds Solidaire BAOBAB — ${project.title} | ${justification}`, operator: 'FONDS_SOLIDAIRE' }
+        data: { userId: project.entrepreneurId, type: 'FUND_ALLOCATION', amount, status: 'COMPLETED',
+          description: `🌱 Fonds Solidaire BAOBAB — ${project.title} | ${justification}`, operator: 'FONDS_SOLIDAIRE' }
       })
+
+      // 7. Notifier entrepreneur
       await tx.notification.create({
-        data: { userId: project.entrepreneurId, title: '🌱 Fonds Solidaire — Financement reçu !', body: `Votre projet "${project.title}" a reçu ${amount.toLocaleString()} FCFA du Fonds Solidaire. Justification : ${justification}`, type: 'FUND_ALLOCATION', data: JSON.stringify({ projectId, amount, justification }) }
+        data: { userId: project.entrepreneurId, title: '🌱 Fonds Solidaire — Financement reçu !',
+          body: `Votre projet "${project.title}" a reçu ${amount.toLocaleString()} FCFA du Fonds Solidaire BAOBAB. Justification : ${justification}`,
+          type: 'FUND_ALLOCATION', data: JSON.stringify({ projectId, amount, justification }) }
       })
+
+      // 8. Mettre à jour solidaryFund
       try {
         await tx.solidaryFund.update({ where: { id: FUND_ID }, data: { totalAllocated: { increment: amount }, totalProjects: { increment: 1 } } })
       } catch {}
