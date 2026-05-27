@@ -149,8 +149,10 @@ export default function EntrepreneurDashboard() {
   const activeProjects = projects.filter(p => p.status === "ACTIVE");
   const inProgressProjects = projects.filter(p => ["FUNDED","IN_PROGRESS"].includes(p.status));
   const totalRaisedBrut = projects.reduce((s, p) => s + (p.raisedAmount || 0), 0);
-  // Utiliser netAmount de la DB si disponible — évite les erreurs d'arrondi
-  const totalRaised = projects.reduce((s, p: any) => s + (p.netAmount || Math.round((p.raisedAmount||0) * (1 - fraisTaux/100))), 0);
+  // Cagnotte nette = somme des netAmount de tous les projets actifs/approuvés
+  const totalRaised = projects
+    .filter((p: any) => ['ACTIVE','FUNDED','IN_PROGRESS','COMPLETED'].includes(p.status))
+    .reduce((s, p: any) => s + (p.netAmount || Math.round((p.goalAmount||0) * (1 - fraisTaux/100))), 0);
   const totalInvestors = projects.reduce((s, p) => s + (p.investorCount || 0), 0);
   const totalDue = Object.values(schedules).reduce((s: number, sc: any) => s + (sc.remainingAmount || 0), 0);
   const totalPaid = Object.values(schedules).reduce((s: number, sc: any) => s + ((sc.totalAmount || 0) - (sc.remainingAmount || 0)), 0);
@@ -407,7 +409,7 @@ export default function EntrepreneurDashboard() {
                         </div>
                         <div className="flex justify-between text-xs mb-3">
                           <span className="text-green-700 font-bold">{fmt(p.raisedAmount||0)} FCFA</span>
-                          <span className="text-gray-500">{pct}% de {fmt(p.goalAmount||0)} FCFA · {p.investorCount||0} inv.</span>
+                          <span className="text-gray-500">{pct}% · Besoin net : {fmt(p.netAmount||0)} FCFA · {p.investorCount||0} inv.</span>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => setActiveTab("projects")} className="flex-1 text-xs bg-green-600 text-white py-2 rounded-xl font-bold hover:bg-green-700">
@@ -537,7 +539,7 @@ export default function EntrepreneurDashboard() {
                       </div>
                       <div className="flex-shrink-0 text-right">
                         <div className="font-bold text-green-700">{fmt(p.raisedAmount||0)} FCFA</div>
-                        <div className="text-xs text-gray-400">{pct}% de {fmt(p.goalAmount||0)}</div>
+                        <div className="text-xs text-gray-400">{pct}% de {fmt(p.goalAmount||0)} levé · Besoin net : {fmt(p.netAmount||0)} FCFA</div>
                         <div className="text-lg mt-1">{isExpanded ? '▲' : '▼'}</div>
                       </div>
                     </div>
