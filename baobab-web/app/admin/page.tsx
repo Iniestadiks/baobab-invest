@@ -861,11 +861,15 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                       <input value={note} onChange={e => setNote(e.target.value)}
                         placeholder="Note de clôture (optionnelle — visible dans le rapport)"
                         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
-                        ⚠️ <strong>Action irréversible</strong> — Les fonds seront crédités sur les wallets des investisseurs. Le projet passera en statut COMPLETED.
-                      </div>
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800 mb-2">
-                        <strong>Important :</strong> Cliquer ici cree uniquement l echeancier de remboursement. L entrepreneur devra payer chaque mensualite. Les investisseurs recevront leur part au fur et a mesure des paiements.
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+                        <div className="font-bold mb-2">📅 Ce que fait ce bouton :</div>
+                        <div className="space-y-1 text-xs">
+                          <div>✅ Crée un échéancier de {p.durationMonths || 12} mensualités pour l'entrepreneur</div>
+                          <div>✅ Délai de grâce : {p.gracePeriodMonths || 0} mois avant la 1ère mensualité</div>
+                          <div>✅ Le projet passe en statut <strong>IN_PROGRESS</strong></div>
+                          <div>⚠️ Les investisseurs sont payés <strong>au fur et à mesure</strong> des remboursements effectués</div>
+                          <div>⚠️ Aucun fonds n'est transféré maintenant — action irréversible</div>
+                        </div>
                       </div>
                       <button onClick={() => reimburse(p.id)} disabled={processing === p.id}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 transition-colors">
