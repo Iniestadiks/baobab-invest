@@ -6,8 +6,16 @@ const router = Router()
 const prisma = new PrismaClient()
 
 const FUND_ID = '00000000-0000-0000-0000-000000000001'
-const BAOBAB_FEE_RATE = 0.10   // 10% BAOBAB
-const OPERATOR_FEE_RATE = 0.04  // 4% opérateur
+// Taux configurables — chargés depuis platformConfig
+const DEFAULT_FUND_FEE_RATE = 0.16    // 16% BAOBAB par défaut
+const DEFAULT_OPERATOR_FEE_RATE = 0.04 // 4% opérateur
+
+async function getFundFeeRate(): Promise<number> {
+  try {
+    const config = await prisma.platformConfig.findUnique({ where: { key: 'fund_baobab_fee' } })
+    return config ? Number(config.value) / 100 : DEFAULT_FUND_FEE_RATE
+  } catch { return DEFAULT_FUND_FEE_RATE }
+}
 
 const successResponse = (res: Response, data: any, message = 'OK') =>
   res.json({ success: true, data, message })
@@ -151,9 +159,10 @@ router.post('/contribute', async (req: any, res: Response): Promise<void> => {
     const { amount, anonymous = false, message, projectId, campaignId, paymentMethod = 'WAVE', operator, guestName, guestEmail, guestPhone } = req.body
     if (!amount || amount < 500) { errorResponse(res, 'Montant minimum : 500 FCFA', 400); return }
 
-    const baobabFee  = Math.round(amount * BAOBAB_FEE_RATE)
-    const operatorFee = Math.round(amount * OPERATOR_FEE_RATE)
-    const netAmount  = amount - baobabFee
+    const fundFeeRate = await getFundFeeRate()
+    const baobabFee  = Math.round(amount * fundFeeRate)
+    const operatorFee = Math.round(amount * DEFAULT_OPERATOR_FEE_RATE)
+    const netAmount  = amount - baobabFee  // net versé au fonds (hors opérateur)
 
     // Récupérer userId si connecté
     let userId: string | null = null

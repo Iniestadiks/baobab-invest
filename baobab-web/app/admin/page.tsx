@@ -217,6 +217,7 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
     { title: "💵 Montants minimum", keys: ["investment_min", "withdrawal_min"] },
     { title: "🔒 Frais de retrait", keys: ["withdrawal_fee_standard", "withdrawal_fee_no_invest"] },
     { title: "📱 Taux réels opérateur (référence marge)", keys: ["payin_operator_real", "payout_operator_real"] },
+    { title: "🌱 Fonds Solidaire BAOBAB", keys: ["fund_baobab_fee"] },
   ];
 
   return (
