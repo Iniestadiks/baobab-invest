@@ -207,6 +207,26 @@ router.patch('/users/:userId/role', authenticate, requireAdmin, async (req: Auth
 })
 
 // Finances détaillées admin — par projet
+router.get('/projects/all', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const projects = await prisma.project.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        entrepreneur: { select: { firstName: true, lastName: true } },
+        mentor: { select: { firstName: true, lastName: true } },
+        investments: {
+          select: {
+            id: true, amount: true, expectedReturn: true,
+            guaranteeContribution: true, sharePercent: true, status: true
+          }
+        },
+        _count: { select: { investments: true } }
+      }
+    })
+    successResponse(res, { projects })
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
 router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const projects = await prisma.project.findMany({

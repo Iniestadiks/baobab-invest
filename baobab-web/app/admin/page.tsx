@@ -1723,7 +1723,7 @@ export default function AdminPage() {
       const [pendingProj, waitlistProj, allProj, usrs, suppl, notif, mils, rev, txs] = await Promise.all([
         authGet("/api/projects?status=PENDING_REVIEW&limit=50"),
         authGet("/api/projects?status=WAITLISTED&limit=50"),
-        authGet("/api/projects?limit=100"),
+        authGet("/api/admin/projects/all"),
         authGet("/api/admin/users"),
         authGet("/api/suppliers/admin/all"),
         authGet("/api/notifications"),
