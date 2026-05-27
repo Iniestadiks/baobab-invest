@@ -373,6 +373,7 @@ export default function EntrepreneurDashboard() {
                         <div className="flex gap-2">
                           <button disabled={(wallet?.balance||0) < sc.monthlyAmount}
                             onClick={async () => {
+                              if (!confirm(`Confirmer le paiement de la mensualité M${sc.paidMonths + 1} — ${sc.monthlyAmount.toLocaleString()} FCFA ?`)) return;
                               const res = await authPost("/api/repayment/pay/" + sc.id, {});
                               if (res.success) { flash("✅ Mensualité " + res.data?.paidMonth + "/" + sc.totalMonths + " payée"); loadData(); }
                               else flash("❌ " + res.message);
@@ -381,6 +382,9 @@ export default function EntrepreneurDashboard() {
                           </button>
                           <button onClick={() => setActiveTab("repayment")} className="text-xs bg-purple-100 text-purple-700 px-3 py-2 rounded-xl hover:bg-purple-200 font-medium">
                             Détails →
+                          </button>
+                          <button onClick={() => setActiveTab("projects")} className="text-xs bg-blue-100 text-blue-700 px-3 py-2 rounded-xl hover:bg-blue-200 font-medium">
+                            📸 Rapport
                           </button>
                         </div>
                       </div>
@@ -812,6 +816,7 @@ export default function EntrepreneurDashboard() {
                     <div className="grid grid-cols-3 gap-3">
                       <button disabled={(wallet?.balance||0) < sc.monthlyAmount}
                         onClick={async () => {
+                          if (!confirm(`⚠️ Confirmer le paiement de M${sc.paidMonths + 1}/${sc.totalMonths} — ${sc.monthlyAmount.toLocaleString()} FCFA ?\nCette action est irréversible.`)) return;
                           const res = await authPost("/api/repayment/pay/" + sc.id, {});
                           if (res.success) { flash("✅ Mensualité " + res.data?.paidMonth + "/" + sc.totalMonths + " payée"); loadData(); }
                           else flash("❌ " + res.message);
