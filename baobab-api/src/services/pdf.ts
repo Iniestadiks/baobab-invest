@@ -393,3 +393,80 @@ export function generateAdminReport(res: Response, data: {
   footer(doc)
   doc.end()
 }
+
+// ============================================
+// RAPPORT BÂTISSEUR
+// ============================================
+export function generateBuilderReport(res: Response, data: {
+  builder: any, contributions: any[], wallet: any, badges: any[], impactData: any
+}) {
+  const doc = new PDFDocument({ size: 'A4', margin: 40 })
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `attachment; filename="rapport-batisseur-${Date.now()}.pdf"`)
+  doc.pipe(res)
+  header(doc, 'RAPPORT BÂTISSEUR', `Fonds Solidaire BAOBAB INVEST — ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`)
+
+  // Profil
+  section(doc, 'PROFIL BÂTISSEUR')
+  row(doc, 'Nom', `${data.builder.firstName} ${data.builder.lastName}`)
+  row(doc, 'Email', data.builder.email)
+  row(doc, 'Organisation', data.builder.builderProfile?.companyName || 'Non renseigné')
+  row(doc, 'Secteur', data.builder.builderProfile?.sector || 'Non renseigné')
+  row(doc, 'Statut', data.builder.builderProfile?.verified ? 'Vérifié ✅' : 'En attente de vérification')
+  row(doc, 'Niveau', data.impactData?.level || 'BATISSEUR')
+
+  // Wallet
+  section(doc, 'WALLET')
+  row(doc, 'Solde disponible', `${(data.wallet?.balance || 0).toLocaleString()} FCFA`, true)
+  row(doc, 'Total déposé', `${(data.wallet?.totalDeposited || 0).toLocaleString()} FCFA`)
+
+  // Impact
+  const totalDonated = data.contributions.reduce((s, c) => s + (c.amount || 0), 0)
+  const totalNet = Math.round(totalDonated * 0.84)
+  const projectsSupported = [...new Set(data.contributions.filter(c => c.projectId).map(c => c.projectId))].length
+  section(doc, 'IMPACT SOLIDAIRE')
+  row(doc, 'Total contribué', `${totalDonated.toLocaleString()} FCFA`, true)
+  row(doc, 'Commission BAOBAB (16%)', `${Math.round(totalDonated * 0.16).toLocaleString()} FCFA`)
+  row(doc, 'Net reversé aux projets (84%)', `${totalNet.toLocaleString()} FCFA`, true)
+  row(doc, 'Projets soutenus', String(projectsSupported))
+  row(doc, 'Nombre de contributions', String(data.contributions.length))
+
+  // Badges
+  if (data.badges.length > 0) {
+    section(doc, 'BADGES OBTENUS')
+    const BADGE_LABELS: Record<string, string> = {
+      SEMEUR: '🌱 Semeur', JARDINIER: '🌿 Jardinier',
+      BAOBAB: '🌳 Baobab', GRAND_BATISSEUR: '🏆 Grand Bâtisseur'
+    }
+    data.badges.forEach(b => {
+      row(doc, BADGE_LABELS[b.badge] || b.badge, `Obtenu le ${new Date(b.earnedAt || b.createdAt).toLocaleDateString('fr-FR')}`)
+    })
+  }
+
+  // Historique contributions
+  section(doc, 'HISTORIQUE DES CONTRIBUTIONS')
+  const y0 = doc.y
+  doc.rect(40, y0, doc.page.width - 80, 16).fill(LIGHT_GREEN)
+  doc.fillColor(GREEN).fontSize(8).font('Helvetica-Bold')
+    .text('Date', 50, y0 + 4)
+    .text('Montant', 160, y0 + 4)
+    .text('Net fonds', 240, y0 + 4)
+    .text('Projet', 320, y0 + 4)
+    .text('Statut', 470, y0 + 4)
+  doc.y = y0 + 20
+  data.contributions.slice(0, 30).forEach((c, i) => {
+    if (doc.y > 720) { doc.addPage(); footer(doc); doc.y = 40 }
+    const rowY = doc.y
+    if (i % 2 === 0) doc.rect(40, rowY - 2, doc.page.width - 80, 18).fill(LIGHT_GRAY)
+    doc.fillColor(DARK).fontSize(7).font('Helvetica')
+      .text(new Date(c.createdAt).toLocaleDateString('fr-FR'), 50, rowY)
+      .text(`${(c.amount || 0).toLocaleString()} F`, 160, rowY)
+      .text(`${(c.netAmount || 0).toLocaleString()} F`, 240, rowY)
+      .text((c.project?.title || 'Fonds général').substring(0, 20), 320, rowY, { width: 140 })
+      .text(c.status === 'COMPLETED' ? 'Confirmé' : 'En attente', 470, rowY)
+    doc.y = rowY + 18
+  })
+
+  footer(doc)
+  doc.end()
+}

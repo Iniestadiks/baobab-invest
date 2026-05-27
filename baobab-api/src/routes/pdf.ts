@@ -6,7 +6,8 @@ import {
   generateInvestorStatement,
   generateProjectReport,
   generateAdminReport,
-  generateMentorReport
+  generateMentorReport,
+  generateBuilderReport
 } from '../services/pdf'
 
 const router = Router()
@@ -255,6 +256,32 @@ router.get('/admin/user/:userId', authenticate, async (req: AuthRequest, res: Re
       res.status(400).json({ success: false, message: 'Type de rapport invalide' })
     }
   } catch (e) { console.error(e); errorResponse(res) }
+})
+
+// Rapport bâtisseur PDF
+router.get('/builder/report', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const [user, contribs, wallet] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.userId },
+        include: { builderProfile: true }
+      }),
+      prisma.fundContribution.findMany({
+        where: { userId: req.userId!, status: 'COMPLETED' },
+        include: { project: { select: { title: true, sector: true } } },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.wallet.findUnique({ where: { userId: req.userId } })
+    ])
+    const badges = await prisma.fundBadge.findMany({ where: { userId: req.userId! } })
+    const totalDonated = contribs.reduce((s, c) => s + (c.amount || 0), 0)
+    const impactData = {
+      level: totalDonated >= 10000000 ? 'GRAND_MECENE' :
+             totalDonated >= 2000000  ? 'OR' :
+             totalDonated >= 500000   ? 'ARGENT' : 'BATISSEUR'
+    }
+    generateBuilderReport(res, { builder: user, contributions: contribs, wallet, badges, impactData })
+  } catch (e) { console.error(e); res.status(500).json({ success: false, message: 'Erreur génération PDF' }) }
 })
 
 export default router
