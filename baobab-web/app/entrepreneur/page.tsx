@@ -144,12 +144,13 @@ export default function EntrepreneurDashboard() {
     </div>
   );
 
-  const fraisTaux = (fees?.commission_baobab_collection || 6) + (fees?.commission_mentor || 2) + (fees?.commission_guarantee || 2);
+  const fraisTaux = (fees?.commission_baobab_collection || 6) + (fees?.payin_recovery || 4) + (fees?.commission_mentor || 2); // assurance exclue
   const visibleProjects = projects.filter(p => p.status !== "CANCELLED");
   const activeProjects = projects.filter(p => p.status === "ACTIVE");
   const inProgressProjects = projects.filter(p => ["FUNDED","IN_PROGRESS"].includes(p.status));
   const totalRaisedBrut = projects.reduce((s, p) => s + (p.raisedAmount || 0), 0);
-  const totalRaised = Math.round(totalRaisedBrut * (1 - fraisTaux / 100));
+  // Utiliser netAmount de la DB si disponible — évite les erreurs d'arrondi
+  const totalRaised = projects.reduce((s, p: any) => s + (p.netAmount || Math.round((p.raisedAmount||0) * (1 - fraisTaux/100))), 0);
   const totalInvestors = projects.reduce((s, p) => s + (p.investorCount || 0), 0);
   const totalDue = Object.values(schedules).reduce((s: number, sc: any) => s + (sc.remainingAmount || 0), 0);
   const totalPaid = Object.values(schedules).reduce((s: number, sc: any) => s + ((sc.totalAmount || 0) - (sc.remainingAmount || 0)), 0);
