@@ -108,7 +108,7 @@ export default function InvestmentsPage() {
               const status = STATUS_CONFIG[inv.status] || STATUS_CONFIG.PENDING;
               const project = inv.project;
               const fundingPercent = project ? Math.round((project.raisedAmount / project.goalAmount) * 100) : 0;
-              const returnPercent = inv.returnedAmount > 0 ? Math.round((inv.returnedAmount / (inv.amount + inv.expectedReturn)) * 100) : 0;
+              const returnPercent = inv.returnedAmount > 0 ? Math.round((inv.returnedAmount / inv.expectedReturn) * 100) : 0;
 
               return (
                 <div key={inv.id} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -138,11 +138,11 @@ export default function InvestmentsPage() {
                       <div className="text-xs text-gray-400">FCFA investis</div>
                     </div>
                     <div className="bg-green-50 rounded-xl p-3">
-                      <div className="font-bold text-green-700">+{inv.expectedReturn.toLocaleString()}</div>
-                      <div className="text-xs text-gray-400">FCFA attendus</div>
+                      <div className="font-bold text-green-700">+{(inv.expectedReturn - inv.amount).toLocaleString()}</div>
+                      <div className="text-xs text-gray-400">Gain net FCFA</div>
                     </div>
                     <div className="bg-blue-50 rounded-xl p-3">
-                      <div className="font-bold text-blue-700">{(inv.amount + inv.expectedReturn).toLocaleString()}</div>
+                      <div className="font-bold text-blue-700">{inv.expectedReturn.toLocaleString()}</div>
                       <div className="text-xs text-gray-400">Total à recevoir</div>
                     </div>
                     <div className="bg-purple-50 rounded-xl p-3">

@@ -131,7 +131,7 @@ export default function DashboardPage() {
     return { name: new Date(inv.createdAt).toLocaleDateString("fr-FR", { day:"numeric", month:"short" }), "Investi": cumInv, "Retour net": cumNet };
   });
   const sectorData = Object.entries(investments.reduce((acc: any, inv) => { const s = inv.project?.sector || "Autre"; acc[s] = (acc[s]||0) + inv.amount; return acc; }, {})).map(([name, value]) => ({ name, value }));
-  const projectData = investments.slice(0,5).map(inv => ({ name: (inv.project?.title||"").substring(0,12), investi: inv.amount, retour: Math.round((inv.expectedReturn||0) * (1 - baobabRate/100)) }));
+  const projectData = investments.slice(0,5).map(inv => ({ name: (inv.project?.title||"").substring(0,12), investi: inv.amount, retour: inv.expectedReturn || 0 }));  // déjà net
 
   const TABS = [
     { id: "overview",     label: "Vue générale",    icon: "📊" },
@@ -346,7 +346,7 @@ export default function DashboardPage() {
                     <Link href="/projects" className="bg-green-600 text-white text-sm px-5 py-2.5 rounded-xl font-bold hover:bg-green-700">Explorer les projets →</Link>
                   </div>
                 ) : investments.slice(0,3).map(inv => {
-                  const nr = Math.round((inv.expectedReturn||0) * (1 - baobabRate/100 - paydunyaRate/100));
+                  const nr = inv.expectedReturn || 0;  // déjà net de tous frais
                   return (
                     <div key={inv.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-2 hover:bg-green-50 transition-colors">
                       <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-700 font-bold text-sm flex-shrink-0">
@@ -466,7 +466,7 @@ export default function DashboardPage() {
               inv.project?.sector?.toLowerCase().includes(searchInv.toLowerCase()) ||
               inv.project?.status === searchInv
             ).map(inv => {
-              const nr = Math.round((inv.expectedReturn||0) * (1 - baobabRate/100 - paydunyaRate/100));
+              const nr = inv.expectedReturn || 0;  // déjà net de tous frais
               const gainNet = nr - inv.amount;
               const rendement = inv.amount > 0 ? ((gainNet/inv.amount)*100).toFixed(1) : "0";
               const pct = Math.min(100, Math.round(((inv.project?.raisedAmount||0)/(inv.project?.goalAmount||1))*100));
@@ -577,7 +577,7 @@ export default function DashboardPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="font-bold text-gray-900 mb-4">📅 Remboursements progressifs en cours</h3>
                 {investments.filter(i => i.project?.status === "IN_PROGRESS").map(inv => {
-                  const nr = Math.round((inv.expectedReturn||0) * (1 - baobabRate/100 - paydunyaRate/100));
+                  const nr = inv.expectedReturn || 0;  // déjà net de tous frais
                   return (
                     <div key={inv.id} className="border border-purple-100 rounded-2xl p-4 mb-3 bg-purple-50">
                       <div className="flex justify-between items-start mb-3">
