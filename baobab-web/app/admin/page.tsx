@@ -1929,14 +1929,15 @@ export default function AdminPage() {
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(""), 5000); };
 
   const loadUserDetail = async (userId: string) => {
-    const [wallet, investments, projects, txs, notifs] = await Promise.all([
+    const [wallet, investments, projects, txs, notifs, schedules] = await Promise.all([
       authGet("/api/admin/users/" + userId + "/wallet"),
       authGet("/api/admin/users/" + userId + "/investments"),
       authGet("/api/admin/users/" + userId + "/projects"),
       authGet("/api/admin/users/" + userId + "/transactions"),
       authGet("/api/admin/users/" + userId + "/notifications"),
+      authGet("/api/admin/users/" + userId + "/schedules"),
     ]);
-    setUserDetail({ wallet: wallet.data, investments: investments.data || [], projects: projects.data || [], txs: txs.data || [], notifs: notifs.data || [] });
+    setUserDetail({ wallet: wallet.data, investments: investments.data || [], projects: projects.data || [], txs: txs.data || [], notifs: notifs.data || [], schedules: schedules.data || [] });
   };
 
   const loadData = async () => {
@@ -2663,16 +2664,45 @@ export default function AdminPage() {
                     <div className="p-5 space-y-5">
                       {/* Wallet complet */}
                       <div className="bg-green-50 rounded-2xl p-4">
-                        <div className="font-bold text-gray-900 mb-3">💳 Wallet</div>
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Solde disponible</div><div className="font-bold text-green-700 text-lg">{(userDetail.wallet?.balance||0).toLocaleString()} FCFA</div></div>
-                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total déposé</div><div className="font-bold">{(userDetail.wallet?.totalDeposited||0).toLocaleString()} FCFA</div></div>
-                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total retiré</div><div className="font-bold text-red-600">{(userDetail.wallet?.totalWithdrawn||0).toLocaleString()} FCFA</div></div>
-                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total investi</div><div className="font-bold text-blue-600">{(userDetail.wallet?.totalInvested||0).toLocaleString()} FCFA</div></div>
-                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">Total gagné</div><div className="font-bold text-purple-600">{(userDetail.wallet?.totalEarned||0).toLocaleString()} FCFA</div></div>
-                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">En séquestre</div><div className="font-bold text-orange-600">{(userDetail.wallet?.escrowBalance||0).toLocaleString()} FCFA</div></div>
+                        <div className="font-bold text-gray-900 mb-3">💳 Wallet complet</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white rounded-xl p-3 col-span-2">
+                            <div className="text-gray-400">💰 Solde disponible total</div>
+                            <div className="font-bold text-green-700 text-xl">{(userDetail.wallet?.balance||0).toLocaleString()} FCFA</div>
+                          </div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">📈 Gains remboursements</div><div className="font-bold text-purple-700">{(userDetail.wallet?.gainBalance||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">💵 Dépôts non investis</div><div className="font-bold text-blue-600">{(userDetail.wallet?.depositBalance||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">📥 Total déposé</div><div className="font-bold">{(userDetail.wallet?.totalDeposited||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">📤 Total retiré</div><div className="font-bold text-red-600">{(userDetail.wallet?.totalWithdrawn||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">🔒 En séquestre</div><div className="font-bold text-orange-600">{(userDetail.wallet?.escrowBalance||0).toLocaleString()} FCFA</div></div>
+                          <div className="bg-white rounded-xl p-3"><div className="text-gray-400">🏆 Total gagné</div><div className="font-bold text-green-600">{(userDetail.wallet?.totalEarned||0).toLocaleString()} FCFA</div></div>
                         </div>
                       </div>
+                      {/* Calendrier remboursements investisseur */}
+                      {userDetail.schedules?.length > 0 && (
+                        <div className="bg-blue-50 rounded-2xl p-4">
+                          <div className="font-bold text-gray-900 mb-3">📅 Calendrier remboursements à recevoir</div>
+                          {userDetail.schedules.map((s: any) => (
+                            <div key={s.id} className="bg-white rounded-xl p-3 mb-2 text-xs">
+                              <div className="font-semibold mb-1">{s.project?.title}</div>
+                              <div className="text-gray-400 mb-2">{s.paidMonths}/{s.totalMonths} mois · Restant : {s.remainingAmount?.toLocaleString()} FCFA</div>
+                              <div className="grid grid-cols-6 gap-1">
+                                {s.payments?.map((pay: any) => {
+                                  const net = Math.round(pay.amount * 0.96 * (s.sharePercent || 1))
+                                  const isLate = pay.status === 'PENDING' && new Date(pay.dueDate) < new Date()
+                                  return (
+                                    <div key={pay.id} className={`rounded-lg p-1 text-center ${pay.status==='PAID'?'bg-green-100 text-green-700':isLate?'bg-red-100 text-red-700':'bg-gray-100 text-gray-500'}`}>
+                                      <div className="font-bold">M{pay.monthNumber}</div>
+                                      <div>{pay.status==='PAID'?'✅':isLate?'⚠️':'⏳'}</div>
+                                      <div>+{(net/1000).toFixed(1)}k</div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {/* Investissements */}
                       {userDetail.investments.length > 0 && (
                         <div>
@@ -2696,22 +2726,60 @@ export default function AdminPage() {
                         </div>
                       )}
                       {/* Projets entrepreneur */}
-                      {userDetail.projects.length > 0 && (
+                      {userDetail.projects?.length > 0 && (
                         <div>
                           <div className="font-bold text-gray-900 mb-3">🚀 Projets ({userDetail.projects.length})</div>
-                          <div className="space-y-2">
-                            {userDetail.projects.map((p: any) => (
-                              <div key={p.id} className="bg-blue-50 rounded-xl p-3 text-xs flex justify-between">
-                                <div>
-                                  <div className="font-semibold">{p.title}</div>
-                                  <div className="text-gray-400">{p.sector} · {p.status}</div>
+                          <div className="space-y-3">
+                            {userDetail.projects.map((p: any) => {
+                              const sc = p.repaymentSchedules?.[0];
+                              return (
+                                <div key={p.id} className="bg-blue-50 rounded-xl p-3 text-xs">
+                                  <div className="flex justify-between mb-2">
+                                    <div>
+                                      <div className="font-semibold text-gray-900">{p.title}</div>
+                                      <div className="text-gray-400">{p.sector} · {p.status}</div>
+                                      {p.mentor && <div className="text-purple-600">Mentor: {p.mentor.firstName} {p.mentor.lastName}</div>}
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-bold">{(p.raisedAmount||0).toLocaleString()} FCFA</div>
+                                      <div className="text-gray-400">/ {(p.goalAmount||0).toLocaleString()}</div>
+                                      <div className="text-green-700">Net: {(p.netAmount||0).toLocaleString()}</div>
+                                    </div>
+                                  </div>
+                                  {p.netAmount > 0 && (
+                                    <div className="grid grid-cols-3 gap-1 mb-2">
+                                      {[{n:1,pct:40,done:p.currentPalier>=1},{n:2,pct:35,done:p.currentPalier>=2},{n:3,pct:25,done:p.currentPalier>=3}].map(pl => (
+                                        <div key={pl.n} className={`rounded-lg p-1 text-center ${pl.done?'bg-green-100 text-green-700':'bg-gray-100 text-gray-400'}`}>
+                                          {pl.done?'✅':'🔒'} P{pl.n} {pl.pct}% — {Math.round((p.netAmount||0)*pl.pct/100).toLocaleString()}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {sc && (
+                                    <div className="mb-2">
+                                      <div className="text-gray-500 mb-1">{sc.paidMonths}/{sc.totalMonths} mois · Restant: {sc.remainingAmount?.toLocaleString()} FCFA</div>
+                                      <div className="grid grid-cols-6 gap-1">
+                                        {sc.payments?.map((pay: any) => (
+                                          <div key={pay.id} className={`rounded p-1 text-center ${pay.status==='PAID'?'bg-green-100 text-green-700':'bg-gray-100 text-gray-400'}`}>
+                                            M{pay.monthNumber} {pay.status==='PAID'?'✅':'⏳'}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {p.investments?.length > 0 && (
+                                    <div className="border-t border-blue-100 pt-2">
+                                      {p.investments.map((inv: any, i: number) => (
+                                        <div key={i} className="flex justify-between py-0.5">
+                                          <span>{inv.user?.firstName} {inv.user?.lastName}</span>
+                                          <span className="font-medium">{inv.amount?.toLocaleString()} FCFA{inv.returnedAmount>0?` · Reçu: ${inv.returnedAmount?.toLocaleString()}`:''}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="text-right">
-                                  <div className="font-bold">{(p.raisedAmount||0).toLocaleString()} FCFA</div>
-                                  <div className="text-gray-400">sur {(p.goalAmount||0).toLocaleString()}</div>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}

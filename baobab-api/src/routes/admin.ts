@@ -713,7 +713,17 @@ router.get('/users/:id/investments', authenticate, requireAdmin, async (req: Aut
   try {
     const investments = await prisma.investment.findMany({
       where: { userId: req.params.id },
-      include: { project: { select: { title: true, sector: true, status: true } } },
+      include: {
+        project: {
+          select: {
+            title: true, sector: true, status: true, expectedReturn: true,
+            goalAmount: true, raisedAmount: true, netAmount: true,
+            durationMonths: true, currentPalier: true, disbursedP1: true,
+            disbursedP2: true, disbursedP3: true, gracePeriodMonths: true,
+            entrepreneur: { select: { firstName: true, lastName: true } }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     })
     successResponse(res, investments)
@@ -724,9 +734,36 @@ router.get('/users/:id/projects', authenticate, requireAdmin, async (req: AuthRe
   try {
     const projects = await prisma.project.findMany({
       where: { entrepreneurId: req.params.id },
+      include: {
+        investments: { select: { amount: true, userId: true, returnedAmount: true, user: { select: { firstName: true, lastName: true } } } },
+        mentor: { select: { firstName: true, lastName: true } },
+        milestones: { select: { title: true, amount: true, status: true } },
+        repaymentSchedules: { include: { payments: { orderBy: { monthNumber: 'asc' } } } }
+      },
       orderBy: { createdAt: 'desc' }
     })
     successResponse(res, projects)
+  } catch (e) { errorResponse(res) }
+})
+
+router.get('/users/:id/schedules', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const investments = await prisma.investment.findMany({
+      where: { userId: req.params.id },
+      select: { projectId: true, amount: true, sharePercent: true }
+    })
+    const schedules: any[] = []
+    for (const inv of investments) {
+      const schedule = await prisma.repaymentSchedule.findFirst({
+        where: { projectId: inv.projectId },
+        include: {
+          payments: { orderBy: { monthNumber: 'asc' } },
+          project: { select: { title: true, sector: true } }
+        }
+      })
+      if (schedule) schedules.push({ ...schedule, sharePercent: inv.sharePercent, investedAmount: inv.amount })
+    }
+    successResponse(res, schedules)
   } catch (e) { errorResponse(res) }
 })
 
