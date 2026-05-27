@@ -680,6 +680,47 @@ function KycTab({ flash, authPost, authPatch, authGet }: any) {
 
 
 
+function RescheduleButton({ scheduleId, authPost, flash, loadData }: any) {
+  const [open, setOpen] = React.useState(false);
+  const [date, setDate] = React.useState("");
+  const [note, setNote] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const submit = async () => {
+    if (!date) return;
+    setLoading(true);
+    const res = await authPost(`/api/repayment/admin/reschedule/${scheduleId}`, { newDueDate: date, note });
+    if (res.success) { flash("✅ Échéance reportée"); setOpen(false); loadData(); }
+    else flash("❌ " + res.message);
+    setLoading(false);
+  };
+
+  return open ? (
+    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 space-y-2">
+      <div className="text-xs font-semibold text-yellow-800">📅 Reporter la prochaine échéance</div>
+      <input type="date" value={date} onChange={e => setDate(e.target.value)}
+        className="w-full border border-yellow-300 rounded-lg px-3 py-1.5 text-sm" />
+      <input value={note} onChange={e => setNote(e.target.value)}
+        placeholder="Motif du report (optionnel)"
+        className="w-full border border-yellow-300 rounded-lg px-3 py-1.5 text-sm" />
+      <div className="flex gap-2">
+        <button onClick={submit} disabled={loading || !date}
+          className="flex-1 bg-yellow-600 text-white text-xs font-bold py-2 rounded-xl disabled:opacity-50">
+          {loading ? "⏳..." : "✅ Confirmer le report"}
+        </button>
+        <button onClick={() => setOpen(false)} className="text-xs text-gray-500 px-3 py-2 rounded-xl border border-gray-200">
+          Annuler
+        </button>
+      </div>
+    </div>
+  ) : (
+    <button onClick={() => setOpen(true)}
+      className="text-xs text-yellow-700 border border-yellow-200 bg-yellow-50 px-3 py-2 rounded-xl hover:bg-yellow-100 font-medium">
+      📅 Reporter une échéance
+    </button>
+  );
+}
+
 function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) {
   const [details, setDetails] = React.useState<Record<string, any>>({});
   const [confirming, setConfirming] = React.useState<string | null>(null);
@@ -982,6 +1023,12 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                       <span>{pay.status === 'PAID' ? `✅ ${new Date(pay.paidAt).toLocaleDateString("fr-FR")}` : `⏳ Prévu ${new Date(pay.dueDate).toLocaleDateString("fr-FR")}`}</span>
                     </div>
                   ))}
+                </div>
+              )}
+              {/* Bouton reporter échéance */}
+              {s.status === 'ACTIVE' && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <RescheduleButton scheduleId={s.id} authPost={authPost} flash={flash} loadData={loadData} />
                 </div>
               )}
             </div>
