@@ -149,14 +149,14 @@ export default function AdminCharts() {
             <tbody className="divide-y divide-gray-50">
               {[
                 { label: "Capital levé brut", value: k.totalRaised, note: "Total investi par les investisseurs", color: "text-gray-900" },
-                { label: "↳ Cagnotte nette entrepreneurs", value: k.totalCagnotteNette, note: "Après BAOBAB 5% + mentor 2% + garantie 2%", color: "text-green-700" },
-                { label: "↳ Commission BAOBAB collecte", value: Math.round(k.totalRaised * (k.feeMap?.commission_baobab_collection||5) / 100), note: `${k.feeMap?.commission_baobab_collection||5}% à la clôture`, color: "text-purple-700" },
+                { label: "↳ Cagnotte nette entrepreneurs", value: k.totalCagnotteNette, note: `Après BAOBAB ${k.feeMap?.commission_baobab_collection||6}% + payin ${k.feeMap?.payin_recovery||4}%${k.feeMap?.commission_mentor ? ` + mentor ${k.feeMap.commission_mentor}%` : ""} | Assurance hors cagnotte`, color: "text-green-700" },
+                { label: "↳ Commission BAOBAB collecte", value: Math.round(k.totalRaised * (k.feeMap?.commission_baobab_collection||6) / 100), note: `${k.feeMap?.commission_baobab_collection||6}% à la clôture`, color: "text-purple-700" },
                 { label: "↳ Commission mentors versée", value: Math.round(k.totalRaised * (k.feeMap?.commission_mentor||2) / 100), note: `${k.feeMap?.commission_mentor||2}% crédité sur wallet mentor`, color: "text-blue-700" },
-                { label: "↳ Fonds de garantie", value: Math.round(k.totalRaised * (k.feeMap?.commission_guarantee||2) / 100), note: `${k.feeMap?.commission_guarantee||2}% réservé — libéré au remboursement`, color: "text-orange-700" },
+                { label: "↳ Fonds de garantie (assurance)", value: Math.round(k.totalRaised * (k.feeMap?.commission_guarantee||2) / 100), note: `${k.feeMap?.commission_guarantee||2}% hors cagnotte — payé par investisseur`, color: "text-orange-700" },
                 { label: "Retour total brut (projeté)", value: k.totalExpectedReturn, note: "Capital + intérêts promis", color: "text-gray-900" },
-                { label: "↳ Net versé aux investisseurs", value: k.totalNetInvestors, note: "0% commission retour — Payin 4% sur mensualités seulement", color: "text-green-700" },
+                { label: "↳ Net versé aux investisseurs", value: k.totalNetInvestors, note: `0% commission retour — Payin ${k.feeMap?.payin_repayment||4}% sur mensualités seulement`, color: "text-green-700" },
                 { label: "↳ Payin mensualités BAOBAB", value: Math.round(k.totalExpectedReturn * (k.feeMap?.payin_repayment||4) / 100), note: `${k.feeMap?.payin_repayment||4}% Payin sur mensualités`, color: "text-blue-700" },
-                { label: "Revenu net BAOBAB (encaissé)", value: k.revenuNetBAOBAB, note: "Collecte 5% + Payin invest 4% + Payin mensualités 4%", color: "text-purple-800 font-bold" },
+                { label: "Revenu net BAOBAB (encaissé)", value: k.revenuNetBAOBAB, note: `Collecte ${k.feeMap?.commission_baobab_collection||6}% + Payin invest ${k.feeMap?.payin_recovery||4}% + Payin mensualités ${k.feeMap?.payin_repayment||4}%`, color: "text-purple-800 font-bold" },
               ].map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="px-4 py-2 text-gray-700">{row.label}</td>

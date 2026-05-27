@@ -820,10 +820,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                         <span>— BAOBAB Payin mensualités ({fees.payin_repayment || 4}%)</span>
                         <span>-{baobabOnReturn.toLocaleString()} FCFA</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-gray-50 text-red-500">
-                        <span>— 0% commission retour BAOBAB</span>
-                        <span>-{paydunyaPayout.toLocaleString()} FCFA</span>
-                      </div>
+
                       <div className="flex justify-between py-1 border-b border-gray-50 font-bold text-green-700">
                         <span>= Net versé aux investisseurs</span>
                         <span>{netInvestors.toLocaleString()} FCFA</span>
@@ -1201,6 +1198,34 @@ function StatsTab({ authGet }: any) {
 
       {/* Graphiques AdminCharts */}
       <AdminCharts />
+    </div>
+  );
+}
+
+function TxList({ revenues }: { revenues: any[] }) {
+  const [showAll, setShowAll] = React.useState(false);
+  // Filtrer les lignes à 0 FCFA (Commission retour 0%)
+  const filtered = revenues.filter((r: any) => r.amount !== 0 && r.type !== 'COMMISSION_RETURN');
+  const displayed = showAll ? filtered : filtered.slice(0, 8);
+  return (
+    <div className="space-y-2">
+      {displayed.map((r: any) => (
+        <div key={r.id} className="flex items-center justify-between py-2 border-b border-gray-50 text-sm">
+          <div>
+            <div className="font-medium text-gray-900">{r.description || r.type}</div>
+            <div className="text-xs text-gray-400">{new Date(r.createdAt).toLocaleDateString("fr-FR")}</div>
+          </div>
+          <div className={`font-bold ${r.amount >= 0 ? "text-green-700" : "text-red-600"}`}>
+            {r.amount >= 0 ? "+" : ""}{r.amount.toLocaleString()} FCFA
+          </div>
+        </div>
+      ))}
+      {filtered.length > 8 && (
+        <button onClick={() => setShowAll(!showAll)}
+          className="w-full text-xs text-gray-500 hover:text-gray-700 py-2 border border-gray-100 rounded-xl mt-1">
+          {showAll ? "▲ Réduire" : `▼ Voir ${filtered.length - 8} transactions de plus`}
+        </button>
+      )}
     </div>
   );
 }
@@ -1609,19 +1634,7 @@ function FinancesTab({ authGet }: any) {
       {revenues?.revenues?.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <h3 className="font-bold text-gray-900 mb-4">📋 Dernières transactions</h3>
-          <div className="space-y-2">
-            {revenues.revenues.slice(0, 15).map((r: any) => (
-              <div key={r.id} className="flex items-center justify-between py-2 border-b border-gray-50 text-sm">
-                <div>
-                  <div className="font-medium text-gray-900">{r.description || r.type}</div>
-                  <div className="text-xs text-gray-400">{new Date(r.createdAt).toLocaleDateString("fr-FR")}</div>
-                </div>
-                <div className={`font-bold ${r.amount >= 0 ? "text-green-700" : "text-red-600"}`}>
-                  {r.amount >= 0 ? "+" : ""}{r.amount.toLocaleString()} FCFA
-                </div>
-              </div>
-            ))}
-          </div>
+          <TxList revenues={revenues.revenues} />
         </div>
       )}
     </div>
