@@ -1405,6 +1405,44 @@ function ProjectsList({ projects, flash, authPost, loadData }: any) {
   );
 }
 
+function TxUserList({ txs }: { txs: any[] }) {
+  const [showAll, setShowAll] = React.useState(false);
+  const displayed = showAll ? txs : txs.slice(0, 5);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-bold text-gray-900">💳 Transactions ({txs.length})</div>
+        {txs.length > 5 && (
+          <button onClick={() => setShowAll(!showAll)}
+            className="text-xs text-blue-600 hover:underline">
+            {showAll ? "▲ Réduire" : `▼ Voir tout (${txs.length})`}
+          </button>
+        )}
+      </div>
+      <div className="space-y-1">
+        {displayed.map((tx: any) => (
+          <div key={tx.id} className="flex justify-between text-xs p-2 bg-gray-50 rounded-lg">
+            <div>
+              <span className={`px-1.5 py-0.5 rounded font-medium ${tx.type==="DEPOSIT"?"bg-green-100 text-green-700":tx.type==="WITHDRAWAL"?"bg-red-100 text-red-700":"bg-blue-100 text-blue-700"}`}>{tx.type}</span>
+              <span className="text-gray-400 ml-2">{new Date(tx.createdAt).toLocaleDateString("fr-FR")}</span>
+              {tx.operator && <span className="text-gray-400 ml-1">· {tx.operator}</span>}
+              {tx.description && <div className="text-gray-400 mt-0.5 truncate max-w-48">{tx.description}</div>}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`font-bold ${tx.type==="DEPOSIT"?"text-green-700":"text-red-600"}`}>
+                {tx.type==="DEPOSIT"?"+":"-"}{tx.amount.toLocaleString()} FCFA
+              </span>
+              <span className={`text-xs px-1.5 py-0.5 rounded ${tx.status==="COMPLETED"?"bg-green-100 text-green-600":tx.status==="PENDING"?"bg-orange-100 text-orange-600":"bg-red-100 text-red-600"}`}>
+                {tx.status}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TxList({ revenues }: { revenues: any[] }) {
   const [showAll, setShowAll] = React.useState(false);
   // Filtrer les lignes à 0 FCFA (Commission retour 0%)
@@ -2783,26 +2821,9 @@ export default function AdminPage() {
                           </div>
                         </div>
                       )}
-                      {/* Transactions */}
+                      {/* Transactions avec pli/dépli */}
                       {userDetail.txs.length > 0 && (
-                        <div>
-                          <div className="font-bold text-gray-900 mb-3">💳 Transactions ({userDetail.txs.length})</div>
-                          <div className="space-y-1">
-                            {userDetail.txs.map((tx: any) => (
-                              <div key={tx.id} className="flex justify-between text-xs p-2 bg-gray-50 rounded-lg">
-                                <div>
-                                  <span className={`px-1.5 py-0.5 rounded font-medium ${tx.type==="DEPOSIT"?"bg-green-100 text-green-700":"bg-red-100 text-red-700"}`}>{tx.type}</span>
-                                  <span className="text-gray-400 ml-2">{new Date(tx.createdAt).toLocaleDateString("fr-FR")}</span>
-                                  {tx.operator && <span className="text-gray-400 ml-1">· {tx.operator}</span>}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`font-bold ${tx.type==="DEPOSIT"?"text-green-700":"text-red-600"}`}>{tx.type==="DEPOSIT"?"+":"-"}{tx.amount.toLocaleString()} FCFA</span>
-                                  <span className={`text-xs px-1.5 py-0.5 rounded ${tx.status==="COMPLETED"?"bg-green-100 text-green-600":tx.status==="PENDING"?"bg-orange-100 text-orange-600":"bg-red-100 text-red-600"}`}>{tx.status}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <TxUserList txs={userDetail.txs} />
                       )}
                     </div>
                   </div>
