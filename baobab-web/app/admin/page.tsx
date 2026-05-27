@@ -871,9 +871,13 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                           <div>⚠️ Aucun fonds n'est transféré maintenant — action irréversible</div>
                         </div>
                       </div>
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800 mb-2">
+                        ✅ Échéancier + Palier 1 (40%) créés <strong>automatiquement</strong> dès FUNDED.
+                        <div className="text-xs text-green-600 mt-1">P1 (40%) immédiat · P2 (35%) après M2 · P3 (25%) après M4</div>
+                      </div>
                       <button onClick={() => reimburse(p.id)} disabled={processing === p.id}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 transition-colors">
-                        {processing === p.id ? "⏳ Creation en cours..." : `📅 Créer l'échéancier — ${Math.ceil(grossReturn / (p.durationMonths || 12)).toLocaleString()} FCFA/mois × ${p.durationMonths || 12} mois (entrepreneur)`}
+                        className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-xl disabled:opacity-50 text-sm">
+                        {processing === p.id ? "⏳ En cours..." : "🔧 Forcer création manuelle (si non créé automatiquement)"}
                       </button>
                     </div>
                   </div>

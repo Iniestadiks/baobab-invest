@@ -540,6 +540,20 @@ export default function EntrepreneurDashboard() {
                       <div className="flex-shrink-0 text-right">
                         <div className="font-bold text-green-700">{fmt(p.raisedAmount||0)} FCFA</div>
                         <div className="text-xs text-gray-400">{pct}% de {fmt(p.goalAmount||0)} levé · Besoin net : {fmt(p.netAmount||0)} FCFA</div>
+                        {(p.status === 'FUNDED' || p.status === 'IN_PROGRESS') && (
+                          <div className="mt-2 grid grid-cols-3 gap-1 text-xs">
+                            {[
+                              { n: 1, label: "40%", amount: Math.round((p.netAmount||0)*0.40), done: (p.currentPalier||0) >= 1 },
+                              { n: 2, label: "35%", amount: Math.round((p.netAmount||0)*0.35), done: (p.currentPalier||0) >= 2 },
+                              { n: 3, label: "25%", amount: Math.round((p.netAmount||0)*0.25), done: (p.currentPalier||0) >= 3 },
+                            ].map(pl => (
+                              <div key={pl.n} className={`rounded-lg p-1.5 text-center ${pl.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                                <div className="font-bold">{pl.done ? '✅' : '🔒'} P{pl.n} {pl.label}</div>
+                                <div>{fmt(pl.amount)} FCFA</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <div className="text-lg mt-1">{isExpanded ? '▲' : '▼'}</div>
                       </div>
                     </div>

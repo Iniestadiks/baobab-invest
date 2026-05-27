@@ -2,6 +2,8 @@ import { Router, Response } from 'express'
 import prisma from '../config/database'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import { getFees } from '../config/fees'
+import { triggerFundedActions } from '../services/paliers'
+import { triggerFundedActions } from '../services/paliers'
 import { addReputationPoints, awardBadge, checkAndAwardBadges, REPUTATION_POINTS } from '../services/reputationService'
 import { successResponse, errorResponse } from '../utils/helpers'
 const router = Router()
@@ -187,6 +189,10 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       await tx.notification.create({
         data: { userId: project.entrepreneurId, title: '💰 Nouvel investissement !', body: `${user.firstName} a investi ${amount.toLocaleString()} FCFA dans "${project.title}"`, type: 'INVESTMENT', data: { projectId, amount } }
       })
+      // 7. Si projet FUNDED → déclencher paliers + échéancier automatique
+      if (newStatus === 'FUNDED' && project.currentPalier === 0) {
+        await triggerFundedActions(projectId, tx)
+      }
     })
 
     // Points de réputation investisseur

@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authenticate, requireRole } from '../middleware/auth'
 import { getFees } from '../config/fees'
+import { checkAndUnlockPalier } from '../services/paliers'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -297,6 +298,13 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
         })
       }
     })
+
+    // Vérifier déblocage palier suivant (transaction séparée)
+    try {
+      await prisma.$transaction(async (txPalier) => {
+        await checkAndUnlockPalier(schedule.id, txPalier)
+      })
+    } catch (palierErr) { console.error('Palier check error:', palierErr) }
 
     successResponse(res, {
       paidMonth: nextPayment.monthNumber,
