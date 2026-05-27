@@ -110,13 +110,15 @@ export default function BuilderDashboard() {
 
   const downloadPDF = async () => {
     const token = localStorage.getItem("accessToken");
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/fund/admin/export?format=csv`, {
+    const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+    const res = await fetch(`${API}/api/pdf/builder/report`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+    if (!res.ok) { flash("❌ Erreur génération rapport"); return; }
     const blob = await res.blob();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `rapport-batisseur-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `rapport-batisseur-${user?.firstName}-${new Date().toISOString().split("T")[0]}.pdf`;
     a.click();
   };
 
@@ -565,6 +567,63 @@ export default function BuilderDashboard() {
           </div>
         )}
 
+        {/* REMBOURSEMENTS */}
+        {activeTab === "repayments" && (
+          <div className="space-y-5">
+            <h2 className="font-bold text-gray-900 text-lg">📅 Suivi remboursements — Fonds Solidaire</h2>
+            {repayments.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                <div className="text-4xl mb-3">📅</div>
+                <p className="text-gray-400">Aucun remboursement en cours</p>
+                <p className="text-gray-400 text-xs mt-1">Les projets financés par le Fonds Solidaire apparaîtront ici</p>
+              </div>
+            ) : repayments.map((r: any) => (
+              <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="font-bold text-gray-900">{r.project?.title}</div>
+                    <div className="text-xs text-gray-400">{r.project?.sector} · {r.paidMonths}/{r.totalMonths} mois</div>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-bold ${r.stats?.late > 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                    {r.stats?.late > 0 ? "⚠️ Retard" : "✅ En cours"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs mb-3">
+                  <div className="bg-gray-50 rounded-xl p-2 text-center">
+                    <div className="text-gray-400">Total dû</div>
+                    <div className="font-bold">{fmt(r.totalAmount)} FCFA</div>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-2 text-center">
+                    <div className="text-gray-400">Remboursé</div>
+                    <div className="font-bold text-green-700">{fmt(r.totalAmount - r.remainingAmount)} FCFA</div>
+                  </div>
+                  <div className="bg-orange-50 rounded-xl p-2 text-center">
+                    <div className="text-gray-400">Restant</div>
+                    <div className="font-bold text-orange-700">{fmt(r.remainingAmount)} FCFA</div>
+                  </div>
+                </div>
+                <div className="bg-gray-100 rounded-full h-2 mb-1">
+                  <div className="bg-green-500 h-2 rounded-full"
+                    style={{width: `${Math.round(((r.totalAmount - r.remainingAmount) / r.totalAmount) * 100)}%`}} />
+                </div>
+                <div className="grid grid-cols-6 gap-1 mt-3">
+                  {r.payments?.map((pay: any) => (
+                    <div key={pay.id} className={`rounded-lg p-1 text-center text-xs ${pay.status==='PAID'?'bg-green-100 text-green-700':new Date(pay.dueDate)<new Date()?'bg-red-100 text-red-700':'bg-gray-100 text-gray-500'}`}>
+                      <div className="font-bold">M{pay.monthNumber}</div>
+                      <div>{pay.status==='PAID'?'✅':new Date(pay.dueDate)<new Date()?'⚠️':'⏳'}</div>
+                    </div>
+                  ))}
+                </div>
+                {r.nextDueDate && (
+                  <div className="text-xs text-gray-400 mt-2">
+                    Prochain paiement : {new Date(r.nextDueDate).toLocaleDateString("fr-FR")}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* IMPACT */}
         {activeTab === "impact" && (
           <div className="space-y-5">
@@ -575,7 +634,7 @@ export default function BuilderDashboard() {
                 <div className="space-y-3">
                   {[
                     { label: "Total donné au fonds", value: fmt(totalDonated) + " FCFA", icon: "💝" },
-                    { label: "Net reversé aux projets", value: fmt(Math.round(totalDonated * 0.9)) + " FCFA", icon: "🚀" },
+                    { label: "Net reversé aux projets (84%)", value: fmt(Math.round(totalDonated * 0.84)) + " FCFA", icon: "🚀" },
                     { label: "Projets soutenus", value: String(projectsSupported), icon: "🏗️" },
                     { label: "Contributions totales", value: String(contributions.length), icon: "📋" },
                   ].map(s => (
