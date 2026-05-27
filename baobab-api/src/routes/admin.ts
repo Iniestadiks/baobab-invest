@@ -558,6 +558,10 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
     const coutPaydunya = Math.abs(byType['PAYDUNYA_FEE'] || 0)
     const revenueNetBAOBAB = revenuBrutBAOBAB - coutPaydunya
     const totalMentorCommission = byType['MENTOR_COMMISSION'] || 0
+    const totalGuaranteeFee = byType['GUARANTEE_FEE'] || 0
+    const totalPayinRecovery = byType['PAYIN_RECOVERY'] || 0
+    const totalWithdrawalFee = byType['WITHDRAWAL_FEE'] || 0
+    const totalOperatorMargin = byType['OPERATOR_MARGIN'] || 0
     const totalRevenue = revenues.reduce((s, r) => s + r.amount, 0)
     successResponse(res, {
       revenues,
@@ -566,6 +570,10 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
       coutPaydunya,
       revenueNetBAOBAB,
       totalMentorCommission,
+      totalGuaranteeFee,
+      totalPayinRecovery,
+      totalWithdrawalFee,
+      totalOperatorMargin,
       byType,
       byMonth: Object.entries(byMonth).map(([date, amount]) => ({ date, amount })),
       projectionAnnuelle: revenueNetBAOBAB * 12,

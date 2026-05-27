@@ -216,6 +216,7 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
     { title: "⏳ Délais de grâce (mois)", keys: ["grace_period_agriculture", "grace_period_other"] },
     { title: "💵 Montants minimum", keys: ["investment_min", "withdrawal_min"] },
     { title: "🔒 Frais de retrait", keys: ["withdrawal_fee_standard", "withdrawal_fee_no_invest"] },
+    { title: "📱 Taux réels opérateur (référence marge)", keys: ["payin_operator_real", "payout_operator_real"] },
   ];
 
   return (
@@ -1238,7 +1239,7 @@ function FinancesTab({ authGet }: any) {
   const projects = data?.projects || [];
   const activeProjects = projects.filter((p: any) => p.totalInvested > 0);
   const totalInvested = projects.reduce((s: number, p: any) => s + p.totalInvested, 0);
-  const totalCagnotteNette = projects.reduce((s: number, p: any) => s + p.cagnotteNette, 0);
+  const totalCagnotteNette = projects.filter((p: any) => p.totalInvested > 0).reduce((s: number, p: any) => s + p.cagnotteNette, 0);
   const totalRevenuBAOBAB = projects.reduce((s: number, p: any) => s + p.revenueNetBAOBABProjet, 0);
   const totalRetourInvestisseurs = projects.reduce((s: number, p: any) => s + p.netInvestors, 0);
   const totalFournisseurs = projects.reduce((s: number, p: any) => s + p.totalFournisseurs, 0);
@@ -1392,6 +1393,10 @@ function FinancesTab({ authGet }: any) {
             <div className="bg-blue-50 rounded-xl p-3">
               <div className="text-xs text-gray-500">Projection annuelle (net)</div>
               <div className="font-bold text-blue-700">{(revenues.projectionAnnuelle || 0).toLocaleString()} FCFA</div>
+            </div>
+            <div className="bg-emerald-50 rounded-xl p-3">
+              <div className="text-xs text-gray-500">💰 Marges opérateur encaissées</div>
+              <div className="font-bold text-emerald-700">+{(revenues.totalOperatorMargin || 0).toLocaleString()} FCFA</div>
             </div>
           </div>
         </div>

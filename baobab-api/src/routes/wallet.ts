@@ -86,6 +86,12 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
     const txId = customData.txId
     const userId = customData.userId
     const amount = confirmation.invoice?.total_amount
+    // Calcul marge opérateur — frais sécurisés vs taux réel configuré
+    const payinRealRate = await prisma.platformConfig.findUnique({ where: { key: 'payin_operator_real' } })
+    const payinSecuredRate = await prisma.platformConfig.findUnique({ where: { key: 'payin_recovery' } })
+    const realRate = payinRealRate?.value || 3.5
+    const securedRate = payinSecuredRate?.value || 4
+    const operatorMargin = Math.round(amount * (securedRate - realRate) / 100)
 
     if (!txId || !userId || !amount) { res.status(400).json({ success: false }); return }
 
@@ -115,6 +121,17 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
         }
       })
     })
+
+    // Enregistrer marge opérateur sur dépôt si positive
+    if (operatorMargin > 0) {
+      await prisma.platformRevenue.create({
+        data: {
+          type: 'OPERATOR_MARGIN',
+          amount: operatorMargin,
+          description: `Marge opérateur dépôt — sécurisé ${securedRate}% vs réel ${realRate}% — ${amount.toLocaleString()} FCFA`
+        }
+      })
+    }
 
     res.json({ success: true })
   } catch (e) { console.error(e); res.status(500).json({ success: false }) }
@@ -183,7 +200,13 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
 
     // Créditer BAOBAB — si frais standard = 0%, BAOBAB absorbe le Payout réel 2%
     const adminW = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    const realPayoutCost = Math.round(gainPart * 2 / 100) // Payout réel PayDunya 2% sur les gains
+    // Taux réel opérateur depuis config (configurable dans admin)
+    const payoutRealConfig = await prisma.platformConfig.findUnique({ where: { key: 'payout_operator_real' } })
+    const payoutSecuredConfig = await prisma.platformConfig.findUnique({ where: { key: 'payin_repayment' } })
+    const payoutRealRate = payoutRealConfig?.value || 2.0
+    const payoutSecuredRate = payoutSecuredConfig?.value || 4.0
+    const realPayoutCost = Math.round(gainPart * payoutRealRate / 100)
+    const payoutOperatorMargin = Math.round(gainPart * (payoutSecuredRate - payoutRealRate) / 100)
     if (adminW) {
       if (payoutFee > 0) {
         // Frais perçus sur dépôts anti-abus
@@ -206,6 +229,16 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
         description: `Retrait — gains:${gainPart} gratuit (BAOBAB absorbe ${realPayoutCost} FCFA) + dépôts:${depositPart}@7% — ${phoneNumber || ''}`
       }
     })
+    // Marge opérateur payout si positive
+    if (payoutOperatorMargin > 0) {
+      await prisma.platformRevenue.create({
+        data: {
+          type: 'OPERATOR_MARGIN',
+          amount: payoutOperatorMargin,
+          description: `Marge opérateur retrait — sécurisé ${payoutSecuredRate}% vs réel ${payoutRealRate}% — gains: ${gainPart.toLocaleString()} FCFA`
+        }
+      })
+    }
     // Décrémenter gainBalance et depositBalance
     await prisma.wallet.update({
       where: { userId: req.userId! },
