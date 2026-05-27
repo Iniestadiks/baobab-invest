@@ -2561,7 +2561,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredUsers.map((u: any) => (
-                    <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${u.isBanned ? "opacity-50 bg-red-50" : ""}`}>
+                    <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${u.isBanned ? "opacity-50 bg-red-50" : ""} ${u.id === 'baobab-fund-system-001' ? "bg-green-50 border-l-4 border-l-green-500" : ""}`}>
                       {/* Identité */}
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
