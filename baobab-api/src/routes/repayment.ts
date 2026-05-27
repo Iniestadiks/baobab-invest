@@ -52,16 +52,19 @@ router.get('/investor/received', authenticate, async (req: AuthRequest, res: Res
       })
       if (!schedule || schedule.payments.length === 0) continue
 
-      // Calculer la part proportionnelle de cet investisseur
-      const totalInvested = await prisma.investment.aggregate({
-        where: { projectId: inv.projectId },
-        _sum: { amount: true }
+      // Utiliser sharePercent pour la proportion exacte
+      const investmentFull = await prisma.investment.findFirst({
+        where: { userId: req.userId!, projectId: inv.projectId },
+        select: { sharePercent: true }
       })
-      const totalInvestedAmount = totalInvested._sum.amount || 1
-      const proportion = inv.amount / totalInvestedAmount
+      const proportion = investmentFull?.sharePercent || (inv.amount / (schedule.project?.goalAmount || inv.amount))
+      const feesData = await getFees()
+      const payinRepayPct = feesData.payin_repayment || 4
 
       for (const payment of schedule.payments) {
-        const investorShare = Math.round(payment.amount * proportion)
+        const payinFee = Math.round(payment.amount * payinRepayPct / 100)
+        const netPayment = payment.amount - payinFee
+        const investorShare = Math.round(netPayment * proportion)
         results.push({
           id: payment.id,
           projectId: inv.projectId,
@@ -69,13 +72,12 @@ router.get('/investor/received', authenticate, async (req: AuthRequest, res: Res
           monthNumber: payment.monthNumber,
           totalMonths: schedule.totalMonths,
           amount: investorShare,
+          grossAmount: payment.amount,
           paidAt: payment.paidAt,
           createdAt: payment.paidAt
         })
       }
     }
-
-    // Trier par date décroissante
     results.sort((a, b) => new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime())
     successResponse(res, results)
   } catch (e) { console.error(e); errorResponse(res) }
@@ -228,6 +230,11 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
             totalEarned: { increment: investorShare }
           }
         })
+        // Mettre à jour returnedAmount de l'investissement
+        await tx.investment.updateMany({
+          where: { userId: inv.userId, projectId: schedule.projectId },
+          data: { returnedAmount: { increment: investorShare } }
+        })
 
         await tx.notification.create({
           data: {
@@ -367,6 +374,11 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
             gainBalance: { increment: investorShare },
             totalEarned: { increment: investorShare }
           }
+        })
+        // Mettre à jour returnedAmount de l'investissement
+        await tx.investment.updateMany({
+          where: { userId: inv.userId, projectId: schedule.projectId },
+          data: { returnedAmount: { increment: investorShare } }
         })
         await tx.notification.create({
           data: {
