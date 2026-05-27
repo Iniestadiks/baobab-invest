@@ -322,7 +322,7 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
 })
 
 // Admin — reporter une échéance
-router.patch('/admin/reschedule/:scheduleId', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/admin/reschedule/:scheduleId', authenticate, requireRole(['ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { newDueDate, note, monthNumber } = req.body
     if (!newDueDate) { res.status(400).json({ success: false, message: 'newDueDate requis' }); return }

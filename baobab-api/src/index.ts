@@ -1,4 +1,5 @@
 import express from 'express'
+import { PrismaClient } from '@prisma/client'
 import cors from 'cors'
 import helmet from 'helmet'
 import { config } from './config'
@@ -67,7 +68,6 @@ setInterval(checkAndPromoteWaitlist, 60 * 60 * 1000)
 // Cron quotidien — vérification retards paiement (tous les jours à 9h)
 const checkRepaymentDelays = async () => {
   try {
-    const { PrismaClient } = await import('@prisma/client')
     const prisma = new PrismaClient()
     const now = new Date()
     const late3days = new Date(now.getTime() - 3*24*60*60*1000)
