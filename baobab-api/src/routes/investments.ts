@@ -161,7 +161,7 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
         where: { id: projectId },
         data: { raisedAmount: { increment: amount }, investorCount: { increment: 1 }, status: newStatus }
       })
-      // 4. Créditer wallet admin : BAOBAB 5% + Payin 4%
+      // 4. Créditer wallet admin : BAOBAB commission% + Payin%
       const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
       if (adminUser) {
         await tx.wallet.update({
@@ -173,7 +173,7 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
           }
         })
       }
-      await tx.platformRevenue.create({ data: { type: 'COMMISSION_COLLECTION', amount: platformFee, projectId, description: `Commission collecte 5% — ${project.title}` } })
+      await tx.platformRevenue.create({ data: { type: 'COMMISSION_COLLECTION', amount: platformFee, projectId, description: `Commission collecte ${fees.commission_baobab_collection}% — ${project.title}` } })
       await tx.platformRevenue.create({ data: { type: 'PAYIN_RECOVERY', amount: payinFee, projectId, description: `Récupération Payin 4% — ${project.title}` } })
       if (guaranteeFee > 0) {
         await tx.platformRevenue.create({ data: { type: 'GUARANTEE_FEE', amount: guaranteeFee, projectId, description: `Assurance 2% — ${project.title}` } })

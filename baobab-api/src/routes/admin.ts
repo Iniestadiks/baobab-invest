@@ -150,7 +150,21 @@ router.get('/stats', authenticate, requireAdmin, async (req: AuthRequest, res: R
     const totalLeve = investmentsAgg._sum.amount || 0
     const totalAssurance = investmentsAgg._sum.guaranteeContribution || 0
 
+    // Taux de config
+    const configRates = await prisma.platformConfig.findMany()
+    const rateMap: any = {}
+    configRates.forEach((c: any) => { rateMap[c.key] = c.value })
+
     successResponse(res, {
+      // Taux config
+      baobabRate: rateMap.commission_baobab_collection || 6,
+      payinRate: rateMap.payin_recovery || 4,
+      payinRepayRate: rateMap.payin_repayment || 4,
+      mentorRate: rateMap.commission_mentor || 2,
+      guarRate: rateMap.commission_guarantee || 2,
+      // Marges opérateur (sécurité)
+      payinOperatorReal: 3.5,   // taux réel max PayDunya payin
+      payoutOperatorReal: 2.0,  // taux réel max PayDunya payout
       // Utilisateurs
       totalUsers, activeInvestors, pendingKyc, builders,
       // Projets
@@ -226,15 +240,16 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
       const payinRepayPct = feeMap.payin_repayment || 4
       const fraisFixesPct = baobabPct + payinPct + (p.mentorId ? mentorPct : 0)
 
-      const baobabOnCollection = Math.round(totalInvested * baobabPct / 100)
-      const mentorFee          = p.mentorId ? Math.round(totalInvested * mentorPct / 100) : 0
-      const paydunyaPayin      = Math.round(totalInvested * payinPct / 100)
-      // Assurance = somme réelle des guaranteeContribution
+      // Calculs basés sur goalAmount réel du projet
+      const baobabOnCollection = Math.round((p.goalAmount||0) * baobabPct / 100)
+      const mentorFee          = p.mentorId ? Math.round((p.goalAmount||0) * mentorPct / 100) : 0
+      const paydunyaPayin      = Math.round((p.goalAmount||0) * payinPct / 100)  // coût absorbé
+      // Assurance = somme réelle des guaranteeContribution (hors cagnotte)
       const guaranteeFee = p.investments.reduce((s: number, i: any) => s + (i.guaranteeContribution || 0), 0)
-      // netAmount = ce que l'entrepreneur reçoit
-      const netAmount = Math.round((p.goalAmount || 0) * (1 - fraisFixesPct / 100))
+      // netAmount = depuis DB si dispo, sinon recalculé
+      const netAmount = p.netAmount || Math.round((p.goalAmount||0) * (1 - fraisFixesPct / 100))
       const cagnotteNette = netAmount
-      // Retour total
+      // Retour total sur netAmount
       const returnRate = p.expectedReturn || (feeMap.return_min || 24)
       const totalRemb = Math.round(netAmount * (1 + returnRate / 100))
       const payinOnRepayment = Math.round(totalRemb * payinRepayPct / 100)
@@ -247,8 +262,8 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
         s + m.payments.filter((pay: any) => pay.status === 'COMPLETED').reduce((ss: number, pay: any) => ss + pay.amount, 0), 0)
       const fournisseursPending = p.milestones.reduce((s: number, m: any) =>
         s + m.payments.filter((pay: any) => pay.status === 'PENDING').reduce((ss: number, pay: any) => ss + pay.amount, 0), 0)
-      // Revenu net BAOBAB = commission + payin collecte + payin mensualités
-      const revenueNetBAOBABProjet = baobabOnCollection + paydunyaPayin + baobabOnReturn
+      // Revenu BAOBAB = commission collecte UNIQUEMENT (payin = coût, pas revenu)
+      const revenueNetBAOBABProjet = baobabOnCollection
 
       return {
         id: p.id, title: p.title, sector: p.sector, status: p.status,
@@ -330,7 +345,7 @@ router.get('/stats/charts', authenticate, requireAdmin, async (req: AuthRequest,
      const feeMap: any = {}
      fees.forEach((f: any) => { feeMap[f.key] = parseFloat(f.value) })
      const totalRaisedBrut = investments.reduce((s, i) => s + i.amount, 0)
-     const fraisTaux = (feeMap.commission_baobab_collection||5) + (feeMap.commission_mentor||2) + (feeMap.commission_guarantee||2)
+     const fraisTaux = (feeMap.commission_baobab_collection||6) + (feeMap.commission_mentor||2) + (feeMap.commission_guarantee||2)
      const totalCagnotteNette = Math.round(totalRaisedBrut * (1 - fraisTaux/100))
      const totalExpectedReturn = investments.reduce((s, i) => s + (i.expectedReturn||0), 0)
      const totalNetInvestors = Math.round(totalExpectedReturn * (1 - (0)/100 - (feeMap.withdrawal_fee_standard||3)/100))

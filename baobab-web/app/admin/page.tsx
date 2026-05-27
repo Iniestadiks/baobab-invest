@@ -1110,7 +1110,7 @@ function StatsTab({ authGet }: any) {
           <h3 className="font-bold text-gray-900 mb-4">💵 Détail revenus BAOBAB</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Commission collecte (6%)", value: stats.commissionBalance||0, color: "text-green-700", bg: "bg-green-50" },
+              { label: `Commission collecte (${stats.baobabRate||6}%)`, value: stats.commissionBalance||0, color: "text-green-700", bg: "bg-green-50" },
               { label: "Payin remboursements (4%)", value: stats.totalPayinRepayment||0, color: "text-blue-700", bg: "bg-blue-50" },
               { label: "Mentor commissions (2%)", value: stats.totalMentorCommission||0, color: "text-purple-700", bg: "bg-purple-50" },
               { label: "Fonds garantie collecté", value: stats.totalGuaranteeFund||0, color: "text-orange-700", bg: "bg-orange-50" },
@@ -1397,6 +1397,53 @@ function FinancesTab({ authGet }: any) {
         </div>
       )}
 
+      {/* Bilan opérateur — marges sécurité */}
+      {revenues && data && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <h3 className="font-bold text-gray-900 mb-2">📱 Bilan opérateur de paiement</h3>
+          <p className="text-xs text-gray-400 mb-4">Vous sécurisez une marge sur les frais opérateur en appliquant des taux supérieurs aux coûts réels.</p>
+          {(() => {
+            const totalLeve = data.projects.reduce((s: number, p: any) => s + p.totalInvested, 0)
+            const totalRemb = data.projects.reduce((s: number, p: any) => s + p.netInvestors, 0)
+            // Payin collecte
+            const payinCollecteSecurise = Math.round(totalLeve * (adminWallet?.payinRate || 4) / 100)
+            const payinCollecteReel     = Math.round(totalLeve * 3.5 / 100)
+            const margePayinCollecte    = payinCollecteSecurise - payinCollecteReel
+            // Payout remboursements
+            const payoutSecurise = Math.round(totalRemb * (adminWallet?.payinRepayRate || 4) / 100)
+            const payoutReel     = Math.round(totalRemb * 2.0 / 100)
+            const margePayout    = payoutSecurise - payoutReel
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-3 text-xs font-bold text-gray-500 px-2">
+                  <span>Opération</span><span className="text-center">Taux sécurisé</span><span className="text-right">Marge potentielle</span>
+                </div>
+                {[
+                  { label: "Payin collecte (investissement)", securise: payinCollecteSecurise, reel: payinCollecteReel, marge: margePayinCollecte, tauxS: adminWallet?.payinRate||4, tauxR: 3.5 },
+                  { label: "Payout remboursements", securise: payoutSecurise, reel: payoutReel, marge: margePayout, tauxS: adminWallet?.payinRepayRate||4, tauxR: 2.0 },
+                ].map(op => (
+                  <div key={op.label} className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{op.label}</div>
+                        <div className="text-xs text-gray-400">Taux sécurisé {op.tauxS}% — Taux réel max ~{op.tauxR}%</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">Prélevé : {op.securise.toLocaleString()} FCFA</div>
+                        <div className="text-xs text-green-600 font-bold">Marge : +{op.marge.toLocaleString()} FCFA</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex justify-between items-center">
+                  <span className="text-sm font-medium text-green-800">💰 Marge opérateur totale potentielle</span>
+                  <span className="font-bold text-green-700">+{(margePayinCollecte + margePayout).toLocaleString()} FCFA</span>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
       {/* Détail par projet */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h3 className="font-bold text-gray-900 mb-4">📋 Détail financier par projet</h3>
