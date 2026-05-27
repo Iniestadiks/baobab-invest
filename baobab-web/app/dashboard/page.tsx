@@ -33,6 +33,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [repayments, setRepayments] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [expandedInv, setExpandedInv] = useState<Record<string, boolean>>({});
@@ -61,6 +62,16 @@ export default function DashboardPage() {
     if (me.success) { setWallet(me.data.wallet); setUser(me.data); }
     if (notif.success) setNotifications(notif.data.notifications || []);
     if (rep.success) setRepayments(rep.data || []);
+    // Charger les échéanciers des projets IN_PROGRESS
+    const invData = inv.data?.investments || [];
+    const schedMap: any = {};
+    for (const i of invData) {
+      if (['IN_PROGRESS', 'FUNDED'].includes(i.project?.status)) {
+        const s = await authGet("/api/repayment/my/" + i.projectId);
+        if (s.success && s.data) schedMap[i.projectId] = s.data;
+      }
+    }
+    setSchedules(schedMap);
     setLoading(false);
   }, [router]);
 
@@ -601,6 +612,31 @@ export default function DashboardPage() {
                           <div className="font-bold text-blue-700">+{fmt(nr - inv.amount)} FCFA</div>
                         </div>
                       </div>
+                      {/* Calendrier mensualités */}
+                      {schedules[inv.projectId] && (
+                        <div className="mt-2">
+                          <div className="text-xs text-gray-500 font-medium mb-2">📅 Calendrier remboursements</div>
+                          <div className="grid grid-cols-6 gap-1">
+                            {schedules[inv.projectId].payments?.map((pay: any) => {
+                              const sharePercent = inv.sharePercent || 1
+                              const payinPct = fees?.payin_repayment || 4
+                              const net = Math.round(pay.amount * (1 - payinPct/100) * sharePercent)
+                              const isLate = pay.status === 'PENDING' && new Date(pay.dueDate) < new Date()
+                              return (
+                                <div key={pay.id} className={`rounded-lg p-1.5 text-center text-xs ${pay.status === 'PAID' ? 'bg-green-100 text-green-700' : isLate ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
+                                  <div className="font-bold">M{pay.monthNumber}</div>
+                                  <div>{pay.status === 'PAID' ? '✅' : isLate ? '⚠️' : '⏳'}</div>
+                                  <div>+{(net/1000).toFixed(1)}k</div>
+                                  <div className="text-xs opacity-70">{new Date(pay.dueDate).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}</div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2">
+                            Prochain paiement : {schedules[inv.projectId].nextDueDate ? new Date(schedules[inv.projectId].nextDueDate).toLocaleDateString('fr-FR') : '—'}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
