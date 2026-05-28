@@ -4025,10 +4025,9 @@ function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
                 )}
                 {b.userId && (
                   <div className="flex gap-2 mt-3">
-                    <button onClick={() => verifyBuilder(b.userId, true)} disabled={processing}
-                      className="flex-1 text-xs bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50">
-                      ✅ Vérifier KYC
-                    </button>
+                    <span className="flex-1 text-xs bg-green-100 text-green-700 py-1.5 rounded-lg text-center font-medium">
+                      ✅ Auto-vérifié — pas de KYC requis
+                    </span>
                     <button onClick={() => verifyBuilder(b.userId, false)} disabled={processing}
                       className="flex-1 text-xs bg-red-50 text-red-600 border border-red-200 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50">
                       ❌ Retirer

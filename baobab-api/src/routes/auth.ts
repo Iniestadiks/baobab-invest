@@ -40,10 +40,15 @@ router.post('/register', async (req, res): Promise<void> => {
       data: { email, password: hashed, firstName, lastName, phone, role: role || 'INVESTOR', referralCode, country: country || 'SN', city: city || '', region: region || '', countryCode: countryCode || 'SN', indicatif: indicatif || '+221' }
     })
     await prisma.wallet.create({ data: { userId: user.id, balance: 0 } })
-    // Créer profil Bâtisseur si rôle BUILDER
+    // Créer profil Bâtisseur si rôle BUILDER — pas de KYC requis
     if (role === 'BUILDER') {
       await prisma.builderProfile.create({
         data: { userId: user.id, companyName: companyName || null, sector: sector || null }
+      })
+      // Auto-valider KYC — les Bâtisseurs sont des donateurs, pas besoin de KYC
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { kycStatus: 'VERIFIED', isEmailVerified: true }
       })
     }
     const accessToken = generateAccessToken(user.id, user.role)
