@@ -3584,9 +3584,9 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
               <span className="text-xs text-blue-500">Fonds nets après commission BAOBAB 16%</span>
             </div>
             <div className="space-y-3">
-              {/* Filtre secteur */}
+              {/* Filtre secteur — dynamique depuis les projets */}
               <div className="flex gap-2 flex-wrap">
-                {["Tous", "AGRICULTURE", "TECH", "SANTE", "EDUCATION", "COMMERCE", "AUTRE"].map(sec => (
+                {["Tous", ...Array.from(new Set(projects.filter((p: any) => ['ACTIVE','FUNDED'].includes(p.status)).map((p: any) => p.sector).filter(Boolean)))].map((sec: any) => (
                   <button key={sec}
                     onClick={() => setAllocForm(f => ({ ...f, sectorFilter: sec } as any))}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${(allocForm as any).sectorFilter === sec || (!((allocForm as any).sectorFilter) && sec === "Tous") ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-600 border-gray-200 hover:border-green-300"}`}>
@@ -3621,8 +3621,12 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
                         <div className="font-bold text-gray-900">{p.title}</div>
                         <div className="text-gray-500">{p.sector} · {p.city} · {p.status}</div>
                       </div>
-                      <a href={`/projects/${p.id}`} target="_blank"
-                        className="text-green-600 hover:underline font-medium">👁️ Voir</a>
+                      <div className="flex gap-2">
+                        <a href={`http://46.202.132.161:3000/projects/${p.id}`} target="_blank"
+                          className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-xl hover:bg-green-200 font-medium">
+                          👁️ Voir projet
+                        </a>
+                      </div>
                     </div>
                     <div className="bg-gray-200 rounded-full h-1.5 mb-1">
                       <div className="bg-green-500 h-1.5 rounded-full" style={{width:`${Math.min(100,pct)}%`}} />
