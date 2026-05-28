@@ -77,7 +77,7 @@ router.get('/project/:projectId/budget', authenticate, async (req: AuthRequest, 
       where: { id: req.params.projectId },
       include: {
         milestones: true,
-        investments: { include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true, city: true, level: true, totalInvested: true } } } }
+        investments: { include: { user: { select: { id: true, firstName: true, lastName: true, profileImageUrl: true, city: true, level: true, totalInvested: true } } } }
       }
     })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
