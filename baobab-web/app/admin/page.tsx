@@ -3248,6 +3248,77 @@ export default function AdminPage() {
 // ═══════════════════════════════════════════════════════════
 // FUND TAB — Gestion Fonds Solidaire BAOBAB
 // ═══════════════════════════════════════════════════════════
+function FundMonthlyEvolution({ months, fmt }: { months: any[], fmt: (n: number) => string }) {
+  const [showAll, setShowAll] = React.useState(false);
+  const [sortDir, setSortDir] = React.useState<"desc"|"asc">("desc");
+  const [search, setSearch] = React.useState("");
+  const sorted = [...months]
+    .filter(m => !search || m.month?.includes(search))
+    .sort((a, b) => sortDir === "desc"
+      ? b.month?.localeCompare(a.month)
+      : a.month?.localeCompare(b.month));
+  const displayed = showAll ? sorted : sorted.slice(0, 6);
+  const totalRecu = months.reduce((s, m) => s + Number(m.total || 0), 0);
+  const totalNet  = months.reduce((s, m) => s + Number(m.net || 0), 0);
+  const totalFees = months.reduce((s, m) => s + Number(m.fees || 0), 0);
+  const totalCount = months.reduce((s, m) => s + Number(m.count || 0), 0);
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-bold text-gray-900">📅 Évolution mensuelle</h3>
+        <div className="flex gap-2 items-center">
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Filtrer mois..."
+            className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-green-400 w-32" />
+          <button onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}
+            className="text-xs bg-gray-100 px-3 py-1.5 rounded-xl hover:bg-gray-200">
+            {sortDir === "desc" ? "↓ Plus récent" : "↑ Plus ancien"}
+          </button>
+          {months.length > 6 && (
+            <button onClick={() => setShowAll(s => !s)}
+              className="text-xs text-green-600 hover:underline">
+              {showAll ? "▲ Réduire" : `▼ Voir tout (${months.length} mois)`}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="text-left px-3 py-2 text-xs text-gray-500">Mois</th>
+              <th className="text-right px-3 py-2 text-xs text-gray-500">Total reçu</th>
+              <th className="text-right px-3 py-2 text-xs text-gray-500">Net fonds (84%)</th>
+              <th className="text-right px-3 py-2 text-xs text-gray-500">Frais BAOBAB (16%)</th>
+              <th className="text-right px-3 py-2 text-xs text-gray-500">Contributions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {displayed.map((m: any) => (
+              <tr key={m.month} className="hover:bg-green-50 transition-colors">
+                <td className="px-3 py-2 text-gray-700 font-medium">{m.month}</td>
+                <td className="px-3 py-2 text-right font-mono text-green-700">{fmt(Number(m.total))} F</td>
+                <td className="px-3 py-2 text-right font-mono text-blue-700">{fmt(Number(m.net))} F</td>
+                <td className="px-3 py-2 text-right font-mono text-purple-700">{fmt(Number(m.fees))} F</td>
+                <td className="px-3 py-2 text-right text-gray-500">{m.count}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-green-50 font-bold border-t-2 border-green-200">
+              <td className="px-3 py-2 text-gray-700">📊 Total</td>
+              <td className="px-3 py-2 text-right text-green-700">{fmt(totalRecu)} F</td>
+              <td className="px-3 py-2 text-right text-blue-700">{fmt(totalNet)} F</td>
+              <td className="px-3 py-2 text-right text-purple-700">{fmt(totalFees)} F</td>
+              <td className="px-3 py-2 text-right text-gray-600">{totalCount}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function FundTab({ flash }: { flash: (m: string) => void }) {
   const [stats, setStats] = React.useState<any>(null);
   const [contributions, setContributions] = React.useState<any[]>([]);
@@ -3437,34 +3508,8 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
             </div>
           </div>
 
-          {/* Évolution mensuelle */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h3 className="font-bold text-gray-900 mb-4">Évolution mensuelle</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left px-3 py-2 text-xs text-gray-500">Mois</th>
-                    <th className="text-right px-3 py-2 text-xs text-gray-500">Total reçu</th>
-                    <th className="text-right px-3 py-2 text-xs text-gray-500">Net fonds</th>
-                    <th className="text-right px-3 py-2 text-xs text-gray-500">Frais BAOBAB</th>
-                    <th className="text-right px-3 py-2 text-xs text-gray-500">Contributions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {stats?.byMonth?.map((m: any) => (
-                    <tr key={m.month} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-gray-700">{m.month}</td>
-                      <td className="px-3 py-2 text-right font-mono text-green-700">{fmt(Number(m.total))}</td>
-                      <td className="px-3 py-2 text-right font-mono text-blue-700">{fmt(Number(m.net))}</td>
-                      <td className="px-3 py-2 text-right font-mono text-purple-700">{fmt(Number(m.fees))}</td>
-                      <td className="px-3 py-2 text-right text-gray-500">{m.count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/* Évolution mensuelle — pli/dépli */}
+          <FundMonthlyEvolution months={stats?.byMonth || []} fmt={fmt} />
 
           {/* Badges distribués */}
           {stats?.badges?.length > 0 && (
