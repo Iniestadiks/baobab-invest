@@ -106,14 +106,18 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
                     tx.type === "DEPOSIT" ? "bg-green-100" :
                     tx.type === "INVESTMENT" ? "bg-blue-100" :
-                    tx.type === "INSURANCE" ? "bg-orange-100" : "bg-red-100"}`}>
-                    {tx.type === "DEPOSIT" ? "💳" : tx.type === "INVESTMENT" ? "💼" : tx.type === "INSURANCE" ? "🛡️" : "💸"}
+                    tx.type === "INSURANCE" ? "bg-orange-100" :
+                    tx.type === "FUND_ALLOCATION" ? "bg-emerald-100" :
+                    tx.type === "REPAYMENT" ? "bg-purple-100" : "bg-red-100"}`}>
+                    {tx.type === "DEPOSIT" ? "💳" : tx.type === "INVESTMENT" ? "💼" : tx.type === "INSURANCE" ? "🛡️" : tx.type === "FUND_ALLOCATION" ? "🌱" : tx.type === "REPAYMENT" ? "🔄" : "💸"}
                   </div>
                   <div>
                     <div className="font-semibold text-gray-900 text-sm">
                       {tx.type === "DEPOSIT" ? "Dépôt" :
                        tx.type === "INVESTMENT" ? "Investissement" :
-                       tx.type === "INSURANCE" ? "Assurance capital" : "Retrait"} — {tx.user?.firstName} {tx.user?.lastName}
+                       tx.type === "INSURANCE" ? "Assurance capital" :
+                       tx.type === "FUND_ALLOCATION" ? "🌱 Don Fonds Solidaire" :
+                       tx.type === "REPAYMENT" ? "Remboursement" : "Retrait"} — {tx.user?.firstName} {tx.user?.lastName}
                     </div>
                     <div className="text-xs text-gray-500">{tx.user?.email} · {tx.user?.role}</div>
                     <div className="text-xs text-gray-400 mt-0.5">
@@ -122,8 +126,8 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <div className={`font-bold text-lg ${tx.type === "DEPOSIT" ? "text-green-700" : "text-orange-600"}`}>
-                    {tx.type === "DEPOSIT" ? "+" : "-"}{tx.amount.toLocaleString()} FCFA
+                  <div className={`font-bold text-lg ${tx.type === "DEPOSIT" || tx.type === "FUND_ALLOCATION" || tx.type === "REPAYMENT" ? "text-green-700" : "text-orange-600"}`}>
+                    {tx.type === "DEPOSIT" || tx.type === "FUND_ALLOCATION" || tx.type === "REPAYMENT" ? "+" : "-"}{tx.amount.toLocaleString()} FCFA
                   </div>
                   <div className={`text-xs font-medium mt-1 px-2 py-0.5 rounded-full inline-block ${
                     tx.status === "PENDING" ? "bg-orange-100 text-orange-700" :
