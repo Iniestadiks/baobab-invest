@@ -3594,53 +3594,61 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
                   </button>
                 ))}
               </div>
+              {/* Cartes projets éligibles */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Projet bénéficiaire <span className="text-xs text-gray-400">(projets en collecte uniquement)</span></label>
-                <select value={allocForm.projectId} onChange={e => setAllocForm(f => ({ ...f, projectId: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400">
-                  <option value="">Sélectionner un projet...</option>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Projet bénéficiaire <span className="text-xs text-gray-400">(projets en collecte uniquement)</span>
+                </label>
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {projects
                     .filter((p: any) => ['ACTIVE', 'FUNDED'].includes(p.status))
                     .filter((p: any) => !(allocForm as any).sectorFilter || (allocForm as any).sectorFilter === "Tous" || p.sector === (allocForm as any).sectorFilter)
-                    .map((p: any) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title} — {p.sector} · {p.status} · {fmt(p.raisedAmount||0)}/{fmt(p.goalAmount||0)} FCFA
-                      </option>
-                    ))}
-                </select>
+                    .length === 0 ? (
+                      <div className="text-center py-6 text-gray-400 text-sm">Aucun projet éligible dans ce secteur</div>
+                    ) : projects
+                    .filter((p: any) => ['ACTIVE', 'FUNDED'].includes(p.status))
+                    .filter((p: any) => !(allocForm as any).sectorFilter || (allocForm as any).sectorFilter === "Tous" || p.sector === (allocForm as any).sectorFilter)
+                    .map((p: any) => {
+                      const pct = Math.round(((p.raisedAmount||0)/(p.goalAmount||1))*100);
+                      const selected = allocForm.projectId === p.id;
+                      return (
+                        <div key={p.id}
+                          onClick={() => setAllocForm(f => ({ ...f, projectId: selected ? "" : p.id }))}
+                          className={`border-2 rounded-xl p-3 cursor-pointer transition-all ${selected ? "border-green-500 bg-green-50" : "border-gray-100 bg-white hover:border-green-300"}`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                {selected && <span className="text-green-600">✅</span>}
+                                <span className="font-semibold text-gray-900 text-sm">{p.title}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {p.sector} · {p.city || "N/A"} · 
+                                <span className={`ml-1 px-1.5 py-0.5 rounded font-medium ${p.status==='ACTIVE'?'bg-blue-100 text-blue-700':'bg-green-100 text-green-700'}`}>
+                                  {p.status}
+                                </span>
+                              </div>
+                            </div>
+                            <a href={`http://46.202.132.161:3000/projects/${p.id}`} target="_blank"
+                              onClick={e => e.stopPropagation()}
+                              className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1.5 rounded-xl hover:bg-green-100 hover:text-green-700 font-medium ml-2 whitespace-nowrap">
+                              👁️ Voir
+                            </a>
+                          </div>
+                          <div className="bg-gray-200 rounded-full h-1.5 mb-1">
+                            <div className="bg-green-500 h-1.5 rounded-full" style={{width:`${Math.min(100,pct)}%`}} />
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>Levé : {fmt(p.raisedAmount||0)} FCFA ({pct}%)</span>
+                            <span>Objectif : {fmt(p.goalAmount||0)} FCFA</span>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            +{p.interestRate||24}% retour · {p.durationMonths||6} mois · {p.investorCount||0} investisseur(s)
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
-              {/* Aperçu projet sélectionné */}
-              {allocForm.projectId && (() => {
-                const p = projects.find((x: any) => x.id === allocForm.projectId);
-                if (!p) return null;
-                const pct = Math.round(((p.raisedAmount||0)/(p.goalAmount||1))*100);
-                return (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="font-bold text-gray-900">{p.title}</div>
-                        <div className="text-gray-500">{p.sector} · {p.city} · {p.status}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <a href={`http://46.202.132.161:3000/projects/${p.id}`} target="_blank"
-                          className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-xl hover:bg-green-200 font-medium">
-                          👁️ Voir projet
-                        </a>
-                      </div>
-                    </div>
-                    <div className="bg-gray-200 rounded-full h-1.5 mb-1">
-                      <div className="bg-green-500 h-1.5 rounded-full" style={{width:`${Math.min(100,pct)}%`}} />
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>Levé : {fmt(p.raisedAmount||0)} FCFA ({pct}%)</span>
-                      <span>Objectif : {fmt(p.goalAmount||0)} FCFA</span>
-                    </div>
-                    <div className="mt-1 text-gray-500">
-                      Retour +{p.interestRate||p.expectedReturn||24}% · {p.durationMonths||6} mois · {p.investorCount||0} investisseur(s)
-                    </div>
-                  </div>
-                );
-              })()}
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Montant à allouer (FCFA)</label>
                 <input type="number" value={allocForm.amount}
