@@ -582,26 +582,55 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
       const key = new Date(r.createdAt).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
       byMonth[key] = (byMonth[key] || 0) + r.amount
     })
-    const revenuBrutBAOBAB = (byType['COMMISSION_COLLECTION'] || 0) + (byType['COMMISSION_RETURN'] || 0)
-    const coutPaydunya = Math.abs(byType['PAYDUNYA_FEE'] || 0)
-    const revenueNetBAOBAB = revenuBrutBAOBAB - coutPaydunya
-    const totalMentorCommission = byType['MENTOR_COMMISSION'] || 0
-    const totalGuaranteeFee = byType['GUARANTEE_FEE'] || 0
-    const totalPayinRecovery = byType['PAYIN_RECOVERY'] || 0
-    const totalWithdrawalFee = byType['WITHDRAWAL_FEE'] || 0
-    const totalOperatorMargin = byType['OPERATOR_MARGIN'] || 0
+    // ── Revenus PURS BAOBAB (ce que BAOBAB gagne vraiment) ──
+    const commissionCollecte = byType['COMMISSION_COLLECTION'] || 0  // 6% à la clôture
+    const commissionFonds    = byType['FUND_COMMISSION'] || 0         // 16% fonds solidaire
+    const commissionRetrait  = byType['WITHDRAWAL_FEE'] || 0          // frais retrait
+    const revenusBrutsPurs   = commissionCollecte + commissionFonds + commissionRetrait
+
+    // ── Marges opérateur (différence taux facturé - taux réel) ──
+    const payinRecovery      = byType['PAYIN_RECOVERY'] || 0          // 4% payin collecté
+    const payinRepayment     = byType['PAYIN_REPAYMENT'] || 0         // 4% payin mensualités
+    const coutPaydunyaReel   = Math.round((payinRecovery + payinRepayment) * 3.5 / 4) // coût réel ~3.5%
+    const margePayin         = Math.round(payinRecovery * 0.5 / 4)    // 0.5% marge payin collecte
+    const margePayout        = Math.round(payinRepayment * 2 / 4)     // 2% marge payout mensualités
+
+    // ── Fonds séparés (pas des revenus BAOBAB directs) ──
+    const totalGuaranteeFee  = byType['GUARANTEE_FEE'] || 0           // 2% assurance (réservé)
+    const totalMentorCommission = byType['MENTOR_COMMISSION'] || 0    // 2% mentor (reversé)
+    const totalPayinRecovery = payinRecovery
+    const totalPayinRepayment = payinRepayment
+
+    // ── Total net réel BAOBAB ──
+    const revenueNetBAOBAB   = revenusBrutsPurs + margePayin + margePayout
+    const revenuBrutBAOBAB   = revenusBrutsPurs  // pour compatibilité
+    const coutPaydunya       = coutPaydunyaReel
+    const totalOperatorMargin = margePayin + margePayout
     const totalRevenue = revenues.reduce((s, r) => s + r.amount, 0)
+
     successResponse(res, {
       revenues,
       totalRevenue,
+      // Revenus purs BAOBAB
+      commissionCollecte,
+      commissionFonds,
+      commissionRetrait,
+      revenusBrutsPurs,
+      // Marges opérateur
+      margePayin,
+      margePayout,
+      totalOperatorMargin,
+      coutPaydunyaReel,
+      // Net réel
+      revenueNetBAOBAB,
       revenuBrutBAOBAB,
       coutPaydunya,
-      revenueNetBAOBAB,
-      totalMentorCommission,
+      // Fonds séparés
       totalGuaranteeFee,
+      totalMentorCommission,
       totalPayinRecovery,
-      totalWithdrawalFee,
-      totalOperatorMargin,
+      totalPayinRepayment,
+      totalWithdrawalFee: commissionRetrait,
       byType,
       byMonth: Object.entries(byMonth).map(([date, amount]) => ({ date, amount })),
       projectionAnnuelle: revenueNetBAOBAB * 12,

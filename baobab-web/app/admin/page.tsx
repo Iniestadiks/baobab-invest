@@ -1635,7 +1635,7 @@ function FinancesTab({ authGet }: any) {
         {[
           { label: "Total levé", value: totalInvested, icon: "💰", color: "text-green-700", bg: "bg-green-50", note: "Brut investisseurs" },
           { label: "Cagnotte nette projets", value: totalCagnotteNette, icon: "🏗️", color: "text-blue-700", bg: "bg-blue-50", note: "Après frais clôture" },
-          { label: "Revenu net BAOBAB", value: revenues?.revenueNetBAOBAB || totalRevenuBAOBAB, icon: "🏦", color: "text-purple-700", bg: "bg-purple-50", note: "Encaissé à ce jour" },
+          { label: "🎯 Net réel BAOBAB", value: revenues?.revenueNetBAOBAB || totalRevenuBAOBAB, icon: "🏦", color: "text-purple-700", bg: "bg-purple-50", note: "Gains + marges encaissés" },
           { label: "Retours investisseurs", value: totalRetourInvestisseurs, icon: "📈", color: "text-orange-700", bg: "bg-orange-50", note: "Projetés net (à venir)" },
           { label: "Payé fournisseurs", value: totalFournisseurs, icon: "🏪", color: "text-gray-700", bg: "bg-gray-50", note: "Via jalons validés" },
         ].map(k => (
@@ -1646,6 +1646,98 @@ function FinancesTab({ authGet }: any) {
             <div className="text-xs text-gray-400">{k.note}</div>
           </div>
         ))}
+      </div>
+
+      {/* BLOC REVENUS BAOBAB DÉTAILLÉ */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <h3 className="font-bold text-gray-900 mb-1">💰 Ce que BAOBAB gagne réellement</h3>
+        <p className="text-xs text-gray-400 mb-4">Séparation claire entre revenus purs, marges opérateur et fonds séparés</p>
+
+        <div className="grid md:grid-cols-3 gap-4">
+          {/* Colonne 1 — Revenus purs */}
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+            <div className="font-bold text-green-800 mb-3">✅ Revenus purs BAOBAB</div>
+            <div className="text-xs text-gray-500 mb-3">Ce que BAOBAB garde directement</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">📊 Commission collecte 6%</span>
+                <span className="font-bold text-green-700">+{(revenues?.commissionCollecte||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">🌱 Commission Fonds Solidaire 16%</span>
+                <span className="font-bold text-green-700">+{(revenues?.commissionFonds||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">💸 Frais retrait</span>
+                <span className="font-bold text-green-700">+{(revenues?.commissionRetrait||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="border-t border-green-200 pt-2 flex justify-between font-bold">
+                <span>Sous-total</span>
+                <span className="text-green-700">+{(revenues?.revenusBrutsPurs||0).toLocaleString()} FCFA</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Colonne 2 — Marges opérateur */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+            <div className="font-bold text-blue-800 mb-3">📱 Marges opérateur</div>
+            <div className="text-xs text-gray-500 mb-3">Différence taux facturé - taux réel PayDunya</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">⬆️ Payin collecte (4% - 3.5%)</span>
+                <span className="font-bold text-blue-700">+{(revenues?.margePayin||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">⬇️ Payout mensualités (4% - 2%)</span>
+                <span className="font-bold text-blue-700">+{(revenues?.margePayout||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between text-gray-400 text-xs">
+                <span>Coût réel PayDunya estimé</span>
+                <span>-{(revenues?.coutPaydunyaReel||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="border-t border-blue-200 pt-2 flex justify-between font-bold">
+                <span>Sous-total</span>
+                <span className="text-blue-700">+{(revenues?.totalOperatorMargin||0).toLocaleString()} FCFA</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Colonne 3 — Fonds séparés */}
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+            <div className="font-bold text-orange-800 mb-3">🔒 Fonds séparés</div>
+            <div className="text-xs text-gray-500 mb-3">Pas des gains BAOBAB — réservés ou reversés</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">🛡️ Garantie 2% (réservé)</span>
+                <span className="font-medium text-orange-700">{(revenues?.totalGuaranteeFee||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">🎓 Commissions mentors (reversées)</span>
+                <span className="font-medium text-orange-700">{(revenues?.totalMentorCommission||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">💳 Payin collecte (coût PayDunya)</span>
+                <span className="font-medium text-orange-700">{(revenues?.totalPayinRecovery||0).toLocaleString()} FCFA</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">💳 Payin mensualités (coût PayDunya)</span>
+                <span className="font-medium text-orange-700">{(revenues?.totalPayinRepayment||0).toLocaleString()} FCFA</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Total net BAOBAB */}
+        <div className="mt-4 bg-purple-50 border border-purple-200 rounded-2xl p-4 flex justify-between items-center">
+          <div>
+            <div className="font-bold text-purple-900 text-lg">🎯 Net réel BAOBAB</div>
+            <div className="text-xs text-gray-500">Revenus purs + marges opérateur</div>
+          </div>
+          <div className="text-right">
+            <div className="font-bold text-purple-700 text-2xl">{(revenues?.revenueNetBAOBAB||totalRevenuBAOBAB).toLocaleString()} FCFA</div>
+            <div className="text-xs text-gray-400">Projection annuelle : {((revenues?.projectionAnnuelle||0)).toLocaleString()} FCFA</div>
+          </div>
+        </div>
       </div>
 
       {/* Résumé revenus */}
