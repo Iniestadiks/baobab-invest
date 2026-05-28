@@ -218,12 +218,19 @@ router.post('/confirm/:id', async (req: any, res: Response): Promise<void> => {
       update: { totalReceived: { increment: contribution.amount }, totalContributors: { increment: 1 } }
     })
 
-    // Créditer BAOBAB
+    // Créditer BAOBAB commission + enregistrer revenu
     const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    if (admin) {
+    if (admin && contribution.baobabFee > 0) {
       await prisma.wallet.update({
         where: { userId: admin.id },
         data: { commissionBalance: { increment: contribution.baobabFee } }
+      })
+      await prisma.platformRevenue.create({
+        data: {
+          type: 'FUND_COMMISSION',
+          amount: contribution.baobabFee,
+          description: `Commission Fonds Solidaire 16% — contribution ${contribution.id.substring(0,8)}`,
+        }
       })
     }
 

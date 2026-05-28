@@ -702,7 +702,7 @@ export default function BuilderDashboard() {
                   placeholder="Montant personnalisé..."
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
                 {contribForm.amount && Number(contribForm.amount) >= 500 && (
-                  <div className="text-xs text-gray-500 mt-1">Net au fonds : <strong className="text-green-600">{fmt(Math.round(Number(contribForm.amount) * 0.9))} FCFA</strong></div>
+                  <div className="text-xs text-gray-500 mt-1">Net au fonds (84%) : <strong className="text-green-600">{fmt(Math.round(Number(contribForm.amount) * 0.84))} FCFA</strong> · Commission BAOBAB 16% : {fmt(Math.round(Number(contribForm.amount) * 0.16))} FCFA</div>
                 )}
               </div>
               <div>
