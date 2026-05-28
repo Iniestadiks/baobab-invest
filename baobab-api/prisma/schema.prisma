@@ -49,6 +49,7 @@ enum TransactionType {
   GUARANTEE_FUND
   REFUND
   SUPPLIER_PAYMENT
+  FUND_ALLOCATION
 }
 
 enum TransactionStatus {

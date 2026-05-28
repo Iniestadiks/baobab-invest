@@ -1424,14 +1424,28 @@ function TxUserList({ txs }: { txs: any[] }) {
         {displayed.map((tx: any) => (
           <div key={tx.id} className="flex justify-between text-xs p-2 bg-gray-50 rounded-lg">
             <div>
-              <span className={`px-1.5 py-0.5 rounded font-medium ${tx.type==="DEPOSIT"?"bg-green-100 text-green-700":tx.type==="WITHDRAWAL"?"bg-red-100 text-red-700":"bg-blue-100 text-blue-700"}`}>{tx.type}</span>
+              <span className={`px-1.5 py-0.5 rounded font-medium ${
+                tx.type==="DEPOSIT"?"bg-green-100 text-green-700":
+                tx.type==="WITHDRAWAL"?"bg-red-100 text-red-700":
+                tx.type==="FUND_ALLOCATION"?"bg-emerald-100 text-emerald-700":
+                tx.type==="INVESTMENT"?"bg-blue-100 text-blue-700":
+                tx.type==="REPAYMENT"?"bg-purple-100 text-purple-700":
+                "bg-gray-100 text-gray-700"}`}>
+                {tx.type==="FUND_ALLOCATION"?"🌱 Don Fonds Solidaire":
+                 tx.type==="DEPOSIT"?"💰 Dépôt":
+                 tx.type==="WITHDRAWAL"?"💸 Retrait":
+                 tx.type==="INVESTMENT"?"📈 Investissement":
+                 tx.type==="REPAYMENT"?"🔄 Remboursement":
+                 tx.type}
+              </span>
               <span className="text-gray-400 ml-2">{new Date(tx.createdAt).toLocaleDateString("fr-FR")}</span>
-              {tx.operator && <span className="text-gray-400 ml-1">· {tx.operator}</span>}
+              {tx.operator && tx.operator !== 'FONDS_SOLIDAIRE' && <span className="text-gray-400 ml-1">· {tx.operator}</span>}
               {tx.description && <div className="text-gray-400 mt-0.5 truncate max-w-48">{tx.description}</div>}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`font-bold ${tx.type==="DEPOSIT"?"text-green-700":"text-red-600"}`}>
-                {tx.type==="DEPOSIT"?"+":"-"}{tx.amount.toLocaleString()} FCFA
+              <span className={`font-bold ${
+                tx.type==="DEPOSIT"||tx.type==="FUND_ALLOCATION"||tx.type==="REPAYMENT"?"text-green-700":"text-red-600"}`}>
+                {tx.type==="DEPOSIT"||tx.type==="FUND_ALLOCATION"||tx.type==="REPAYMENT"?"+":"-"}{tx.amount.toLocaleString()} FCFA
               </span>
               <span className={`text-xs px-1.5 py-0.5 rounded ${tx.status==="COMPLETED"?"bg-green-100 text-green-600":tx.status==="PENDING"?"bg-orange-100 text-orange-600":"bg-red-100 text-red-600"}`}>
                 {tx.status}
