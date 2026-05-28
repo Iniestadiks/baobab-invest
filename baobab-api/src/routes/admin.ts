@@ -591,7 +591,7 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
     // ── Marges opérateur (différence taux facturé - taux réel) ──
     const payinRecovery      = byType['PAYIN_RECOVERY'] || 0          // 4% payin collecté
     const payinRepayment     = byType['PAYIN_REPAYMENT'] || 0         // 4% payin mensualités
-    const coutPaydunyaReel   = Math.round((payinRecovery + payinRepayment) * 3.5 / 4) // coût réel ~3.5%
+    const coutPaydunyaReel   = Math.round(payinRecovery * 3.5 / 4) // coût réel PayDunya ~3.5% sur collecte seulement
     const margePayin         = Math.round(payinRecovery * 0.5 / 4)    // 0.5% marge payin collecte
     const margePayout        = Math.round(payinRepayment * 2 / 4)     // 2% marge payout mensualités
 
