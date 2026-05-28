@@ -1684,15 +1684,15 @@ function FinancesTab({ authGet }: any) {
             <div className="text-xs text-gray-500 mb-3">Différence taux facturé - taux réel PayDunya</div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">⬆️ Payin collecte (4% - 3.5%)</span>
+                <span className="text-gray-600">⬆️ Payin collecte ({revenues?.payinFacure||4}% - {revenues?.payinReel||3.5}%)</span>
                 <span className="font-bold text-blue-700">+{(revenues?.margePayin||0).toLocaleString()} FCFA</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">⬇️ Payout mensualités (4% - 2%)</span>
+                <span className="text-gray-600">⬇️ Payout mensualités ({revenues?.payoutFacure||4}% - {revenues?.payoutReel||2}%)</span>
                 <span className="font-bold text-blue-700">+{(revenues?.margePayout||0).toLocaleString()} FCFA</span>
               </div>
               <div className="flex justify-between text-gray-400 text-xs">
-                <span>Coût réel PayDunya estimé</span>
+                <span>Coût réel PayDunya estimé ({revenues?.payinReel||3.5}%)</span>
                 <span>-{(revenues?.coutPaydunyaReel||0).toLocaleString()} FCFA</span>
               </div>
               <div className="border-t border-blue-200 pt-2 flex justify-between font-bold">

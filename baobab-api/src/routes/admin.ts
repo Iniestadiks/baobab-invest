@@ -588,12 +588,19 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
     const commissionRetrait  = byType['WITHDRAWAL_FEE'] || 0          // frais retrait
     const revenusBrutsPurs   = commissionCollecte + commissionFonds + commissionRetrait
 
-    // ── Marges opérateur (différence taux facturé - taux réel) ──
-    const payinRecovery      = byType['PAYIN_RECOVERY'] || 0          // 4% payin collecté
-    const payinRepayment     = byType['PAYIN_REPAYMENT'] || 0         // 4% payin mensualités
-    const coutPaydunyaReel   = Math.round(payinRecovery * 3.5 / 4) // coût réel PayDunya ~3.5% sur collecte seulement
-    const margePayin         = Math.round(payinRecovery * 0.5 / 4)    // 0.5% marge payin collecte
-    const margePayout        = Math.round(payinRepayment * 2 / 4)     // 2% marge payout mensualités
+    // ── Marges opérateur (différence taux facturé - taux réel) — depuis config ──
+    const payinRecovery      = byType['PAYIN_RECOVERY'] || 0
+    const payinRepayment     = byType['PAYIN_REPAYMENT'] || 0
+    const feesConfig         = await prisma.platformConfig.findMany()
+    const feeCfg: any        = {}
+    feesConfig.forEach((f: any) => { feeCfg[f.key] = parseFloat(f.value) })
+    const payinFacure        = feeCfg.payin_recovery || 4
+    const payinReel          = feeCfg.payin_operator_real || 3.5
+    const payoutFacure       = feeCfg.payin_repayment || 4
+    const payoutReel         = feeCfg.payout_operator_real || 2
+    const coutPaydunyaReel   = Math.round(payinRecovery * payinReel / payinFacure)
+    const margePayin         = Math.round(payinRecovery * (payinFacure - payinReel) / payinFacure)
+    const margePayout        = Math.round(payinRepayment * (payoutFacure - payoutReel) / payoutFacure)
 
     // ── Fonds séparés (pas des revenus BAOBAB directs) ──
     const totalGuaranteeFee  = byType['GUARANTEE_FEE'] || 0           // 2% assurance (réservé)
@@ -632,6 +639,8 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
       totalPayinRepayment,
       totalWithdrawalFee: commissionRetrait,
       byType,
+      // Taux config pour affichage frontend
+      payinFacure, payinReel, payoutFacure, payoutReel,
       byMonth: Object.entries(byMonth).map(([date, amount]) => ({ date, amount })),
       projectionAnnuelle: revenueNetBAOBAB * 12,
     })
