@@ -3937,7 +3937,7 @@ function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
         {[
           { label: "Total Bâtisseurs", value: String(builders.length), color: "text-yellow-700", bg: "bg-yellow-50", icon: "🏗️" },
           { label: "Total donné", value: fmt(totalDonated) + " F", color: "text-green-700", bg: "bg-green-50", icon: "💝" },
-          { label: "Bâtisseurs vérifiés", value: String(builders.filter(b => b.verified).length), color: "text-blue-700", bg: "bg-blue-50", icon: "✅" },
+          { label: "Bâtisseurs vérifiés", value: String(builders.filter((b: any) => b.verified).length), color: "text-blue-700", bg: "bg-blue-50", icon: "✅" },
           { label: "Bâtisseurs publics", value: String(builders.filter(b => b.isPublic).length), color: "text-purple-700", bg: "bg-purple-50", icon: "👁️" },
         ].map(s => (
           <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>
@@ -4005,18 +4005,24 @@ function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
                         <div className="text-xs text-gray-400">{b.sector || "Secteur non renseigné"} · {b.country || "SN"}</div>
                         {/* Badges */}
                         <div className="flex gap-1 mt-1 flex-wrap">
-                          {(b.badges || []).map((badge: any) => (
-                            <span key={badge.badge} className="text-xs bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                              {BADGE_CONFIG[badge.badge]?.icon} {BADGE_CONFIG[badge.badge]?.label}
-                            </span>
-                          ))}
+                          {(b.badges || []).map((badge: any) => {
+                            const key = typeof badge === 'string' ? badge : badge.badge;
+                            return (
+                              <span key={key} className="text-xs bg-white px-2 py-0.5 rounded-full border border-yellow-200">
+                                {BADGE_CONFIG[key]?.icon} {BADGE_CONFIG[key]?.label}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className={`text-lg font-bold ${lvlCfg?.color}`}>{fmt(b.totalDonated)} FCFA</div>
                       <div className={`text-xs font-medium ${lvlCfg?.color}`}>{lvlCfg?.icon} {lvlCfg?.label}</div>
-                      <div className="text-xs text-gray-400">{b.projectsSupported || 0} projet(s)</div>
+                      <div className="text-xs text-gray-400 space-y-0.5">
+                        <div>{b.contributions || 0} contribution(s) · {b.projectsSupported || 0} projet(s) ciblé(s)</div>
+                        {b.sharePercent > 0 && <div className="text-yellow-600 font-medium">🎯 {b.sharePercent}% du fonds total</div>}
+                      </div>
                     </div>
                   </div>
                   {/* Progression vers niveau suivant */}

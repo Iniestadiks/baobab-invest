@@ -620,7 +620,28 @@ router.get('/builders/public', async (req: any, res: Response): Promise<void> =>
       if (total >= 10000000) level = 'GRAND_MECENE'
       else if (total >= 2000000) level = 'OR'
       else if (total >= 500000) level = 'ARGENT'
-      return { userId: b.userId, firstName: user?.firstName, lastName: user?.lastName, companyName: profile?.companyName, sector: profile?.sector, description: profile?.description, website: profile?.website, isPublic: profile?.isPublic ?? true, totalDonated: total, contributions: count, badges: badges.map(b => b.badge), level }
+      // Projets soutenus via le fonds (allocations liées aux contributions)
+      const projectsSupported = await prisma.fundContribution.count({
+        where: { userId: b.userId, status: 'COMPLETED', projectId: { not: null } }
+      })
+      // Part du bâtisseur dans le fonds total
+      const fundTotal = await prisma.fundContribution.aggregate({ where: { status: 'COMPLETED' }, _sum: { amount: true } })
+      const sharePercent = fundTotal._sum.amount ? Math.round((total / fundTotal._sum.amount) * 100) : 0
+      return {
+        userId: b.userId,
+        firstName: user?.firstName, lastName: user?.lastName,
+        companyName: profile?.companyName, sector: profile?.sector,
+        description: profile?.description, website: profile?.website,
+        country: profile?.country || 'SN',
+        isPublic: profile?.isPublic ?? true,
+        verified: profile?.verified ?? false,
+        totalDonated: total,
+        contributions: count,
+        projectsSupported,
+        sharePercent,
+        badges: badges.map(b => b.badge),
+        level
+      }
     }))
 
     // Stats globales
