@@ -3579,20 +3579,64 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <h3 className="font-bold text-gray-900 mb-4">🚀 Allouer des fonds à un projet</h3>
-            <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm text-blue-700">
-              💰 Disponible : <strong>{fmt(g.available || 0)} FCFA</strong>
+            <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm text-blue-700 flex justify-between items-center">
+              <span>💰 Disponible : <strong>{fmt(g.available || 0)} FCFA</strong></span>
+              <span className="text-xs text-blue-500">Fonds nets après commission BAOBAB 16%</span>
             </div>
             <div className="space-y-3">
+              {/* Filtre secteur */}
+              <div className="flex gap-2 flex-wrap">
+                {["Tous", "AGRICULTURE", "TECH", "SANTE", "EDUCATION", "COMMERCE", "AUTRE"].map(sec => (
+                  <button key={sec}
+                    onClick={() => setAllocForm(f => ({ ...f, sectorFilter: sec } as any))}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${(allocForm as any).sectorFilter === sec || (!((allocForm as any).sectorFilter) && sec === "Tous") ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-600 border-gray-200 hover:border-green-300"}`}>
+                    {sec}
+                  </button>
+                ))}
+              </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Projet bénéficiaire</label>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Projet bénéficiaire <span className="text-xs text-gray-400">(projets en collecte uniquement)</span></label>
                 <select value={allocForm.projectId} onChange={e => setAllocForm(f => ({ ...f, projectId: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400">
                   <option value="">Sélectionner un projet...</option>
-                  {projects.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.title} — {p.sector}</option>
-                  ))}
+                  {projects
+                    .filter((p: any) => ['ACTIVE', 'FUNDED'].includes(p.status))
+                    .filter((p: any) => !(allocForm as any).sectorFilter || (allocForm as any).sectorFilter === "Tous" || p.sector === (allocForm as any).sectorFilter)
+                    .map((p: any) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title} — {p.sector} · {p.status} · {fmt(p.raisedAmount||0)}/{fmt(p.goalAmount||0)} FCFA
+                      </option>
+                    ))}
                 </select>
               </div>
+              {/* Aperçu projet sélectionné */}
+              {allocForm.projectId && (() => {
+                const p = projects.find((x: any) => x.id === allocForm.projectId);
+                if (!p) return null;
+                const pct = Math.round(((p.raisedAmount||0)/(p.goalAmount||1))*100);
+                return (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-bold text-gray-900">{p.title}</div>
+                        <div className="text-gray-500">{p.sector} · {p.city} · {p.status}</div>
+                      </div>
+                      <a href={`/projects/${p.id}`} target="_blank"
+                        className="text-green-600 hover:underline font-medium">👁️ Voir</a>
+                    </div>
+                    <div className="bg-gray-200 rounded-full h-1.5 mb-1">
+                      <div className="bg-green-500 h-1.5 rounded-full" style={{width:`${Math.min(100,pct)}%`}} />
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>Levé : {fmt(p.raisedAmount||0)} FCFA ({pct}%)</span>
+                      <span>Objectif : {fmt(p.goalAmount||0)} FCFA</span>
+                    </div>
+                    <div className="mt-1 text-gray-500">
+                      Retour +{p.interestRate||p.expectedReturn||24}% · {p.durationMonths||6} mois · {p.investorCount||0} investisseur(s)
+                    </div>
+                  </div>
+                );
+              })()}
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Montant à allouer (FCFA)</label>
                 <input type="number" value={allocForm.amount}
@@ -3632,18 +3676,39 @@ Justification : ${(allocForm as any).justification}`)) return;
 
           {/* Historique allocations */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h3 className="font-bold text-gray-900 mb-4">Historique des allocations</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-gray-900">📋 Historique des allocations</h3>
+              <span className="text-xs text-gray-400">{stats?.allocations?.length || 0} allocation(s)</span>
+            </div>
             {!stats?.allocations?.length ? (
-              <p className="text-gray-400 text-sm text-center py-4">Aucune allocation</p>
-            ) : stats.allocations.map((a: any) => (
-              <div key={a.id} className="flex justify-between items-center py-2 border-b border-gray-50">
-                <div>
-                  <div className="font-medium text-gray-900 text-sm">{a.project?.title}</div>
-                  <div className="text-xs text-gray-500">{a.note} · {new Date(a.createdAt).toLocaleDateString("fr-FR")}</div>
-                </div>
-                <div className="font-bold text-green-700">{fmt(a.amount)} FCFA</div>
+              <div className="text-center py-8">
+                <div className="text-4xl mb-2">🌱</div>
+                <p className="text-gray-400 text-sm">Aucune allocation pour l'instant</p>
+                <p className="text-xs text-gray-300 mt-1">Les allocations apparaîtront ici avec leur justification</p>
               </div>
-            ))}
+            ) : (
+              <div className="space-y-2">
+                {stats.allocations.map((a: any) => (
+                  <div key={a.id} className="border border-gray-100 rounded-xl p-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 text-sm">{a.project?.title || "Projet supprimé"}</div>
+                        <div className="text-xs text-green-600 mt-0.5">{a.project?.sector}</div>
+                        <div className="text-xs text-gray-500 mt-1 italic">"{a.note}"</div>
+                      </div>
+                      <div className="text-right ml-3">
+                        <div className="font-bold text-green-700">{fmt(a.amount)} FCFA</div>
+                        <div className="text-xs text-gray-400">{new Date(a.createdAt).toLocaleDateString("fr-FR")}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="bg-green-50 rounded-xl p-3 flex justify-between text-sm font-bold">
+                  <span>Total alloué</span>
+                  <span className="text-green-700">{fmt(stats.allocations.reduce((s: number, a: any) => s + a.amount, 0))} FCFA</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
