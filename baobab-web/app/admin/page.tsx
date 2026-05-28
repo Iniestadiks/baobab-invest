@@ -3878,23 +3878,18 @@ Justification : ${(allocForm as any).justification}`)) return;
 // ═══════════════════════════════════════════════════════════
 function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
   const [builders, setBuilders] = React.useState<any[]>([]);
-  const [fundStats, setFundStats] = React.useState<any>(null);
-  const [allocations, setAllocations] = React.useState<any[]>([]);
-  const [projects, setProjects] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [processing, setProcessing] = React.useState(false);
-  const [allocForm, setAllocForm] = React.useState({ projectId: "", amount: "", note: "" });
-  const [verifyId, setVerifyId] = React.useState<string | null>(null);
-
+  const [search, setSearch] = React.useState("");
+  const [levelFilter, setLevelFilter] = React.useState("Tous");
   const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
-
-  const LEVEL_CONFIG: Record<string, { label: string; icon: string; color: string; min: number }> = {
-    GRAND_MECENE: { label: "Grand Mécène",     icon: "💎", color: "text-purple-700", min: 10000000 },
-    OR:           { label: "Bâtisseur Or",     icon: "🥇", color: "text-yellow-700", min: 2000000 },
-    ARGENT:       { label: "Bâtisseur Argent", icon: "🥈", color: "text-gray-600",   min: 500000 },
-    BATISSEUR:    { label: "Bâtisseur",        icon: "🏗️", color: "text-orange-700", min: 100000 },
+  const LEVEL_CONFIG: Record<string, { label: string; icon: string; color: string; bg: string; min: number }> = {
+    GRAND_MECENE: { label: "Grand Mécène",     icon: "💎", color: "text-purple-700", bg: "bg-purple-50", min: 10000000 },
+    OR:           { label: "Bâtisseur Or",     icon: "🥇", color: "text-yellow-700", bg: "bg-yellow-50", min: 2000000 },
+    ARGENT:       { label: "Bâtisseur Argent", icon: "🥈", color: "text-gray-600",   bg: "bg-gray-50",   min: 500000 },
+    BATISSEUR:    { label: "Bâtisseur",        icon: "🏗️", color: "text-orange-700", bg: "bg-orange-50", min: 100000 },
+    CONTRIBUTEUR: { label: "Contributeur",     icon: "🌱", color: "text-green-700",  bg: "bg-green-50",  min: 0 },
   };
-
   const getLevel = (total: number) => {
     if (total >= 10000000) return "GRAND_MECENE";
     if (total >= 2000000)  return "OR";
@@ -3902,244 +3897,184 @@ function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
     if (total >= 100000)   return "BATISSEUR";
     return "CONTRIBUTEUR";
   };
-
+  const BADGE_CONFIG: Record<string, { label: string; icon: string }> = {
+    SEMEUR:          { label: "Semeur",          icon: "🌱" },
+    JARDINIER:       { label: "Jardinier",        icon: "🌿" },
+    BAOBAB:          { label: "Baobab",           icon: "🌳" },
+    GRAND_BATISSEUR: { label: "Grand Bâtisseur",  icon: "🏆" },
+  };
   const load = React.useCallback(async () => {
-    const [b, s, p] = await Promise.all([
-      authGet("/api/fund/builders/public"),
-      authGet("/api/fund/admin/stats"),
-      authGet("/api/projects?status=ACTIVE,FUNDED,IN_PROGRESS"),
-    ]);
-    if (b.success) {
-      setBuilders(b.data.builders || []);
-      setFundStats(b.data.stats || {});
-    }
-    if (s.success) setAllocations(s.data.allocations || []);
-    if (p.success) setProjects(p.data?.projects || p.data || []);
+    const res = await authGet("/api/fund/builders/public");
+    if (res.success) setBuilders(res.data.builders || []);
     setLoading(false);
   }, []);
-
   React.useEffect(() => { load(); }, [load]);
-
   const verifyBuilder = async (userId: string, verified: boolean) => {
     setProcessing(true);
     const res = await authPatch(`/api/fund/admin/builder/${userId}/verify`, { verified });
     if (res.success) { flash(verified ? "✅ Bâtisseur vérifié" : "❌ Vérification retirée"); load(); }
     else flash("❌ " + res.message);
     setProcessing(false);
-    setVerifyId(null);
   };
-
-  const allocate = async () => {
-    if (!allocForm.projectId || !allocForm.amount) { flash("❌ Projet et montant requis"); return; }
-    setProcessing(true);
-    const res = await authPost("/api/fund/admin/allocate", {
-      projectId: allocForm.projectId,
-      amount: Number(allocForm.amount),
-      note: allocForm.note || "Allocation depuis tableau de bord admin"
-    });
-    if (res.success) { flash("✅ " + res.message); setAllocForm({ projectId: "", amount: "", note: "" }); load(); }
-    else flash("❌ " + res.message);
-    setProcessing(false);
-  };
-
   if (loading) return <div className="text-center py-10 text-gray-400">Chargement...</div>;
-
   const totalDonated = builders.reduce((s: number, b: any) => s + (b.totalDonated || 0), 0);
-  const available = (fundStats?.totalRaised || 0) * 0.9 - allocations.reduce((s: number, a: any) => s + a.amount, 0);
-
+  const filtered = builders
+    .filter(b => !search || `${b.firstName} ${b.lastName} ${b.companyName}`.toLowerCase().includes(search.toLowerCase()))
+    .filter(b => levelFilter === "Tous" || getLevel(b.totalDonated) === levelFilter)
+    .sort((a, b) => b.totalDonated - a.totalDonated);
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">🏗️ Gestion des Bâtisseurs</h2>
-          <p className="text-sm text-gray-500">Vérification KYC, allocations et suivi en temps réel</p>
+          <h2 className="text-xl font-bold text-gray-900">🏗️ Bâtisseurs BAOBAB INVEST</h2>
+          <p className="text-sm text-gray-500">Mécènes et donateurs — aucun KYC requis</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={load} className="text-sm text-green-600 hover:underline">🔄 Actualiser</button>
-        </div>
+        <button onClick={load} className="text-sm text-yellow-600 hover:underline">🔄 Actualiser</button>
       </div>
-
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Total Bâtisseurs", value: String(builders.length), color: "text-yellow-700", bg: "bg-yellow-50", icon: "🏗️" },
-          { label: "Total collecté", value: fmt(fundStats?.totalRaised || 0) + " F", color: "text-green-700", bg: "bg-green-50", icon: "💰" },
-          { label: "Disponible fonds", value: fmt(Math.max(0, available)) + " F", color: "text-blue-700", bg: "bg-blue-50", icon: "🏦" },
-          { label: "Projets financés", value: String(allocations.length), color: "text-purple-700", bg: "bg-purple-50", icon: "🚀" },
+          { label: "Total donné", value: fmt(totalDonated) + " F", color: "text-green-700", bg: "bg-green-50", icon: "💝" },
+          { label: "Bâtisseurs vérifiés", value: String(builders.filter(b => b.verified).length), color: "text-blue-700", bg: "bg-blue-50", icon: "✅" },
+          { label: "Bâtisseurs publics", value: String(builders.filter(b => b.isPublic).length), color: "text-purple-700", bg: "bg-purple-50", icon: "👁️" },
         ].map(s => (
           <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>
             <div className="text-xl mb-1">{s.icon}</div>
-            <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+            <div className={`font-bold text-lg ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-gray-500">{s.label}</div>
           </div>
         ))}
       </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Liste Bâtisseurs */}
-        <div className="space-y-4">
-          <h3 className="font-bold text-gray-900">Liste des Bâtisseurs ({builders.length})</h3>
-          {builders.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-              <div className="text-3xl mb-2">🏗️</div>
-              <p className="text-gray-400 text-sm">Aucun Bâtisseur public pour l'instant</p>
-            </div>
-          ) : builders.map((b: any, i: number) => {
-            const level = getLevel(b.totalDonated);
-            const lvl = LEVEL_CONFIG[level] || LEVEL_CONFIG.BATISSEUR;
-            return (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center text-xl">
-                      {lvl.icon}
-                    </div>
-                    <div>
-                      <div className="font-bold text-gray-900 text-sm">
-                        {b.companyName || `${b.firstName} ${b.lastName}`}
+      {/* Info KYC */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 text-sm text-yellow-800 flex items-start gap-3">
+        <span className="text-2xl">💡</span>
+        <div>
+          <div className="font-bold mb-1">Pourquoi pas de KYC pour les Bâtisseurs ?</div>
+          <p className="text-xs">Les Bâtisseurs sont des <strong>donateurs</strong> — ils donnent sans attendre de retour financier. Comme un mécène ou un philanthrope, leur identité n'a pas besoin d'être vérifiée. Un millionnaire qui veut aider doit pouvoir le faire en 2 minutes.</p>
+        </div>
+      </div>
+      {/* Filtres */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-wrap gap-3 items-center">
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="🔍 Rechercher un bâtisseur..."
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-yellow-400 flex-1 min-w-48" />
+        <div className="flex gap-2 flex-wrap">
+          {["Tous", ...Object.keys(LEVEL_CONFIG)].map(lv => (
+            <button key={lv} onClick={() => setLevelFilter(lv)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${levelFilter === lv ? "bg-yellow-500 text-white border-yellow-500" : "bg-white text-gray-600 border-gray-200 hover:border-yellow-300"}`}>
+              {lv === "Tous" ? "Tous" : `${LEVEL_CONFIG[lv]?.icon} ${LEVEL_CONFIG[lv]?.label}`}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Liste Bâtisseurs */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-gray-900">🏗️ Liste des Bâtisseurs ({filtered.length})</h3>
+          <span className="text-xs text-gray-400">Trié par contribution décroissante</span>
+        </div>
+        {filtered.length === 0 ? (
+          <div className="text-center py-10">
+            <div className="text-4xl mb-3">🏗️</div>
+            <p className="text-gray-400">Aucun bâtisseur trouvé</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((b: any, idx: number) => {
+              const level = getLevel(b.totalDonated);
+              const lvlCfg = LEVEL_CONFIG[level];
+              const nextLevel = level === "CONTRIBUTEUR" ? "BATISSEUR" : level === "BATISSEUR" ? "ARGENT" : level === "ARGENT" ? "OR" : level === "OR" ? "GRAND_MECENE" : null;
+              const nextMin = nextLevel ? LEVEL_CONFIG[nextLevel]?.min : null;
+              const progress = nextMin ? Math.min(100, Math.round((b.totalDonated / nextMin) * 100)) : 100;
+              return (
+                <div key={b.userId} className={`border rounded-2xl p-4 ${lvlCfg?.bg} border-opacity-50`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center text-white font-bold text-lg">
+                        {idx + 1}
                       </div>
-                      <div className="text-xs text-gray-500">{b.sector?.replace(/_/g, " ")}</div>
-                      <div className={`text-xs font-bold ${lvl.color}`}>{lvl.label}</div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900">{b.firstName} {b.lastName}</span>
+                          {b.verified && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✅ Vérifié</span>}
+                          {!b.isPublic && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">🔒 Privé</span>}
+                        </div>
+                        {b.companyName && <div className="text-xs text-yellow-700 font-medium">{b.companyName}</div>}
+                        <div className="text-xs text-gray-400">{b.sector || "Secteur non renseigné"} · {b.country || "SN"}</div>
+                        {/* Badges */}
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {(b.badges || []).map((badge: any) => (
+                            <span key={badge.badge} className="text-xs bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                              {BADGE_CONFIG[badge.badge]?.icon} {BADGE_CONFIG[badge.badge]?.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className={`text-lg font-bold ${lvlCfg?.color}`}>{fmt(b.totalDonated)} FCFA</div>
+                      <div className={`text-xs font-medium ${lvlCfg?.color}`}>{lvlCfg?.icon} {lvlCfg?.label}</div>
+                      <div className="text-xs text-gray-400">{b.projectsSupported || 0} projet(s)</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-yellow-700 text-sm">{fmt(b.totalDonated)} FCFA</div>
-                    <div className="text-xs text-gray-400">{b.contributions} contribution(s)</div>
-                    <div className="flex gap-1 justify-end mt-1">
-                      {b.badges?.map((badge: string) => (
-                        <span key={badge} className="text-xs">
-                          {badge === "SEMEUR" ? "🌱" : badge === "JARDINIER" ? "🌿" : badge === "BAOBAB" ? "🌳" : "🏆"}
-                        </span>
-                      ))}
+                  {/* Progression vers niveau suivant */}
+                  {nextLevel && (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>Progression → {LEVEL_CONFIG[nextLevel]?.icon} {LEVEL_CONFIG[nextLevel]?.label}</span>
+                        <span>{progress}% · Manque {fmt((nextMin||0) - b.totalDonated)} FCFA</span>
+                      </div>
+                      <div className="bg-white rounded-full h-2">
+                        <div className={`h-2 rounded-full bg-yellow-400`} style={{width:`${progress}%`}} />
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {b.description && (
-                  <p className="text-xs text-gray-500 mt-2 italic line-clamp-2">{b.description}</p>
-                )}
-                {b.website && (
-                  <a href={b.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-1 block">
-                    🌐 {b.website}
-                  </a>
-                )}
-                {b.userId && (
+                  )}
+                  {/* Actions */}
                   <div className="flex gap-2 mt-3">
                     <span className="flex-1 text-xs bg-green-100 text-green-700 py-1.5 rounded-lg text-center font-medium">
                       ✅ Auto-vérifié — pas de KYC requis
                     </span>
-                    <button onClick={() => verifyBuilder(b.userId, false)} disabled={processing}
-                      className="flex-1 text-xs bg-red-50 text-red-600 border border-red-200 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50">
-                      ❌ Retirer
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Panneau droit */}
-        <div className="space-y-5">
-          {/* Allouer fonds */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-4">🚀 Allouer fonds à un projet</h3>
-            <div className="bg-blue-50 rounded-xl p-3 mb-4">
-              <div className="text-xs text-blue-700 font-medium">💰 Disponible dans le fonds</div>
-              <div className="text-xl font-bold text-blue-700">{fmt(Math.max(0, available))} FCFA</div>
-              <div className="text-xs text-blue-500 mt-0.5">
-                Total collecté : {fmt(fundStats?.totalRaised || 0)} F · 
-                Déjà alloué : {fmt(allocations.reduce((s: number, a: any) => s + a.amount, 0))} F
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Projet bénéficiaire *</label>
-                <select value={allocForm.projectId}
-                  onChange={e => setAllocForm(f => ({ ...f, projectId: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400">
-                  <option value="">Sélectionner un projet...</option>
-                  {projects.map((p: any) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title} — {p.sector} — {p.city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Montant (FCFA) *</label>
-                <input type="number" value={allocForm.amount}
-                  onChange={e => setAllocForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="Ex: 100000"
-                  max={Math.max(0, available)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400" />
-                {allocForm.amount && Number(allocForm.amount) > available && (
-                  <p className="text-xs text-red-500 mt-1">⚠️ Montant supérieur au disponible</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Note (visible par les Bâtisseurs)</label>
-                <input type="text" value={allocForm.note}
-                  onChange={e => setAllocForm(f => ({ ...f, note: e.target.value }))}
-                  placeholder="Ex: Soutien agriculture Dakar — Phase 1"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400" />
-              </div>
-              <button onClick={allocate}
-                disabled={processing || !allocForm.projectId || !allocForm.amount || Number(allocForm.amount) > available || Number(allocForm.amount) <= 0}
-                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 disabled:opacity-50 text-sm">
-                {processing ? "Allocation en cours..." : "🚀 Allouer au projet — visible par les Bâtisseurs immédiatement"}
-              </button>
-              <p className="text-xs text-gray-400 text-center">
-                ⚡ Les Bâtisseurs verront cette allocation en temps réel dans leur dashboard
-              </p>
-            </div>
-          </div>
-
-          {/* Historique allocations */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-4">📋 Historique allocations ({allocations.length})</h3>
-            {allocations.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">Aucune allocation</p>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {allocations.map((a: any) => (
-                  <div key={a.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <div>
-                      <div className="font-medium text-gray-900 text-sm">{a.project?.title}</div>
-                      <div className="text-xs text-gray-500">{a.project?.sector}</div>
-                      {a.note && <div className="text-xs text-gray-400 italic">{a.note}</div>}
-                      <div className="text-xs text-gray-400">{new Date(a.createdAt).toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric" })}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-green-700 text-sm">{fmt(a.amount)} FCFA</div>
-                      <div className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-lg">✅ Alloué</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Stats par niveau */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-            <h3 className="font-bold text-gray-900 mb-4">📊 Bâtisseurs par niveau</h3>
-            {Object.entries(LEVEL_CONFIG).map(([key, lvl]) => {
-              const count = builders.filter((b: any) => getLevel(b.totalDonated) === key).length;
-              const total = builders.filter((b: any) => getLevel(b.totalDonated) === key).reduce((s: number, b: any) => s + b.totalDonated, 0);
-              return (
-                <div key={key} className="flex justify-between items-center py-2 border-b border-gray-50">
-                  <span className="text-sm flex items-center gap-2">
-                    <span>{lvl.icon}</span>
-                    <span className={lvl.color}>{lvl.label}</span>
-                  </span>
-                  <div className="text-right">
-                    <span className="font-bold text-gray-900 text-sm">{count} Bâtisseur(s)</span>
-                    {count > 0 && <div className="text-xs text-gray-400">{fmt(total)} FCFA</div>}
+                    {b.verified ? (
+                      <button onClick={() => verifyBuilder(b.userId, false)} disabled={processing}
+                        className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-200 disabled:opacity-50">
+                        🏅 Retirer badge vérifié
+                      </button>
+                    ) : (
+                      <button onClick={() => verifyBuilder(b.userId, true)} disabled={processing}
+                        className="text-xs bg-yellow-500 text-white px-3 py-1.5 rounded-lg hover:bg-yellow-600 disabled:opacity-50">
+                        🏅 Donner badge vérifié
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
+        )}
+      </div>
+      {/* Classement par niveau */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <h3 className="font-bold text-gray-900 mb-4">📊 Répartition par niveau</h3>
+        <div className="space-y-2">
+          {Object.entries(LEVEL_CONFIG).map(([key, lvl]) => {
+            const count = builders.filter(b => getLevel(b.totalDonated) === key).length;
+            const total = builders.filter(b => getLevel(b.totalDonated) === key).reduce((s, b) => s + b.totalDonated, 0);
+            return (
+              <div key={key} className={`flex justify-between items-center p-3 rounded-xl ${lvl.bg}`}>
+                <span className="text-sm flex items-center gap-2 font-medium">
+                  <span>{lvl.icon}</span>
+                  <span className={lvl.color}>{lvl.label}</span>
+                  <span className="text-xs text-gray-400">dès {fmt(lvl.min)} FCFA</span>
+                </span>
+                <div className="text-right">
+                  <span className={`font-bold text-sm ${lvl.color}`}>{count} Bâtisseur(s)</span>
+                  {count > 0 && <div className="text-xs text-gray-400">{fmt(total)} FCFA</div>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
