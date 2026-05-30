@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { GeoSelector } from "@/hooks/useGeo";
 
 const SECTORS = ["Agro-alimentaire","Commerce général","Matériaux & Construction","Équipements","Transport","Informatique","Santé","Énergie","Autre"];
 const PROVIDERS = ["WAVE","ORANGE","MTN","MOOV","FREE"];
@@ -27,6 +28,7 @@ export default function SupplierRegisterPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [geo, setGeo] = useState({ country: "Sénégal", countryCode: "SN", state: "", stateCode: "", city: "", indicatif: "+221" });
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     companyName: "", contactName: "", email: "", phone: "", password: "", confirmPassword: "",
@@ -152,17 +154,12 @@ export default function SupplierRegisterPage() {
                     {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Pays *</label>
-                  <select name="country" value={form.country} onChange={handleChange} className="input-field">
-                    {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
-                  </select>
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1 block">Ville *</label>
-                <input name="city" value={form.city} onChange={handleChange} placeholder="Dakar" required className="input-field" />
-              </div>
+              <GeoSelector value={geo} onChange={v => {
+                setGeo(v);
+                setForm(f => ({ ...f, country: v.countryCode, city: v.city }));
+              }} />
               <div>
                 <label className="text-xs font-semibold text-gray-600 mb-1 block">Description</label>
                 <textarea name="description" value={form.description} onChange={handleChange}
