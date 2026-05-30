@@ -215,7 +215,11 @@ export default function SupplierDashboardPage() {
                 </div>
               ))}
               {payments.length === 0 && (
-                <div className="text-center py-6 text-gray-400 text-sm">Aucun paiement pour l&apos;instant</div>
+                <div className="text-center py-6 text-gray-400 text-sm">
+                  <div className="text-3xl mb-2">💳</div>
+                  <p>Aucun paiement pour l&apos;instant</p>
+                  <p className="text-xs mt-1">Les entrepreneurs vous paieront directement via Mobile Money</p>
+                </div>
               )}
             </div>
           </div>
@@ -238,7 +242,8 @@ export default function SupplierDashboardPage() {
             {filtered.length === 0 ? (
               <div className="text-center py-10">
                 <div className="text-4xl mb-2">📭</div>
-                <p className="text-gray-400 text-sm">Aucun paiement</p>
+                <p className="text-gray-400 text-sm">Aucun paiement enregistré</p>
+                <p className="text-xs text-gray-400 mt-1">Les entrepreneurs vous contactent et paient directement via {supplier?.mobileMoneyProvider} au {supplier?.mobileMoneyNumber}</p>
               </div>
             ) : filtered.map((pay: any) => (
               <div key={pay.id} className={`p-4 rounded-2xl border mb-3 ${pay.status === "COMPLETED" ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"}`}>

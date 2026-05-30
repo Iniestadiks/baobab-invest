@@ -75,10 +75,13 @@ export default function SupplierRegisterPage() {
             <li>Notre équipe vérifie votre RCCM et NINEA</li>
             <li>Votre compte Mobile Money est confirmé</li>
             <li>Vous êtes activé comme fournisseur partenaire</li>
-            <li>Les entrepreneurs peuvent vous choisir pour leurs jalons</li>
+            <li>Les entrepreneurs vous contactent et vous paient directement via Mobile Money</li>
           </ul>
         </div>
-        <Link href="/" className="btn-primary inline-flex">Retour à l'accueil</Link>
+        <div className="flex gap-3 justify-center">
+          <Link href="/" className="btn-primary inline-flex">Retour à l&apos;accueil</Link>
+          <Link href="/supplier/dashboard" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 inline-flex">Mon espace →</Link>
+        </div>
       </div>
     </div>
   );
