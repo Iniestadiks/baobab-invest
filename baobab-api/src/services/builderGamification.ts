@@ -65,6 +65,8 @@ export async function updateBuilderGamification(userId: string, action: {
         donationStreak: newStreak,
         lastDonationAt: (action.type === 'DON_FONDS' || action.type === 'INVEST_DIRECT') ? now : undefined,
         specialBadges,
+        totalDonated: action.type === 'DON_FONDS' ? { increment: action.amount || 0 } : undefined,
+        totalInvested: action.type === 'INVEST_DIRECT' ? { increment: action.amount || 0 } : undefined,
       }
     })
 
