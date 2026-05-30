@@ -231,6 +231,21 @@ export default function BuilderDashboard() {
                     ⏳ Vérification en attente — Notre équipe examine votre profil
                   </div>
                 )}
+                {/* Message incitation inactivité */}
+                {impactData?.lastDonationAt && (() => {
+                  const daysSince = Math.floor((Date.now() - new Date(impactData.lastDonationAt).getTime()) / (1000*60*60*24))
+                  if (daysSince > 30) return (
+                    <div className="mt-2 bg-red-400/20 border border-red-400/30 rounded-xl px-3 py-2 text-xs text-red-300">
+                      ⚠️ Votre impact faiblit — {daysSince} jours sans contribution. Redonnez vie à votre héritage !
+                    </div>
+                  )
+                  if (daysSince > 14) return (
+                    <div className="mt-2 bg-orange-400/20 border border-orange-400/30 rounded-xl px-3 py-2 text-xs text-orange-300">
+                      🔥 {daysSince} jours sans don — Maintenez votre streak pour garder vos points !
+                    </div>
+                  )
+                  return null
+                })()}
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowContribForm(true)}
@@ -637,6 +652,8 @@ export default function BuilderDashboard() {
                     { label: "Net reversé aux projets (84%)", value: fmt(Math.round(totalDonated * 0.84)) + " FCFA", icon: "🚀" },
                     { label: "Projets soutenus", value: String(projectsSupported), icon: "🏗️" },
                     { label: "Contributions totales", value: String(contributions.length), icon: "📋" },
+                    { label: "Points réputation", value: String(impactData?.reputationPoints || 0) + " pts", icon: "⭐" },
+                    { label: "Streak actif", value: String(impactData?.donationStreak || 0) + " mois", icon: "🔥" },
                   ].map(s => (
                     <div key={s.label} className="flex justify-between items-center py-2 border-b border-yellow-100">
                       <span className="text-sm text-gray-600 flex items-center gap-2"><span>{s.icon}</span>{s.label}</span>
@@ -669,6 +686,23 @@ export default function BuilderDashboard() {
 
             {/* Rapport */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
+              {/* Badges spéciaux */}
+              {impactData?.specialBadges?.length > 0 && (
+                <div className="mb-5 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <div className="font-bold text-gray-900 mb-3">🏅 Badges spéciaux</div>
+                  <div className="flex flex-wrap gap-2">
+                    {impactData.specialBadges.map((sb: string) => (
+                      <span key={sb} className={`px-3 py-1.5 rounded-full font-bold text-xs ${
+                        sb==='ROI_FONDS'?'bg-yellow-100 text-yellow-700 border border-yellow-300':
+                        sb==='FONDATEUR'?'bg-purple-100 text-purple-700 border border-purple-300':
+                        sb==='FIDELE'?'bg-orange-100 text-orange-700 border border-orange-300':
+                        'bg-gray-100 text-gray-600'}`}>
+                        {sb==='ROI_FONDS'?'👑 Roi du Fonds':sb==='FONDATEUR'?'⚡ Fondateur':sb==='FIDELE'?'🔥 Fidèle':sb==='AMBASSADEUR'?'🌍 Ambassadeur':sb}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <h3 className="font-bold text-gray-900 mb-3">📄 Rapport d'impact</h3>
               <p className="text-gray-500 text-sm mb-4">Téléchargez votre rapport d'impact pour partager votre contribution avec vos partenaires.</p>
               <button onClick={downloadPDF} className="bg-yellow-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-yellow-600 text-sm">

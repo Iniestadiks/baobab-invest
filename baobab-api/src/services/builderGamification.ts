@@ -109,12 +109,16 @@ export async function decrementInactiveBuilders() {
       if (monthsInactive > 6) decrement = 10
       else if (monthsInactive > 3) decrement = 5
       if (decrement > 0) {
-        const newPoints = Math.max(0, (p.reputationPoints || 0) - decrement)
+        // Plancher = jamais descendre en dessous du badge précédent
+        const currentBadge = getBadgeFromPoints(p.reputationPoints || 0)
+        const currentThreshold = BADGE_THRESHOLDS.find(t => t.badge === currentBadge)?.points || 0
+        const prevThreshold = [...BADGE_THRESHOLDS].reverse().find(t => t.points < currentThreshold)?.points || 0
+        const newPoints = Math.max(prevThreshold, (p.reputationPoints || 0) - decrement)
         await prisma.builderProfile.update({
           where: { id: p.id },
           data: { reputationPoints: newPoints, donationStreak: Math.max(0, (p.donationStreak || 0) - 1) }
         })
-        console.log('[GAMIFICATION] ' + p.userId + ' -' + decrement + ' pts inactif')
+        console.log('[GAMIFICATION] ' + p.userId + ' -' + decrement + ' pts inactif → ' + newPoints + ' pts (plancher: ' + prevThreshold + ')')
       }
     }
     console.log('[GAMIFICATION] Decrementation terminee')

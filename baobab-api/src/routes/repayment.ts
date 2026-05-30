@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authenticate, requireRole } from '../middleware/auth'
 import { getFees } from '../config/fees'
 import { checkAndUnlockPalier } from '../services/paliers'
+import { updateBuilderGamification } from '../services/builderGamification'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -312,6 +313,13 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
         await checkAndUnlockPalier(schedule.id, txPalier)
       })
     } catch (palierErr) { console.error('Palier check error:', palierErr) }
+    // +5 pts gamification aux batisseurs si remboursement recu
+    try {
+      const builders = await prisma.builderProfile.findMany({ select: { userId: true } })
+      for (const b of builders) {
+        await updateBuilderGamification(b.userId, { type: 'REMBOURSEMENT_OK' })
+      }
+    } catch (ge) { console.error('[GAMIFICATION] repayment bonus:', ge) }
 
     successResponse(res, {
       paidMonth: nextPayment.monthNumber,

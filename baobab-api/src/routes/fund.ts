@@ -598,6 +598,7 @@ router.get('/builder/impact', authenticate, async (req: AuthRequest, res: Respon
       return { ...s, stats: { total, paid, late, pending, totalPaid, pct: total > 0 ? Math.round((paid/total)*100) : 0 } }
     })
 
+    const builderProfile = await prisma.builderProfile.findUnique({ where: { userId: req.userId! } })
     successResponse(res, {
       contributions,
       projectsSupported,
@@ -609,7 +610,12 @@ router.get('/builder/impact', authenticate, async (req: AuthRequest, res: Respon
       level,
       nextLevel,
       nextThreshold,
-      fundGlobal: { totalReceived: fundContribs._sum.amount || 0, totalContributors: fundContribs._count }
+      fundGlobal: { totalReceived: fundContribs._sum.amount || 0, totalContributors: fundContribs._count },
+      reputationPoints: builderProfile?.reputationPoints || 0,
+      donationStreak: builderProfile?.donationStreak || 0,
+      lastDonationAt: builderProfile?.lastDonationAt || null,
+      isTopDonor: builderProfile?.isTopDonor || false,
+      specialBadges: builderProfile?.specialBadges || [],
     })
   } catch (e) { console.error(e); errorResponse(res) }
 })
