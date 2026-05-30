@@ -333,19 +333,28 @@ router.patch('/admin/reschedule/:scheduleId', authenticate, requireRole(['ADMIN'
     })
     if (!schedule) { res.status(404).json({ success: false, message: 'Échéancier introuvable' }); return }
 
-    // Mettre à jour la prochaine échéance
+
+    // Trouver tous les mois PENDING et les décaler proportionnellement
+    const pendingPayments = await prisma.repaymentPayment.findMany({
+      where: { scheduleId: schedule.id, status: 'PENDING' },
+      orderBy: { monthNumber: 'asc' }
+    })
+    if (pendingPayments.length === 0) {
+      res.status(400).json({ success: false, message: 'Aucune mensualite en attente' }); return
+    }
+    const nextPending = pendingPayments[0]
+    const diffMs = new Date(newDueDate).getTime() - new Date(nextPending.dueDate).getTime()
+    for (const payment of pendingPayments) {
+      const updatedDate = new Date(new Date(payment.dueDate).getTime() + diffMs)
+      await prisma.repaymentPayment.update({
+        where: { id: payment.id },
+        data: { dueDate: updatedDate }
+      })
+    }
     await prisma.repaymentSchedule.update({
       where: { id: schedule.id },
       data: { nextDueDate: new Date(newDueDate), adminNote: note || schedule.adminNote }
     })
-
-    // Si monthNumber précisé, mettre à jour la mensualité spécifique
-    if (monthNumber) {
-      await prisma.repaymentPayment.updateMany({
-        where: { scheduleId: schedule.id, monthNumber: Number(monthNumber), status: 'PENDING' },
-        data: { dueDate: new Date(newDueDate) }
-      })
-    }
 
     // Notifier entrepreneur
     await prisma.notification.create({
