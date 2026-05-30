@@ -58,6 +58,31 @@ export async function updateBuilderGamification(userId: string, action: {
     const totalContributors = await prisma.fundContribution.count({ where: { status: 'COMPLETED' } })
     if (totalContributors <= 1 && !specialBadges.includes('FONDATEUR')) specialBadges.push('FONDATEUR')
 
+    // Badge Ambassadeur — si 3+ Bâtisseurs parrainés actifs
+    const referredBuilders = await prisma.user.count({
+      where: { referredBy: userId, role: 'BUILDER' }
+    })
+    if (referredBuilders >= 3 && !specialBadges.includes('AMBASSADEUR')) {
+      specialBadges.push('AMBASSADEUR')
+      // +20 pts bonus ambassadeur
+      const bonusPts = 20
+      const finalPoints = newPoints + bonusPts
+      await prisma.builderProfile.update({
+        where: { userId },
+        data: { reputationPoints: finalPoints, donationStreak: newStreak, lastDonationAt: (action.type === 'DON_FONDS' || action.type === 'INVEST_DIRECT') ? now : undefined, specialBadges }
+      })
+      for (const t of BADGE_THRESHOLDS) {
+        if (finalPoints >= t.points) {
+          await prisma.fundBadge.upsert({
+            where: { userId_badge: { userId, badge: t.badge } },
+            create: { userId, badge: t.badge },
+            update: {}
+          })
+        }
+      }
+      return { newPoints: finalPoints, earned: earned + bonusPts, newStreak }
+    }
+
     await prisma.builderProfile.update({
       where: { userId },
       data: {

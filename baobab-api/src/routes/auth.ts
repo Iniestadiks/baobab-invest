@@ -50,6 +50,11 @@ router.post('/register', async (req, res): Promise<void> => {
         where: { id: user.id },
         data: { kycStatus: 'VERIFIED', isEmailVerified: true }
       })
+      // Vérifier si le parrain devient Ambassadeur
+      if (user.referredBy) {
+        const { updateBuilderGamification } = await import('../services/builderGamification')
+        await updateBuilderGamification(user.referredBy, { type: 'DON_FONDS', amount: 0 })
+      }
     }
     const accessToken = generateAccessToken(user.id, user.role)
     const refreshToken = generateRefreshToken(user.id)
