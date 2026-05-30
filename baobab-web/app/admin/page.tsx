@@ -4003,7 +4003,21 @@ function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
                         </div>
                         {b.companyName && <div className="text-xs text-yellow-700 font-medium">{b.companyName}</div>}
                         <div className="text-xs text-gray-400">{b.sector || "Secteur non renseigné"} · {b.country || "SN"}</div>
-                        {/* Badges */}
+                            {/* Badges spéciaux */}
+                        {(b.specialBadges || []).length > 0 && (
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {(b.specialBadges || []).map((sb: string) => (
+                              <span key={sb} className={`text-xs px-2 py-0.5 rounded-full border font-bold ${
+                                sb==='ROI_FONDS' ? 'bg-yellow-100 border-yellow-400 text-yellow-700' :
+                                sb==='FONDATEUR' ? 'bg-purple-100 border-purple-400 text-purple-700' :
+                                sb==='FIDELE' ? 'bg-orange-100 border-orange-400 text-orange-700' :
+                                'bg-gray-100 border-gray-300 text-gray-600'}`}>
+                                {sb==='ROI_FONDS'?'👑 Roi du Fonds':sb==='FONDATEUR'?'⚡ Fondateur':sb==='FIDELE'?'🔥 Fidèle':sb}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Badges standards */}
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {(b.badges || []).map((badge: any) => {
                             const key = typeof badge === 'string' ? badge : badge.badge;
@@ -4022,6 +4036,8 @@ function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
                       <div className="text-xs text-gray-400 space-y-0.5">
                         <div>{b.contributions || 0} contribution(s) · {b.projectsSupported || 0} projet(s) ciblé(s)</div>
                         {b.sharePercent > 0 && <div className="text-yellow-600 font-medium">🎯 {b.sharePercent}% du fonds total</div>}
+                        <div className="text-purple-600 font-medium">⭐ {b.reputationPoints || 0} pts · Streak: {b.donationStreak || 0} mois</div>
+                        {b.isTopDonor && <div className="text-yellow-600 font-bold">👑 Top Donateur</div>}
                       </div>
                     </div>
                   </div>
