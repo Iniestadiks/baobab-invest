@@ -736,7 +736,6 @@ export default function EntrepreneurDashboard() {
                       )}
                     </div>
                   )}
-                  </>}
                 </div>
               );
             })}
@@ -891,6 +890,7 @@ export default function EntrepreneurDashboard() {
                   {sc.status === "COMPLETED" && (
                     <div className="text-center bg-green-100 rounded-xl py-4 text-green-700 font-bold">🎉 Ce projet est entièrement remboursé !</div>
                   )}
+                  </>
                 </div>
               );
             })}
