@@ -694,7 +694,7 @@ function RescheduleButton({ scheduleId, authPost, flash, loadData }: any) {
   const submit = async () => {
     if (!date) return;
     setLoading(true);
-    const res = await authPost(`/api/repayment/admin/reschedule/${scheduleId}`, { newDueDate: date, note });
+    const res = await authPatch(`/api/repayment/admin/reschedule/${scheduleId}`, { newDueDate: date, note });
     if (res.success) { flash("✅ Échéance reportée"); setOpen(false); loadData(); }
     else flash("❌ " + res.message);
     setLoading(false);
