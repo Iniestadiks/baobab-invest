@@ -3391,9 +3391,10 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
     const res = await authPost("/api/fund/admin/allocate", {
       projectId: allocForm.projectId,
       amount: Number(allocForm.amount),
-      note: allocForm.note
+      note: allocForm.note,
+      justification: (allocForm as any).justification || ""
     });
-    if (res.success) { flash("✅ " + res.message); setAllocForm({ projectId: "", amount: "", note: "" }); load(); }
+    if (res.success) { flash("✅ " + res.message); setAllocForm({ projectId: "", amount: "", note: "", justification: "" } as any); load(); }
     else flash("❌ " + res.message);
     setProcessing(false);
   };
