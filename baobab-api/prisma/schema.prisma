@@ -649,21 +649,28 @@ model FundCampaign {
 }
 
 model BuilderProfile {
-  id                 String   @id @default(uuid())
-  userId             String   @unique
+  id                 String    @id @default(uuid())
+  userId             String    @unique
   companyName        String?
   sector             String?
   description        String?
   website            String?
   logoUrl            String?
-  country            String   @default("SN")
-  totalDonated       Float    @default(0)
-  projectsSupported  Int      @default(0)
-  isPublic           Boolean  @default(true)
-  verified           Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country            String    @default("SN")
+  totalDonated       Float     @default(0)
+  totalInvested      Float     @default(0)
+  projectsSupported  Int       @default(0)
+  isPublic           Boolean   @default(true)
+  verified           Boolean   @default(false)
+  reputationPoints   Int       @default(0)
+  donationStreak     Int       @default(0)
+  lastDonationAt     DateTime?
+  isTopDonor         Boolean   @default(false)
+  isFounder          Boolean   @default(false)
+  specialBadges      String[]  @default([])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@map("builder_profile")
 }
 
@@ -672,6 +679,7 @@ model FundBadge {
   userId    String
   badge     String
   awardedAt DateTime @default(now())
+  earnedAt  DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, badge])
   @@map("fund_badge")

@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth'
 
+import { updateBuilderGamification, updateTopDonor, decrementInactiveBuilders } from '../services/builderGamification'
 const router = Router()
 const prisma = new PrismaClient()
 
@@ -242,8 +243,14 @@ router.post('/confirm/:id', async (req: any, res: Response): Promise<void> => {
       })
     }
 
-    // Attribution badges si user connecté
-    if (contribution.userId) await awardFundBadges(contribution.userId)
+    // Attribution badges + gamification si user connecté
+    if (contribution.userId) {
+      await awardFundBadges(contribution.userId)
+      await updateBuilderGamification(contribution.userId, {
+        type: 'DON_FONDS',
+        amount: contribution.amount
+      })
+    }
 
     // Notification si user connecté
     if (contribution.userId) {
@@ -351,6 +358,18 @@ router.post('/admin/allocate', authenticate, requireAdmin, async (req: AuthReque
         await tx.solidaryFund.update({ where: { id: FUND_ID }, data: { totalAllocated: { increment: amount }, totalProjects: { increment: 1 } } })
       } catch {}
     })
+    // Bonus points aux bâtisseurs dont les fonds ont été utilisés
+    const contributors = await prisma.fundContribution.findMany({
+      where: { status: 'COMPLETED' },
+      select: { userId: true },
+      distinct: ['userId']
+    })
+    for (const c of contributors) {
+      if (c.userId) {
+        await updateBuilderGamification(c.userId, { type: 'FONDS_UTILISE' })
+      }
+    }
+    await updateTopDonor()
     successResponse(res, { projectId, amount, justification }, `✅ ${amount.toLocaleString()} FCFA alloués à "${project.title}"`)
   } catch (e) { console.error(e); errorResponse(res) }
 })
@@ -636,9 +655,15 @@ router.get('/builders/public', async (req: any, res: Response): Promise<void> =>
         isPublic: profile?.isPublic ?? true,
         verified: profile?.verified ?? false,
         totalDonated: total,
+        totalInvested: profile?.totalInvested || 0,
         contributions: count,
         projectsSupported,
         sharePercent,
+        reputationPoints: profile?.reputationPoints || 0,
+        donationStreak: profile?.donationStreak || 0,
+        isTopDonor: profile?.isTopDonor || false,
+        isFounder: profile?.isFounder || false,
+        specialBadges: profile?.specialBadges || [],
         badges: badges.map(b => b.badge),
         level
       }

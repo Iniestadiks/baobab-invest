@@ -150,6 +150,24 @@ const scheduleMonthlyRankings = () => {
   console.log('[CRON] Classement mensuel prévu le', next.toLocaleDateString())
 }
 scheduleMonthlyRankings()
+
+// CRON mensuel — gamification bâtisseurs (1er du mois à 8h30)
+const scheduleBuilderGamification = () => {
+  const now = new Date()
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 8, 30, 0)
+  const delay = next.getTime() - now.getTime()
+  setTimeout(async () => {
+    const { decrementInactiveBuilders } = await import('./services/builderGamification')
+    await decrementInactiveBuilders()
+    setInterval(async () => {
+      const { decrementInactiveBuilders: d } = await import('./services/builderGamification')
+      await d()
+    }, 30 * 24 * 60 * 60 * 1000)
+  }, delay)
+  console.log('[CRON] Gamification bâtisseurs prévue le', next.toLocaleDateString())
+}
+scheduleBuilderGamification()
+
 checkAndPromoteWaitlist() // Lancer au démarrage
 
 app.listen(config.port, () => {
