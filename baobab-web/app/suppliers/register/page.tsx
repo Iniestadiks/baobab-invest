@@ -48,7 +48,8 @@ export default function SupplierRegisterPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/suppliers/register`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+      const res = await fetch(`${API_URL}/api/suppliers/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -153,7 +154,6 @@ export default function SupplierRegisterPage() {
                     <option value="">Choisir...</option>
                     {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
-                </div>
                 </div>
               </div>
               <GeoSelector value={geo} onChange={v => {
