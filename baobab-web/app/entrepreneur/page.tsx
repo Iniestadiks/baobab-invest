@@ -58,6 +58,7 @@ export default function EntrepreneurDashboard() {
   const [flashMsg, setFlashMsg] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [expandedSchedule, setExpandedSchedule] = React.useState<string|null>(null);
   const [selectedProjectInvestors, setSelectedProjectInvestors] = useState<any>(null);
   const [loadingInvestors, setLoadingInvestors] = useState(false);
   const [publishingReport, setPublishingReport] = useState<string | null>(null);
