@@ -217,33 +217,34 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
         await tx.platformRevenue.create({ data: { type: "PAYIN_REPAYMENT", amount: payinFee, projectId: schedule.projectId, description: "Payin 4% mensualite M" + nextPayment.monthNumber } })
       }
 
+      // Grouper par userId pour eviter doublons (Fonds Solidaire a 3 investissements)
+      const investorMap: Record<string, { totalShare: number; invIds: string[] }> = {}
       for (const inv of schedule.project.investments) {
-        // Utiliser sharePercent enregistré à l'investissement
         const proportion = inv.sharePercent || (goalAmount > 0 ? inv.amount / goalAmount : 0)
         const investorShare = Math.round(netToDistribute * proportion)
         if (investorShare <= 0) continue
-
-        await tx.wallet.update({
-          where: { userId: inv.userId },
-          data: {
-            balance: { increment: investorShare },
-            gainBalance: { increment: investorShare },
-            totalEarned: { increment: investorShare }
-          }
-        })
-        // Mettre à jour returnedAmount de l'investissement
-        await tx.investment.updateMany({
-          where: { userId: inv.userId, projectId: schedule.projectId },
+        if (!investorMap[inv.userId]) investorMap[inv.userId] = { totalShare: 0, invIds: [] }
+        investorMap[inv.userId].totalShare += investorShare
+        investorMap[inv.userId].invIds.push(inv.id)
+        // returnedAmount par investissement individuel
+        await tx.investment.update({
+          where: { id: inv.id },
           data: { returnedAmount: { increment: investorShare } }
         })
-
+      }
+      // Crediter chaque investisseur une seule fois
+      for (const [userId, data] of Object.entries(investorMap)) {
+        await tx.wallet.update({
+          where: { userId },
+          data: { balance: { increment: data.totalShare }, gainBalance: { increment: data.totalShare }, totalEarned: { increment: data.totalShare } }
+        })
         await tx.notification.create({
           data: {
-            userId: inv.userId,
+            userId,
             title: 'Remboursement recu',
-            body: 'Vous avez recu ' + investorShare.toLocaleString() + ' FCFA du projet "' + schedule.project.title + '" (mois ' + nextPayment.monthNumber + '/' + schedule.totalMonths + ').',
+            body: 'Vous avez recu ' + data.totalShare.toLocaleString() + ' FCFA du projet "' + schedule.project.title + '" (mois ' + nextPayment.monthNumber + '/' + schedule.totalMonths + ').',
             type: 'REPAYMENT_RECEIVED',
-            data: JSON.stringify({ projectId: schedule.projectId, amount: investorShare })
+            data: JSON.stringify({ projectId: schedule.projectId, amount: data.totalShare })
           }
         })
       }
