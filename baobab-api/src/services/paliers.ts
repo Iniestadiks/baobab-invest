@@ -146,7 +146,7 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
           type: 'DISBURSEMENT_P2',
           amount: p2Amount,
           projectId: project.id,
-          description: `Palier 2 (35%) débloqué après M${schedule.paidMonths}`
+          description: `Palier 2 (35%) débloqué après M${schedule.paidMonths}/${totalMonths} — seuil ${moisP2} mois`
         }
       })
       await tx.notification.create({
@@ -162,8 +162,8 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
   }
 
   if (currentPalier === 2 && paidAmount > 0) {
-    // Palier 3 : paidMonths >= 4 et paidAmount <= seuil3
-    if (schedule.paidMonths >= 4 && paidAmount <= seuil3) {
+    // Palier 3 : paidMonths >= moisP3
+    if (schedule.paidMonths >= moisP3 && paidAmount <= seuil3) {
       const p3Amount = Math.round(netAmount * 0.25)
       await tx.wallet.update({
         where: { userId: project.entrepreneurId },
@@ -178,7 +178,7 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
           type: 'DISBURSEMENT_P3',
           amount: p3Amount,
           projectId: project.id,
-          description: `Palier 3 (25%) débloqué après M${schedule.paidMonths}`
+          description: `Palier 3 (25%) débloqué après M${schedule.paidMonths}/${totalMonths} — seuil ${moisP3} mois`
         }
       })
       await tx.notification.create({

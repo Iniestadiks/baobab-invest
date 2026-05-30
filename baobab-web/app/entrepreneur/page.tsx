@@ -736,6 +736,7 @@ export default function EntrepreneurDashboard() {
                       )}
                     </div>
                   )}
+                  </>}
                 </div>
               );
             })}
@@ -758,20 +759,31 @@ export default function EntrepreneurDashboard() {
               const isLate = nextPay && new Date(nextPay.dueDate) < new Date();
               return (
                 <div key={pid} className={`bg-white rounded-2xl border-2 shadow-sm p-5 ${isLate ? 'border-red-300' : 'border-gray-100'}`}>
-                  {/* Header cliquable pour pli/dépli */}
-                  <div className="flex items-center justify-between mb-4 cursor-pointer"
-                    onClick={() => setExpandedSchedule(expandedSchedule === sc.id ? null : sc.id)}>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-lg">{project?.title}</h3>
-                      <p className="text-xs text-gray-400">{project?.sector} · Échéancier de remboursement</p>
+                  {/* Header cliquable — résumé visible même replié */}
+                  <div className="cursor-pointer" onClick={() => setExpandedSchedule(expandedSchedule === sc.id ? null : sc.id)}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="font-bold text-gray-900">{project?.title}</h3>
+                        <p className="text-xs text-gray-400">{project?.sector}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isLate?'bg-red-100 text-red-700':sc.status==='COMPLETED'?'bg-green-100 text-green-700':'bg-purple-100 text-purple-700'}`}>
+                          {isLate?'⚠️ Retard':sc.status==='COMPLETED'?'✅ Terminé':sc.paidMonths+'/'+sc.totalMonths+' mois'}
+                        </span>
+                        <span className="text-gray-400 text-sm">{expandedSchedule === sc.id ? '▲' : '▼'}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-bold px-3 py-1.5 rounded-full ${isLate ? 'bg-red-100 text-red-700' : sc.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                        {isLate ? '⚠️ En retard' : sc.status === 'COMPLETED' ? '✅ Terminé' : sc.paidMonths + '/' + sc.totalMonths + ' mois'}
-                      </span>
-                      <span className="text-gray-400">{expandedSchedule === sc.id ? '▲' : '▼'}</span>
+                    {/* Barre de progression visible même replié */}
+                    <div className="bg-gray-200 rounded-full h-2 mb-1">
+                      <div className="bg-green-500 h-2 rounded-full" style={{width:pct+'%'}} />
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400 mb-3">
+                      <span>{pct}% remboursé · {fmt(sc.totalAmount - sc.remainingAmount)} FCFA</span>
+                      <span>Prochain : {sc.nextDueDate ? new Date(sc.nextDueDate).toLocaleDateString('fr-FR') : '—'}</span>
                     </div>
                   </div>
+                  {/* Contenu dépliable */}
+                  {expandedSchedule === sc.id && <>
                   {/* Message incitatif palier suivant */}
                   {sc.status === 'ACTIVE' && project && (() => {
                     const palier = project.currentPalier || 0
@@ -808,14 +820,7 @@ export default function EntrepreneurDashboard() {
                       </div>
                     ))}
                   </div>
-                  <div className="mb-4">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Progression remboursement</span><span>{pct}%</span>
-                    </div>
-                    <div className="bg-gray-200 rounded-full h-3">
-                      <div className="bg-green-500 h-3 rounded-full transition-all" style={{width: pct + "%"}}></div>
-                    </div>
-                  </div>
+
                   {/* Calendrier détaillé avec pli/dépli */}
                   <div className="mb-4">
                     <button onClick={() => setExpandedSchedule(expandedSchedule === sc.id ? null : sc.id)}
