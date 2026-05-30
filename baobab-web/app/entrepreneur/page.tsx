@@ -787,18 +787,21 @@ export default function EntrepreneurDashboard() {
                       <div className="bg-green-500 h-3 rounded-full transition-all" style={{width: pct + "%"}}></div>
                     </div>
                   </div>
-                  {/* Calendrier détaillé */}
+                  {/* Calendrier détaillé avec dates et montants exacts */}
                   <div className="mb-4">
                     <p className="text-xs font-semibold text-gray-600 mb-2">Calendrier mensuel :</p>
-                    <div className="grid grid-cols-6 gap-1.5">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {sc.payments?.map((pay: any) => {
                         const late = pay.status === "PENDING" && new Date(pay.dueDate) < new Date();
                         return (
-                          <div key={pay.id} title={fmt(pay.amount) + " FCFA\n" + new Date(pay.dueDate).toLocaleDateString("fr-FR")}
-                            className={"rounded-xl p-2.5 text-center cursor-help transition-all hover:scale-105 " + (pay.status === "PAID" ? "bg-green-100 border border-green-200" : late ? "bg-red-100 border border-red-200" : "bg-white border border-gray-200")}>
-                            <div className="text-xs font-bold text-gray-700">M{pay.monthNumber}</div>
-                            <div className="text-base">{pay.status === "PAID" ? "✅" : late ? "⚠️" : "⏳"}</div>
-                            <div className="text-xs text-gray-400">{Math.round(pay.amount/1000)}k</div>
+                          <div key={pay.id}
+                            className={"rounded-xl p-2 text-xs " + (pay.status === "PAID" ? "bg-green-100 border border-green-200 text-green-700" : late ? "bg-red-100 border border-red-200 text-red-700" : "bg-white border border-gray-200 text-gray-600")}>
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="font-bold">M{pay.monthNumber}</span>
+                              <span>{pay.status === "PAID" ? "✅" : late ? "⚠️" : "⏳"}</span>
+                            </div>
+                            <div className="font-semibold">{pay.amount.toLocaleString("fr-FR")} FCFA</div>
+                            <div className="text-gray-400 text-xs">{new Date(pay.dueDate).toLocaleDateString("fr-FR", {day:"numeric", month:"short", year:"numeric"})}</div>
                           </div>
                         );
                       })}
