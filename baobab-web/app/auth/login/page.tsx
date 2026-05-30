@@ -140,7 +140,7 @@ export default function LoginPage() {
               { role: "🌳 Investisseur", email: "amadou@test.com", pwd: "motdepasse123" },
               { role: "🚀 Entrepreneur", email: "entrepreneur@test.com", pwd: "motdepasse123" },
               { role: "🎓 Mentor", email: "mentor@test.com", pwd: "motdepasse123" },
-              { role: "🛡️ Admin", email: "admin@baobabinvest.com", pwd: "Admin@Baobab2025" },
+              { role: "🛡️ Admin", email: "admin@baobabinvest.com", pwd: "Admin2025!" },
             ].map(c => (
               <button key={c.email} type="button"
                 onClick={() => setForm({ email: c.email, password: c.pwd })}
