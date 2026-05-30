@@ -768,7 +768,7 @@ export default function EntrepreneurDashboard() {
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isLate ? 'bg-red-100 text-red-700' : sc.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
                         {isLate ? '⚠️ Retard' : sc.status === 'COMPLETED' ? '✅ Terminé' : pct + '%'}
                       </span>
-                      <span className="text-gray-400">{expandedSchedule === sc.id ? '▲' : '▼'}</span>
+                      <span className="text-gray-400">{expandedSchedule === sc.id ? '▼' : '▲'}</span>
                     </div>
                   </div>
                   {/* Barre progression toujours visible */}
@@ -779,7 +779,8 @@ export default function EntrepreneurDashboard() {
                     <span>{fmt(sc.totalAmount - sc.remainingAmount)} FCFA remboursés</span>
                     <span>Prochain : {sc.nextDueDate ? new Date(sc.nextDueDate).toLocaleDateString('fr-FR') : '—'}</span>
                   </div>
-                  {expandedSchedule === sc.id && <div>
+                  {(expandedSchedule === null || expandedSchedule === sc.id) && <div>
+                  {sc.status === "ACTIVE" && project && (() => { const palier = project.currentPalier || 0; const net = project.netAmount || 0; const totalMonths = sc.totalMonths || 6; const moisP2 = Math.max(2, Math.round(totalMonths / 3)); const moisP3 = Math.max(4, Math.round(totalMonths * 2 / 3)); if (palier === 1) return (<div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🎯</div><div><div className="font-bold text-blue-700 text-sm">Payez M{moisP2} pour debloquer le Palier 2</div><div className="text-blue-600 text-xs mt-1">+{fmt(Math.round(net*0.35))} FCFA verses automatiquement sur votre wallet</div></div></div>); if (palier === 2) return (<div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🚀</div><div><div className="font-bold text-purple-700 text-sm">Payez M{moisP3} pour debloquer le Palier 3 !</div><div className="text-purple-600 text-xs mt-1">+{fmt(Math.round(net*0.25))} FCFA - La totalite de votre cagnotte sera liberee</div></div></div>); if (palier >= 3) return (<div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4"><div className="font-bold text-green-700 text-sm">Tous les paliers debloques ! Continuez vos remboursements.</div></div>); return null; })()}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     {[
                       { label: "Total dû", value: fmt(sc.totalAmount) + " FCFA", color: "text-gray-900" },
