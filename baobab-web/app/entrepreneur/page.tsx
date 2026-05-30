@@ -757,15 +757,43 @@ export default function EntrepreneurDashboard() {
               const isLate = nextPay && new Date(nextPay.dueDate) < new Date();
               return (
                 <div key={pid} className={`bg-white rounded-2xl border-2 shadow-sm p-5 ${isLate ? 'border-red-300' : 'border-gray-100'}`}>
-                  <div className="flex items-center justify-between mb-4">
+                  {/* Header cliquable pour pli/dépli */}
+                  <div className="flex items-center justify-between mb-4 cursor-pointer"
+                    onClick={() => setExpandedSchedule(expandedSchedule === sc.id ? null : sc.id)}>
                     <div>
                       <h3 className="font-bold text-gray-900 text-lg">{project?.title}</h3>
                       <p className="text-xs text-gray-400">{project?.sector} · Échéancier de remboursement</p>
                     </div>
-                    <span className={`text-sm font-bold px-3 py-1.5 rounded-full ${isLate ? 'bg-red-100 text-red-700' : sc.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
-                      {isLate ? '⚠️ En retard' : sc.status === 'COMPLETED' ? '✅ Terminé' : sc.paidMonths + '/' + sc.totalMonths + ' mois'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold px-3 py-1.5 rounded-full ${isLate ? 'bg-red-100 text-red-700' : sc.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                        {isLate ? '⚠️ En retard' : sc.status === 'COMPLETED' ? '✅ Terminé' : sc.paidMonths + '/' + sc.totalMonths + ' mois'}
+                      </span>
+                      <span className="text-gray-400">{expandedSchedule === sc.id ? '▲' : '▼'}</span>
+                    </div>
                   </div>
+                  {/* Message incitatif palier suivant */}
+                  {sc.status === 'ACTIVE' && project && (() => {
+                    const palier = project.currentPalier || 0
+                    const net = project.netAmount || 0
+                    if (palier === 1) return (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-xs">
+                        <div className="font-bold text-blue-700">🎯 Payez M2 pour débloquer le Palier 2 !</div>
+                        <div className="text-blue-600 mt-0.5">+{fmt(Math.round(net*0.35))} FCFA supplémentaires versés sur votre wallet</div>
+                      </div>
+                    )
+                    if (palier === 2) return (
+                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4 text-xs">
+                        <div className="font-bold text-purple-700">🎯 Payez M4 pour débloquer le Palier 3 — dernier versement !</div>
+                        <div className="text-purple-600 mt-0.5">+{fmt(Math.round(net*0.25))} FCFA · La totalité de votre cagnotte sera libérée</div>
+                      </div>
+                    )
+                    if (palier === 3) return (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-xs">
+                        <div className="font-bold text-green-700">✅ Tous les paliers débloqués — continuez vos remboursements !</div>
+                      </div>
+                    )
+                    return null
+                  })()}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     {[
                       { label: "Total dû", value: fmt(sc.totalAmount) + " FCFA", color: "text-gray-900" },
@@ -787,10 +815,14 @@ export default function EntrepreneurDashboard() {
                       <div className="bg-green-500 h-3 rounded-full transition-all" style={{width: pct + "%"}}></div>
                     </div>
                   </div>
-                  {/* Calendrier détaillé avec dates et montants exacts */}
+                  {/* Calendrier détaillé avec pli/dépli */}
                   <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-600 mb-2">Calendrier mensuel :</p>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <button onClick={() => setExpandedSchedule(expandedSchedule === sc.id ? null : sc.id)}
+                      className="flex items-center justify-between w-full text-xs font-semibold text-gray-600 mb-2 hover:text-gray-900">
+                      <span>📅 Calendrier mensuel ({sc.payments?.filter((p:any)=>p.status==='PAID').length}/{sc.totalMonths} payés)</span>
+                      <span>{expandedSchedule === sc.id ? '▲ Réduire' : '▼ Voir détails'}</span>
+                    </button>
+                    {expandedSchedule === sc.id && <div className="grid grid-cols-3 gap-1.5">
                       {sc.payments?.map((pay: any) => {
                         const late = pay.status === "PENDING" && new Date(pay.dueDate) < new Date();
                         return (
@@ -805,7 +837,7 @@ export default function EntrepreneurDashboard() {
                           </div>
                         );
                       })}
-                    </div>
+                    </div>}
                   </div>
                   {/* Solde + recharger */}
                   <div className={`rounded-xl p-3 mb-4 flex items-center justify-between text-sm ${(wallet?.balance||0) >= sc.monthlyAmount ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
