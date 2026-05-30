@@ -575,7 +575,6 @@ export default function EntrepreneurDashboard() {
                       <div className="flex flex-wrap gap-2">
                         {["ACTIVE","FUNDED","IN_PROGRESS","COMPLETED"].includes(p.status) && (
                           <>
-                            <Link href={`/entrepreneur/milestones/${p.id}`} className="text-xs bg-blue-600 text-white px-3 py-2 rounded-xl font-medium hover:bg-blue-700">🏗️ Jalons</Link>
                             <Link href={`/feed/${p.id}`} className="text-xs bg-green-600 text-white px-3 py-2 rounded-xl font-medium hover:bg-green-700">📸 Update</Link>
                             <Link href={`/projects/${p.id}`} className="text-xs bg-gray-100 text-gray-700 px-3 py-2 rounded-xl font-medium hover:bg-gray-200">🔍 Voir</Link>
                             <button onClick={() => downloadPDF(`/api/pdf/report/project/${p.id}`, `rapport-${p.id.substring(0,8)}.pdf`)} className="text-xs bg-purple-100 text-purple-700 px-3 py-2 rounded-xl font-medium hover:bg-purple-200">📄 PDF</button>
@@ -883,9 +882,10 @@ export default function EntrepreneurDashboard() {
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8"></div>
               <div className="text-sm text-green-200 mb-1">Solde disponible</div>
               <div className="text-4xl font-bold mb-4">{fmt(wallet?.balance || 0)} FCFA</div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <Link href="/wallet/deposit" className="bg-white text-green-700 text-sm font-bold py-2.5 rounded-xl text-center hover:bg-green-50">+ Déposer</Link>
                 <Link href="/wallet/withdraw" className="bg-white/20 text-white text-sm font-bold py-2.5 rounded-xl text-center hover:bg-white/30 border border-white/30">↗ Retirer</Link>
+                <Link href="/suppliers" className="bg-yellow-400 text-gray-900 text-sm font-bold py-2.5 rounded-xl text-center hover:bg-yellow-300">🏪 Fournisseurs</Link>
               </div>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
