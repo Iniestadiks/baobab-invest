@@ -86,9 +86,9 @@ export default function SuppliersPage() {
                     Contacter
                   </a>
                 </div>
-                {s.mobileMoneyNumber && (
+                {s.mobileMoneyProvider && (
                   <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-                    💳 {s.mobileMoneyProvider} : <strong>{s.mobileMoneyNumber}</strong>
+                    💳 Accepte : <strong>{s.mobileMoneyProvider}</strong>
                   </div>
                 )}
               </div>
