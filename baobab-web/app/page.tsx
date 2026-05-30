@@ -59,6 +59,7 @@ export default function LandingPage() {
             </Link>
             <a href="#batisseurs" className="hover:text-green-600 transition-colors">Bâtisseurs</a>
             <Link href="/batisseurs" className="hover:text-green-600 transition-colors">🏆 Hall of Fame</Link>
+            <Link href="/supplier/dashboard" className="hover:text-green-600 transition-colors">🏪 Fournisseurs</Link>
             <Link href="/transparence" className="hover:text-green-600 transition-colors">Transparence</Link>
           </div>
           <div className="flex items-center gap-3">
@@ -79,6 +80,7 @@ export default function LandingPage() {
             <a href="#projets" className="block text-gray-600 hover:text-green-600">Projets</a>
             <Link href="/fund" className="block text-gray-600 hover:text-green-600">🌱 Fonds Solidaire</Link>
             <a href="#batisseurs" className="block text-gray-600 hover:text-green-600">Bâtisseurs</a>
+            <Link href="/supplier/dashboard" className="block text-gray-600 hover:text-green-600">🏪 Espace Fournisseur</Link>
             <Link href="/transparence" className="block text-gray-600 hover:text-green-600">Transparence</Link>
             <Link href="/auth/login" className="block text-gray-600 hover:text-green-600">Connexion</Link>
           </div>
