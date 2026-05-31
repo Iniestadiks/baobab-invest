@@ -277,11 +277,11 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
     console.log(`Nouveau projet soumis : ${project.title} — Score bankabilité : ${score} — GoalAmount: ${computedGoalCalc}`)
     successResponse(res, { ...project, bankabilityScore: score, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc }, 'Projet soumis — en attente de validation', 201)
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error instanceof z.ZodError && error.errors && error.errors.length > 0) {
       res.status(400).json({ success: false, message: error.errors[0].message })
       return
     }
-    console.error(error)
+    console.error('[PROJECT CREATE ERROR]', error)
     errorResponse(res)
   }
 })
