@@ -192,6 +192,27 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
       res.status(403).json({ success: false, message: "Votre KYC doit etre verifie par un administrateur avant de soumettre un projet." })
       return
     }
+    // Blocage réputation
+    const repScore = entrepreneur.reputationScore ?? 100
+    if (repScore < 25) {
+      // Alerter admin
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+      await prisma.notification.createMany({
+        data: admins.map(a => ({
+          userId: a.id,
+          title: '🚨 Entrepreneur banni tente de créer un projet',
+          body: `${entrepreneur.firstName} ${entrepreneur.lastName} (score: ${repScore}/100) a tenté de créer un projet.`,
+          type: 'SYSTEM_ALERT',
+          data: JSON.stringify({ entrepreneurId: entrepreneur.id })
+        }))
+      })
+      res.status(403).json({ success: false, message: "Votre compte est suspendu suite à des retards répétés. Contactez le support BAOBAB INVEST.", code: "BANNED" })
+      return
+    }
+    if (repScore < 50) {
+      res.status(403).json({ success: false, message: "Votre score de réputation est insuffisant (< 50). Remboursez vos mensualités en retard pour retrouver l'accès.", code: "LOW_REPUTATION" })
+      return
+    }
 
     // Calculer goalAmount automatiquement
     const feesCalc = await getFees()
@@ -228,6 +249,11 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         return !isStale
       })
       if (validActive.length >= MAX_ACTIVE_PER_SUBSECTOR) {
+        // Vérifier score réputation pour waitlist
+        if (repScore < 70) {
+          res.status(403).json({ success: false, message: "Votre score de réputation est insuffisant pour accéder à la liste d'attente (minimum 70). Remboursez vos mensualités.", code: "LOW_REPUTATION_WAITLIST" })
+          return
+        }
         const waitlistCount = await prisma.project.count({
           where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: 'WAITLISTED' }
         })

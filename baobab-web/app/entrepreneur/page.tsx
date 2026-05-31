@@ -22,6 +22,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 const COUNTRY_FLAGS: Record<string, string> = { SN:"🇸🇳", CI:"🇨🇮", CM:"🇨🇲", ML:"🇲🇱", BF:"🇧🇫", GN:"🇬🇳" };
 
+function getRepLevel(score: number) {
+  if (score >= 90) return { label: "Entrepreneur Exemplaire", icon: "🌟", color: "text-green-600", bg: "bg-green-50 border-green-200" }
+  if (score >= 75) return { label: "Entrepreneur Fiable", icon: "👍", color: "text-blue-600", bg: "bg-blue-50 border-blue-200" }
+  if (score >= 50) return { label: "Entrepreneur à Risque", icon: "⚠️", color: "text-orange-500", bg: "bg-orange-50 border-orange-200" }
+  if (score >= 25) return { label: "Entrepreneur Non Sérieux", icon: "🚨", color: "text-red-600", bg: "bg-red-50 border-red-200" }
+  return { label: "Compte Suspendu", icon: "❌", color: "text-gray-900", bg: "bg-gray-100 border-gray-400" }
+}
 function fmt(n: number) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
 }
@@ -306,8 +313,11 @@ export default function EntrepreneurDashboard() {
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 p-4">
             <div className="text-xs text-gray-400 mb-1">⭐ Réputation</div>
-            <div className={`text-xl font-bold ${(user?.reputationScore||0) >= 70 ? 'text-green-600' : (user?.reputationScore||0) >= 40 ? 'text-orange-500' : 'text-red-500'}`}>
+            <div className={`text-xl font-bold ${getRepLevel(user?.reputationScore||0).color}`}>
               {user?.reputationScore || 0}/100
+            </div>
+            <div className={`text-xs font-medium mt-0.5 ${getRepLevel(user?.reputationScore||0).color}`}>
+              {getRepLevel(user?.reputationScore||0).icon} {getRepLevel(user?.reputationScore||0).label}
             </div>
             <div className="mt-1.5 bg-gray-100 rounded-full h-1.5">
               <div className={`h-1.5 rounded-full ${(user?.reputationScore||0) >= 70 ? 'bg-green-500' : (user?.reputationScore||0) >= 40 ? 'bg-orange-400' : 'bg-red-400'}`}
@@ -907,12 +917,12 @@ export default function EntrepreneurDashboard() {
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <h3 className="font-bold text-gray-900 mb-4">⭐ Score de réputation</h3>
               <div className="flex items-center gap-4 mb-3">
-                <div className={`text-5xl font-bold ${(user?.reputationScore||0) >= 70 ? 'text-green-600' : (user?.reputationScore||0) >= 40 ? 'text-orange-500' : 'text-red-500'}`}>
+                <div className={`text-5xl font-bold ${getRepLevel(user?.reputationScore||0).color}`}>
                   {user?.reputationScore || 0}
                 </div>
                 <div className="flex-1">
                   <div className="bg-gray-200 rounded-full h-4">
-                    <div className={`h-4 rounded-full transition-all ${(user?.reputationScore||0) >= 70 ? 'bg-green-500' : (user?.reputationScore||0) >= 40 ? 'bg-orange-400' : 'bg-red-400'}`}
+                    <div className={`h-4 rounded-full transition-all ${(user?.reputationScore||0) >= 90 ? 'bg-green-500' : (user?.reputationScore||0) >= 75 ? 'bg-blue-500' : (user?.reputationScore||0) >= 50 ? 'bg-orange-400' : (user?.reputationScore||0) >= 25 ? 'bg-red-500' : 'bg-gray-700'}`}
                       style={{width: Math.max(0, Math.min(100, user?.reputationScore||0)) + "%"}} />
                   </div>
                   <div className="text-xs text-gray-400 mt-1">/ 100 points</div>
@@ -923,7 +933,13 @@ export default function EntrepreneurDashboard() {
                 <div>🚀 Remboursement anticipé : +20 pts</div>
                 <div>⚠️ Retard 7 jours : -10 pts</div>
                 <div>❌ Retard 30 jours : -30 pts</div>
-                {(user?.reputationScore||0) >= 70 && <div className="text-green-600 font-medium mt-2">✅ Score excellent — éligible au refinancement</div>}
+                <div className={`mt-4 p-3 rounded-xl border text-sm font-medium ${getRepLevel(user?.reputationScore||0).bg} ${getRepLevel(user?.reputationScore||0).color}`}>
+                  {getRepLevel(user?.reputationScore||0).icon} {getRepLevel(user?.reputationScore||0).label}
+                  {(user?.reputationScore||0) < 50 && <div className="text-xs mt-1 opacity-80">⛔ Création de nouveau projet bloquée</div>}
+                  {(user?.reputationScore||0) >= 50 && (user?.reputationScore||0) < 70 && <div className="text-xs mt-1 opacity-80">⚠️ Accès à la liste d'attente bloqué</div>}
+                  {(user?.reputationScore||0) < 25 && <div className="text-xs mt-1 opacity-80">🚨 Compte suspendu — contactez le support</div>}
+                  {(user?.reputationScore||0) >= 90 && <div className="text-xs mt-1 opacity-80">✅ Éligible au refinancement</div>}
+                </div>
               </div>
             </div>
           </div>
