@@ -144,12 +144,17 @@ scheduleDelayCheck()
 // Cron mensuel — classements (1er du mois à 8h)
 const scheduleMonthlyRankings = () => {
   const now = new Date()
+  // Toujours programmer pour le 1er du PROCHAIN mois
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 8, 0, 0)
   const delay = next.getTime() - now.getTime()
-  setTimeout(() => { computeMonthlyRankings(); setInterval(computeMonthlyRankings, 30 * 24 * 60 * 60 * 1000) }, delay)
+  setTimeout(() => {
+    computeMonthlyRankings()
+    // Reprogrammer chaque mois
+    setInterval(computeMonthlyRankings, 30 * 24 * 60 * 60 * 1000)
+  }, delay)
   console.log('[CRON] Classement mensuel prévu le', next.toLocaleDateString())
 }
-scheduleMonthlyRankings()
+// // scheduleMonthlyRankings() // desactive // desactive
 
 // CRON mensuel — gamification bâtisseurs (1er du mois à 8h30)
 const scheduleBuilderGamification = () => {
@@ -166,7 +171,7 @@ const scheduleBuilderGamification = () => {
   }, delay)
   console.log('[CRON] Gamification bâtisseurs prévue le', next.toLocaleDateString())
 }
-scheduleBuilderGamification()
+// // scheduleBuilderGamification() // desactive // desactive
 
 checkAndPromoteWaitlist() // Lancer au démarrage
 

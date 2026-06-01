@@ -100,6 +100,6 @@ export async function computeMonthlyRankings() {
   } catch(e) {
     console.error("[CRON RANKINGS] Erreur:", e)
   } finally {
-    await prisma.$disconnect()
+    // Ne pas déconnecter — connexion partagée avec l'app
   }
 }

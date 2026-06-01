@@ -64,6 +64,6 @@ export async function checkAndPromoteWaitlist() {
   } catch (e) {
     console.error('[CRON] Erreur:', e)
   } finally {
-    await prisma.$disconnect()
+    // Ne pas déconnecter — connexion partagée avec l'app
   }
 }
