@@ -127,7 +127,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🌳</div>
-          <h1 className="text-2xl font-bold text-green-600">BAOBAB INVEST</h1>
+          <h1 className="text-2xl font-bold text-green-600">KORAPACT</h1>
           <p className="text-gray-500 text-sm mt-1">
             Rejoins la communauté d'investissement africaine
           </p>
@@ -319,7 +319,7 @@ export default function RegisterPage() {
               <Link href="/privacy" className="text-green-600 hover:underline">
                 Politique de Confidentialité
               </Link>{" "}
-              de BAOBAB INVEST, ainsi que la{" "}
+              de KORAPACT, ainsi que la{" "}
               <span className="font-medium text-gray-700">
                 Clause de Transparence Sociale
               </span>

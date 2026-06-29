@@ -68,13 +68,13 @@ export default function HallOfFame() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-yellow-500/5 rounded-full blur-3xl" />
         <div className="relative max-w-5xl mx-auto px-4 py-16 text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-yellow-400 text-sm mb-8 transition-colors">
-            ← Retour à BAOBAB INVEST
+            ← Retour à KORAPACT
           </Link>
           <div className="text-7xl mb-6 animate-bounce">🏛️</div>
           <h1 className="text-5xl font-black mb-3 bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-400 bg-clip-text text-transparent">
             Hall of Fame
           </h1>
-          <p className="text-yellow-500 text-xl font-semibold mb-2">Bâtisseurs BAOBAB INVEST</p>
+          <p className="text-yellow-500 text-xl font-semibold mb-2">Bâtisseurs KORAPACT</p>
           <p className="text-gray-400 max-w-lg mx-auto">Ces mécènes croient en la jeunesse africaine. Leur générosité finance des rêves, crée des emplois, bâtit l'Afrique de demain.</p>
 
           {/* Stats hero */}

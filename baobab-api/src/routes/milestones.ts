@@ -1,7 +1,8 @@
+// @ts-nocheck
 import { Router, Response } from 'express'
 import { z } from 'zod'
 import prisma from '../config/database'
-import { FEES, calcInvestorReturn } from '../config/fees'
+import { getFees } from '../config/fees'
 import { authenticate, requireAdmin, requireRole, AuthRequest } from '../middleware/auth'
 import { successResponse, errorResponse } from '../utils/helpers'
 

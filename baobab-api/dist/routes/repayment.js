@@ -1,0 +1,786 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+// @ts-nocheck
+const express_1 = require("express");
+const client_1 = require("@prisma/client");
+const auth_1 = require("../middleware/auth");
+const fees_1 = require("../config/fees");
+const paliers_1 = require("../services/paliers");
+const builderGamification_1 = require("../services/builderGamification");
+const router = (0, express_1.Router)();
+const prisma = new client_1.PrismaClient();
+function successResponse(res, data, message = 'OK') {
+    res.json({ success: true, message, data });
+}
+function errorResponse(res, message = 'Erreur serveur') {
+    res.status(500).json({ success: false, message });
+}
+// Admin — voir tous les echéanciers (AVANT /my/:projectId pour eviter conflit)
+router.get('/admin/all', auth_1.authenticate, async (req, res) => {
+    try {
+        const schedules = await prisma.repaymentSchedule.findMany({
+            include: {
+                project: {
+                    select: {
+                        title: true,
+                        entrepreneur: { select: { firstName: true, lastName: true } }
+                    }
+                },
+                payments: { orderBy: { monthNumber: 'asc' } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        successResponse(res, schedules);
+    }
+    catch (e) {
+        errorResponse(res);
+    }
+});
+// Investisseur — voir les remboursements recus (AVANT /my/:projectId)
+router.get('/investor/received', auth_1.authenticate, async (req, res) => {
+    try {
+        // Trouver tous les investissements de cet investisseur
+        const investments = await prisma.investment.findMany({
+            where: { userId: req.userId },
+            select: { id: true, amount: true, projectId: true, project: { select: { title: true } } }
+        });
+        const results = [];
+        for (const inv of investments) {
+            // Trouver l'echéancier du projet
+            const schedule = await prisma.repaymentSchedule.findFirst({
+                where: { projectId: inv.projectId },
+                include: { payments: { where: { status: 'PAID' }, orderBy: { monthNumber: 'asc' } } }
+            });
+            if (!schedule || schedule.payments.length === 0)
+                continue;
+            // Utiliser sharePercent pour la proportion exacte
+            const investmentFull = await prisma.investment.findFirst({
+                where: { userId: req.userId, projectId: inv.projectId },
+                select: { sharePercent: true }
+            });
+            const proportion = investmentFull?.sharePercent || (inv.amount / (schedule.project?.goalAmount || inv.amount));
+            const feesData = await (0, fees_1.getFees)();
+            const payinRepayPct = feesData.payin_repayment || 4;
+            for (const payment of schedule.payments) {
+                const payinFee = Math.round(payment.amount * payinRepayPct / 100);
+                const netPayment = payment.amount - payinFee;
+                const investorShare = Math.round(netPayment * proportion);
+                results.push({
+                    id: payment.id,
+                    projectId: inv.projectId,
+                    projectTitle: inv.project?.title,
+                    monthNumber: payment.monthNumber,
+                    totalMonths: schedule.totalMonths,
+                    amount: investorShare,
+                    grossAmount: payment.amount,
+                    paidAt: payment.paidAt,
+                    createdAt: payment.paidAt
+                });
+            }
+        }
+        results.sort((a, b) => new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime());
+        successResponse(res, results);
+    }
+    catch (e) {
+        console.error(e);
+        errorResponse(res);
+    }
+});
+// Creer l'echeancier pour un projet
+router.post('/create/:projectId', auth_1.authenticate, async (req, res) => {
+    try {
+        const project = await prisma.project.findUnique({
+            where: { id: req.params.projectId },
+            include: { investments: { select: { amount: true, expectedReturn: true, userId: true } } }
+        });
+        if (!project) {
+            res.status(404).json({ success: false, message: 'Projet introuvable' });
+            return;
+        }
+        const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } });
+        if (existing) {
+            res.status(400).json({ success: false, message: 'Echeancier deja cree' });
+            return;
+        }
+        const fees = await (0, fees_1.getFees)();
+        // NOUVELLE STRATÉGIE : remboursement = 22% sur besoin net du projet
+        // Pas de commission BAOBAB au retour (0%)
+        // BAOBAB prélève 4% Payin sur chaque mensualité pour compenser ses avances
+        const netAmount = project.netAmount || project.goalAmount;
+        const returnRate = Math.max(project.expectedReturn || 0, fees.return_min);
+        const totalGross = Math.round(netAmount * (1 + returnRate / 100));
+        // Payin 4% prélevé sur chaque mensualité → distribué aux investisseurs nets
+        const payinRate = fees.payin_repayment; // 4%
+        const months = project.durationMonths || 12;
+        // Délai de grâce selon secteur
+        const gracePeriod = project.gracePeriodMonths || 0;
+        const monthly = Math.ceil(totalGross / months);
+        const netMonthly = Math.round(monthly * (1 - payinRate / 100)); // après Payin 4%
+        const nextDue = new Date();
+        nextDue.setMonth(nextDue.getMonth() + 1 + gracePeriod); // délai grâce
+        const schedule = await prisma.repaymentSchedule.create({
+            data: {
+                projectId: project.id,
+                totalAmount: totalGross,
+                monthlyAmount: monthly,
+                totalMonths: months,
+                remainingAmount: totalGross,
+                nextDueDate: nextDue,
+                status: 'ACTIVE'
+            }
+        });
+        const payments = Array.from({ length: months }, (_, i) => {
+            const due = new Date();
+            due.setMonth(due.getMonth() + i + 1 + gracePeriod);
+            return {
+                scheduleId: schedule.id,
+                projectId: project.id,
+                amount: i === months - 1 ? totalGross - monthly * (months - 1) : monthly,
+                monthNumber: i + 1,
+                dueDate: due,
+                status: 'PENDING'
+            };
+        });
+        await prisma.repaymentPayment.createMany({ data: payments });
+        await prisma.notification.create({
+            data: {
+                userId: project.entrepreneurId,
+                title: 'Echeancier de remboursement cree',
+                body: 'Remboursez ' + monthly.toLocaleString() + ' FCFA/mois pendant ' + months + ' mois' + (gracePeriod > 0 ? ' (debut mois ' + (gracePeriod + 1) + ')' : '') + '. Total: ' + totalGross.toLocaleString() + ' FCFA.',
+                type: 'REPAYMENT_SCHEDULE_CREATED',
+                data: JSON.stringify({ projectId: project.id, scheduleId: schedule.id })
+            }
+        });
+        successResponse(res, { schedule, monthly, totalGross, months, gracePeriod }, 'Echeancier cree');
+    }
+    catch (e) {
+        console.error(e);
+        errorResponse(res);
+    }
+});
+// Entrepreneur — voir son echeancier
+router.get('/my/:projectId', auth_1.authenticate, async (req, res) => {
+    try {
+        const schedule = await prisma.repaymentSchedule.findFirst({
+            where: { projectId: req.params.projectId },
+            include: { payments: { orderBy: { monthNumber: 'asc' } } }
+        });
+        successResponse(res, schedule);
+    }
+    catch (e) {
+        errorResponse(res);
+    }
+});
+// Entrepreneur — payer une mensualite
+router.post('/pay/:scheduleId', auth_1.authenticate, (0, auth_1.requireRole)(['ENTREPRENEUR']), async (req, res) => {
+    try {
+        const schedule = await prisma.repaymentSchedule.findUnique({
+            where: { id: req.params.scheduleId },
+            include: {
+                project: {
+                    include: {
+                        investments: { include: { user: { select: { id: true, firstName: true } } } }
+                    }
+                },
+                payments: { where: { status: 'PENDING' }, orderBy: { monthNumber: 'asc' }, take: 1 }
+            }
+        });
+        if (!schedule) {
+            res.status(404).json({ success: false, message: 'Echeancier introuvable' });
+            return;
+        }
+        if (schedule.project.entrepreneurId !== req.userId) {
+            res.status(403).json({ success: false, message: 'Non autorise' });
+            return;
+        }
+        const nextPayment = schedule.payments[0];
+        if (!nextPayment) {
+            res.status(400).json({ success: false, message: 'Aucun paiement en attente' });
+            return;
+        }
+        const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } });
+        if (!wallet || wallet.balance < nextPayment.amount) {
+            res.status(400).json({ success: false, message: 'Solde insuffisant. Disponible: ' + (wallet?.balance?.toLocaleString() || 0) + ' FCFA' });
+            return;
+        }
+        const fees = await (0, fees_1.getFees)();
+        const payinRate = fees.payin_repayment || 4; // Payin mensualités 4%
+        const baobabRate = 0; // 0% commission retour BAOBAB (modèle validé)
+        const payinFee = Math.round(nextPayment.amount * payinRate / 100);
+        const netToDistribute = nextPayment.amount - payinFee;
+        // Distribution proportionnelle via sharePercent
+        const goalAmount = schedule.project.goalAmount;
+        await prisma.$transaction(async (tx) => {
+            await tx.wallet.update({
+                where: { userId: req.userId },
+                data: { balance: { decrement: nextPayment.amount } }
+            });
+            // Payin 4% → admin
+            const adminRep2 = await tx.user.findFirst({ where: { role: "ADMIN" } });
+            if (adminRep2 && payinFee > 0) {
+                await tx.wallet.update({ where: { userId: adminRep2.id }, data: { commissionBalance: { increment: payinFee } } });
+                await tx.platformRevenue.create({ data: { type: "PAYIN_REPAYMENT", amount: payinFee, projectId: schedule.projectId, description: "Payin 4% mensualite M" + nextPayment.monthNumber } });
+            }
+            // Grouper par userId pour eviter doublons (Fonds Solidaire a 3 investissements)
+            const investorMap = {};
+            for (const inv of schedule.project.investments) {
+                const proportion = inv.sharePercent || (goalAmount > 0 ? inv.amount / goalAmount : 0);
+                const investorShare = Math.round(netToDistribute * proportion);
+                if (investorShare <= 0)
+                    continue;
+                if (!investorMap[inv.userId])
+                    investorMap[inv.userId] = { totalShare: 0, invIds: [] };
+                investorMap[inv.userId].totalShare += investorShare;
+                investorMap[inv.userId].invIds.push(inv.id);
+                // returnedAmount par investissement individuel
+                await tx.investment.update({
+                    where: { id: inv.id },
+                    data: { returnedAmount: { increment: investorShare } }
+                });
+            }
+            // Crediter chaque investisseur une seule fois
+            for (const [userId, data] of Object.entries(investorMap)) {
+                await tx.wallet.update({
+                    where: { userId },
+                    data: { balance: { increment: data.totalShare }, gainBalance: { increment: data.totalShare }, totalEarned: { increment: data.totalShare } }
+                });
+                await tx.notification.create({
+                    data: {
+                        userId,
+                        title: 'Remboursement recu',
+                        body: 'Vous avez recu ' + data.totalShare.toLocaleString() + ' FCFA du projet "' + schedule.project.title + '" (mois ' + nextPayment.monthNumber + '/' + schedule.totalMonths + ').',
+                        type: 'REPAYMENT_RECEIVED',
+                        data: JSON.stringify({ projectId: schedule.projectId, amount: data.totalShare })
+                    }
+                });
+            }
+            const baobabFee = Math.round(nextPayment.amount * baobabRate / 100);
+            // Crediter wallet admin de la commission retour BAOBAB
+            const adminRep = await tx.user.findFirst({ where: { role: 'ADMIN' } });
+            if (adminRep) {
+                await tx.wallet.update({
+                    where: { userId: adminRep.id },
+                    data: { balance: { increment: baobabFee }, commissionBalance: { increment: baobabFee } }
+                });
+            }
+            await tx.platformRevenue.create({
+                data: {
+                    type: 'COMMISSION_RETURN',
+                    amount: baobabFee,
+                    projectId: schedule.projectId,
+                    description: 'Commission retour ' + baobabRate + '% — mois ' + nextPayment.monthNumber
+                }
+            });
+            await tx.repaymentPayment.update({
+                where: { id: nextPayment.id },
+                data: { status: 'PAID', paidAt: new Date() }
+            });
+            const newPaid = schedule.paidMonths + 1;
+            const newRemaining = Math.max(0, schedule.remainingAmount - nextPayment.amount);
+            const nextDue = new Date();
+            nextDue.setMonth(nextDue.getMonth() + 1);
+            await tx.repaymentSchedule.update({
+                where: { id: schedule.id },
+                data: {
+                    paidMonths: newPaid,
+                    remainingAmount: newRemaining,
+                    nextDueDate: newPaid < schedule.totalMonths ? nextDue : null,
+                    status: newPaid >= schedule.totalMonths ? 'COMPLETED' : 'ACTIVE'
+                }
+            });
+            if (newPaid >= schedule.totalMonths) {
+                // Libérer escrowBalance des investisseurs
+                for (const inv of schedule.project.investments) {
+                    await tx.wallet.update({
+                        where: { userId: inv.userId },
+                        data: { escrowBalance: { decrement: inv.amount } }
+                    });
+                }
+                await tx.project.update({ where: { id: schedule.projectId }, data: { status: 'COMPLETED' } });
+                await tx.notification.create({
+                    data: {
+                        userId: schedule.project.entrepreneurId,
+                        title: 'Projet entierement rembourse',
+                        body: 'Le projet "' + schedule.project.title + '" est entierement rembourse. Votre score de reputation augmente.',
+                        type: 'PROJECT_COMPLETED',
+                        data: JSON.stringify({ projectId: schedule.projectId })
+                    }
+                });
+            }
+        });
+        // Vérifier déblocage palier suivant (transaction séparée)
+        try {
+            await prisma.$transaction(async (txPalier) => {
+                await (0, paliers_1.checkAndUnlockPalier)(schedule.id, txPalier);
+            });
+        }
+        catch (palierErr) {
+            console.error('Palier check error:', palierErr);
+        }
+        // +5 pts gamification aux batisseurs si remboursement recu
+        try {
+            const builders = await prisma.builderProfile.findMany({ select: { userId: true } });
+            for (const b of builders) {
+                await (0, builderGamification_1.updateBuilderGamification)(b.userId, { type: 'REMBOURSEMENT_OK' });
+            }
+        }
+        catch (ge) {
+            console.error('[GAMIFICATION] repayment bonus:', ge);
+        }
+        successResponse(res, {
+            paidMonth: nextPayment.monthNumber,
+            amount: nextPayment.amount,
+            remainingMonths: schedule.totalMonths - schedule.paidMonths - 1
+        }, 'Mensualite ' + nextPayment.monthNumber + '/' + schedule.totalMonths + ' payee');
+    }
+    catch (e) {
+        console.error(e);
+        errorResponse(res);
+    }
+});
+// Admin — reporter une échéance
+router.patch('/admin/reschedule/:scheduleId', auth_1.authenticate, (0, auth_1.requireRole)(['ADMIN']), async (req, res) => {
+    try {
+        const { newDueDate, note, monthNumber } = req.body;
+        if (!newDueDate) {
+            res.status(400).json({ success: false, message: 'newDueDate requis' });
+            return;
+        }
+        const schedule = await prisma.repaymentSchedule.findUnique({
+            where: { id: req.params.scheduleId },
+            include: { project: { include: { investments: { select: { userId: true } }, entrepreneur: { select: { id: true } } } } }
+        });
+        if (!schedule) {
+            res.status(404).json({ success: false, message: 'Échéancier introuvable' });
+            return;
+        }
+        // Trouver tous les mois PENDING et les décaler proportionnellement
+        const pendingPayments = await prisma.repaymentPayment.findMany({
+            where: { scheduleId: schedule.id, status: 'PENDING' },
+            orderBy: { monthNumber: 'asc' }
+        });
+        if (pendingPayments.length === 0) {
+            res.status(400).json({ success: false, message: 'Aucune mensualite en attente' });
+            return;
+        }
+        const nextPending = pendingPayments[0];
+        const diffMs = new Date(newDueDate).getTime() - new Date(nextPending.dueDate).getTime();
+        for (const payment of pendingPayments) {
+            const updatedDate = new Date(new Date(payment.dueDate).getTime() + diffMs);
+            await prisma.repaymentPayment.update({
+                where: { id: payment.id },
+                data: { dueDate: updatedDate }
+            });
+        }
+        await prisma.repaymentSchedule.update({
+            where: { id: schedule.id },
+            data: { nextDueDate: new Date(newDueDate), adminNote: note || schedule.adminNote }
+        });
+        // Notifier entrepreneur
+        await prisma.notification.create({
+            data: {
+                userId: schedule.project.entrepreneurId,
+                title: '📅 Échéance reportée',
+                body: `Votre prochaine mensualité a été reportée au ${new Date(newDueDate).toLocaleDateString('fr-FR')}. ${note || ''}`,
+                type: 'SCHEDULE_UPDATED',
+                data: JSON.stringify({ scheduleId: schedule.id, newDueDate })
+            }
+        });
+        // Notifier investisseurs
+        const investorIds = [...new Set(schedule.project.investments.map(i => i.userId))];
+        if (investorIds.length > 0) {
+            await prisma.notification.createMany({
+                data: investorIds.map((userId) => ({
+                    userId,
+                    title: '📅 Échéance modifiée',
+                    body: `Une mensualité du projet "${schedule.project.title}" a été reportée au ${new Date(newDueDate).toLocaleDateString('fr-FR')}.`,
+                    type: 'SCHEDULE_UPDATED',
+                    data: JSON.stringify({ projectId: schedule.projectId })
+                }))
+            });
+        }
+        successResponse(res, { scheduleId: schedule.id, newDueDate }, 'Échéance reportée avec succès');
+    }
+    catch (e) {
+        console.error(e);
+        errorResponse(res);
+    }
+});
+exports.default = router;
+// Entrepreneur — rembourser plusieurs mensualités d'avance ou tout rembourser
+router.post('/pay-advance/:scheduleId', auth_1.authenticate, (0, auth_1.requireRole)(['ENTREPRENEUR']), async (req, res) => {
+    try {
+        const { months } = req.body; // months = 0 signifie TOUT rembourser
+        const schedule = await prisma.repaymentSchedule.findUnique({
+            where: { id: req.params.scheduleId },
+            include: {
+                project: {
+                    include: {
+                        investments: { include: { user: { select: { id: true, firstName: true } } } }
+                    }
+                },
+                payments: { where: { status: 'PENDING' }, orderBy: { monthNumber: 'asc' } }
+            }
+        });
+        if (!schedule) {
+            res.status(404).json({ success: false, message: 'Echeancier introuvable' });
+            return;
+        }
+        if (schedule.project.entrepreneurId !== req.userId) {
+            res.status(403).json({ success: false, message: 'Non autorise' });
+            return;
+        }
+        if (schedule.payments.length === 0) {
+            res.status(400).json({ success: false, message: 'Aucun paiement en attente' });
+            return;
+        }
+        // Determiner les paiements à effectuer
+        const paymentsToProcess = months === 0 ? schedule.payments : schedule.payments.slice(0, months);
+        const totalAmount = paymentsToProcess.reduce((s, p) => s + p.amount, 0);
+        // Verifier solde
+        const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } });
+        if (!wallet || wallet.balance < totalAmount) {
+            res.status(400).json({ success: false, message: 'Solde insuffisant. Disponible: ' + (wallet?.balance || 0).toLocaleString() + ' FCFA — Requis: ' + totalAmount.toLocaleString() + ' FCFA' });
+            return;
+        }
+        const fees = await (0, fees_1.getFees)();
+        const baobabRate = fees.payin_repayment || 4; // Payin mensualités — 0% commission retour
+        const totalInvested = schedule.project.investments.reduce((s, i) => s + i.amount, 0);
+        const isEarlyFull = months === 0 || paymentsToProcess.length === schedule.payments.length;
+        await prisma.$transaction(async (tx) => {
+            // Débiter wallet entrepreneur
+            await tx.wallet.update({ where: { userId: req.userId }, data: { balance: { decrement: totalAmount } } });
+            // Distribuer à chaque investisseur proportionnellement
+            for (const inv of schedule.project.investments) {
+                const proportion = totalInvested > 0 ? inv.amount / totalInvested : 0;
+                const investorShare = Math.round(totalAmount * proportion);
+                if (investorShare <= 0)
+                    continue;
+                await tx.wallet.update({
+                    where: { userId: inv.userId },
+                    data: {
+                        balance: { increment: investorShare },
+                        gainBalance: { increment: investorShare },
+                        totalEarned: { increment: investorShare }
+                    }
+                });
+                // Mettre à jour returnedAmount de l'investissement
+                await tx.investment.updateMany({
+                    where: { userId: inv.userId, projectId: schedule.projectId },
+                    data: { returnedAmount: { increment: investorShare } }
+                });
+                await tx.notification.create({
+                    data: {
+                        userId: inv.userId,
+                        title: isEarlyFull ? 'Remboursement anticipe complet' : 'Remboursement anticipe partiel',
+                        body: 'Vous avez recu ' + investorShare.toLocaleString() + ' FCFA (' + paymentsToProcess.length + ' mois) du projet "' + schedule.project.title + '".',
+                        type: 'REPAYMENT_RECEIVED',
+                        data: JSON.stringify({ projectId: schedule.projectId, amount: investorShare })
+                    }
+                });
+            }
+            // Commission BAOBAB
+            const baobabFee = Math.round(totalAmount * baobabRate / 100);
+            const adminAdv = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+            if (adminAdv) {
+                await prisma.wallet.update({
+                    where: { userId: adminAdv.id },
+                    data: { balance: { increment: baobabFee }, commissionBalance: { increment: baobabFee } }
+                });
+            }
+            await tx.platformRevenue.create({
+                data: { type: 'COMMISSION_RETURN', amount: baobabFee, projectId: schedule.projectId, description: 'Commission remboursement anticipe — ' + paymentsToProcess.length + ' mois' }
+            });
+            // Marquer paiements comme payés
+            for (const pay of paymentsToProcess) {
+                await tx.repaymentPayment.update({ where: { id: pay.id }, data: { status: 'PAID', paidAt: new Date() } });
+            }
+            // Mettre à jour l'échéancier
+            const newPaid = schedule.paidMonths + paymentsToProcess.length;
+            const newRemaining = Math.max(0, schedule.remainingAmount - totalAmount);
+            const isCompleted = newPaid >= schedule.totalMonths;
+            await tx.repaymentSchedule.update({
+                where: { id: schedule.id },
+                data: {
+                    paidMonths: newPaid,
+                    remainingAmount: newRemaining,
+                    nextDueDate: isCompleted ? null : new Date(new Date().setMonth(new Date().getMonth() + 1)),
+                    status: isCompleted ? 'COMPLETED' : 'ACTIVE'
+                }
+            });
+            // Score réputation +20 si remboursement anticipé complet
+            if (isEarlyFull) {
+                await tx.user.update({
+                    where: { id: req.userId },
+                    data: { reputationScore: { increment: 20 } }
+                });
+                await tx.project.update({ where: { id: schedule.projectId }, data: { status: 'COMPLETED' } });
+                await tx.notification.create({
+                    data: {
+                        userId: req.userId,
+                        title: 'Felicitations ! Remboursement complet',
+                        body: 'Vous avez rembourse entierement le projet "' + schedule.project.title + '" en avance. +20 points de reputation !',
+                        type: 'PROJECT_COMPLETED',
+                        data: JSON.stringify({ projectId: schedule.projectId })
+                    }
+                });
+            }
+        });
+        successResponse(res, { monthsPaid: paymentsToProcess.length, totalPaid: totalAmount }, (isEarlyFull ? 'Remboursement complet effectue' : paymentsToProcess.length + ' mensualites payees en avance'));
+    }
+    catch (e) {
+        console.error(e);
+        errorResponse(res);
+    }
+});
+// Admin — vérifier les retards de paiement et envoyer alertes
+router.post('/check-delays', auth_1.authenticate, async (req, res) => {
+    try {
+        const now = new Date();
+        const in7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const in3days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const late7days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const late3days = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+        const schedules = await prisma.repaymentSchedule.findMany({
+            where: { status: 'ACTIVE' },
+            include: {
+                project: {
+                    include: {
+                        investments: { select: { userId: true, amount: true } },
+                        entrepreneur: { select: { id: true, firstName: true } }
+                    }
+                },
+                payments: { where: { status: 'PENDING' }, orderBy: { monthNumber: 'asc' }, take: 1 }
+            }
+        });
+        let alerts = 0;
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        for (const sched of schedules) {
+            const nextPayment = sched.payments[0];
+            if (!nextPayment?.dueDate)
+                continue;
+            const dueDate = new Date(nextPayment.dueDate);
+            const entrepreneurId = sched.project.entrepreneurId;
+            // Vérifier si une alerte récente existe déjà (éviter doublons)
+            const recentAlert = await prisma.notification.findFirst({
+                where: { userId: entrepreneurId, createdAt: { gte: oneDayAgo }, body: { contains: sched.project.title } }
+            });
+            if (recentAlert)
+                continue;
+            let title = '';
+            let body = '';
+            let scoreDecrement = 0;
+            let notifyAdmin = false;
+            let notifyInvestors = false;
+            if (dueDate <= now && dueDate >= late3days) {
+                // Jour J — rappel urgent
+                title = 'Paiement mensualite en retard';
+                body = 'Votre mensualite de ' + nextPayment.amount.toLocaleString() + ' FCFA pour "' + sched.project.title + '" etait due le ' + dueDate.toLocaleDateString('fr-FR') + '. Payez maintenant pour eviter des penalites.';
+            }
+            else if (dueDate < late3days && dueDate >= late7days) {
+                // J+3 — pénalité score
+                title = 'Retard paiement — penalite appliquee';
+                body = 'Votre paiement de ' + nextPayment.amount.toLocaleString() + ' FCFA est en retard de 3 jours. -10 points de reputation.';
+                scoreDecrement = 10;
+                notifyInvestors = true;
+            }
+            else if (dueDate < late7days) {
+                // J+7 — alerte admin
+                title = 'Retard critique — 7 jours';
+                body = 'Votre paiement de ' + nextPayment.amount.toLocaleString() + ' FCFA est en retard de plus de 7 jours. L equipe BAOBAB INVEST intervient.';
+                scoreDecrement = 30;
+                notifyAdmin = true;
+                notifyInvestors = true;
+            }
+            else if (dueDate <= in3days) {
+                // J-3 — rappel
+                title = 'Rappel paiement dans 3 jours';
+                body = 'Votre mensualite de ' + nextPayment.amount.toLocaleString() + ' FCFA est due le ' + dueDate.toLocaleDateString('fr-FR') + '. Pensez a recharger votre wallet.';
+            }
+            else if (dueDate <= in7days) {
+                // J-7 — avertissement
+                title = 'Mensualite due dans 7 jours';
+                body = 'Votre prochaine mensualite de ' + nextPayment.amount.toLocaleString() + ' FCFA est due le ' + dueDate.toLocaleDateString('fr-FR') + '.';
+            }
+            else
+                continue;
+            // Notifier entrepreneur
+            await prisma.notification.create({
+                data: { userId: entrepreneurId, title, body, type: 'PAYMENT_REMINDER', data: JSON.stringify({ scheduleId: sched.id, projectId: sched.projectId }) }
+            });
+            // Pénalité score
+            if (scoreDecrement > 0) {
+                await prisma.user.update({ where: { id: entrepreneurId }, data: { reputationScore: { decrement: scoreDecrement } } });
+            }
+            // Notifier investisseurs
+            if (notifyInvestors) {
+                const investorIds = [...new Set(sched.project.investments.map(i => i.userId))];
+                await prisma.notification.createMany({
+                    data: investorIds.map(userId => ({
+                        userId: userId,
+                        title: 'Retard remboursement projet',
+                        body: 'L entrepreneur du projet "' + sched.project.title + '" est en retard de paiement. BAOBAB INVEST surveille la situation.',
+                        type: 'PAYMENT_LATE',
+                        data: JSON.stringify({ projectId: sched.projectId })
+                    }))
+                });
+            }
+            // Notifier admin
+            if (notifyAdmin) {
+                const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+                await prisma.notification.createMany({
+                    data: admins.map(a => ({
+                        userId: a.id,
+                        title: 'Retard critique — intervention requise',
+                        body: 'Le projet "' + sched.project.title + '" est en retard de paiement depuis plus de 7 jours. Envisager le fonds de garantie.',
+                        type: 'PAYMENT_CRITICAL',
+                        data: JSON.stringify({ projectId: sched.projectId, scheduleId: sched.id })
+                    }))
+                });
+            }
+            alerts++;
+        }
+        successResponse(res, { alerts, checked: schedules.length }, alerts + ' alerte(s) envoyee(s)');
+    }
+    catch (e) {
+        console.error(e);
+        errorResponse(res);
+    }
+});
+// Admin — déclarer un projet FAILED et distribuer le fonds de garantie
+router.post('/project-failed/:projectId', auth_1.authenticate, async (req, res) => {
+    try {
+        const { reason } = req.body;
+        const project = await prisma.project.findUnique({
+            where: { id: req.params.projectId },
+            include: {
+                investments: {
+                    include: {
+                        user: { select: { id: true, firstName: true } }
+                    }
+                },
+                entrepreneur: { select: { id: true, firstName: true } },
+                // Récupérer les échéanciers pour calculer ce qui a déjà été versé
+                repaymentSchedules: {
+                    include: {
+                        payments: {
+                            where: { status: 'COMPLETED' }
+                        }
+                    }
+                }
+            }
+        });
+        if (!project) {
+            res.status(404).json({ success: false, message: 'Projet introuvable' });
+            return;
+        }
+        const fees = await (0, fees_1.getFees)();
+        const maxCoverageRate = 80; // BAOBAB rembourse jusqu'à 80% du capital assuré
+        // Seuls les investisseurs ayant payé l'assurance (guaranteeContribution > 0)
+        const insuredInvs = project.investments.filter((i) => (i.guaranteeContribution || 0) > 0);
+        const totalInsured = insuredInvs.reduce((s, i) => s + i.amount, 0);
+        // Fonds disponible = guaranteeBalance réel du wallet admin
+        const adminUser = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+        const adminWallet = adminUser ? await prisma.wallet.findUnique({ where: { userId: adminUser.id } }) : null;
+        const availableGuarantee = adminWallet?.guaranteeBalance || 0;
+        // Montant distribué = min(80% du capital assuré, fonds disponible)
+        const maxRemboursable = Math.round(totalInsured * maxCoverageRate / 100);
+        const guaranteeFund = Math.min(maxRemboursable, availableGuarantee);
+        await prisma.$transaction(async (tx) => {
+            // Passer le projet en FAILED
+            await tx.project.update({ where: { id: project.id }, data: { status: 'FAILED' } });
+            // Distribuer aux investisseurs ASSURÉS uniquement
+            // Calcul basé sur la PERTE RÉELLE NETTE de chaque investisseur
+            let totalDistributed = 0;
+            // Total déjà versé via remboursements entrepreneur (tous investisseurs confondus)
+            const totalPaidBySchedules = project.repaymentSchedules?.reduce((sum, sch) => sum + sch.payments.reduce((s, p) => s + (p.amount || 0), 0), 0) || 0;
+            const totalProjectInvested = project.investments.reduce((s, i) => s + i.amount, 0) || 1;
+            for (const inv of insuredInvs) {
+                // Part proportionnelle des remboursements déjà reçus par cet investisseur
+                const shareOfTotal = inv.amount / totalProjectInvested;
+                const alreadyReceived = Math.round(totalPaidBySchedules * shareOfTotal);
+                // Perte réelle nette = mise - remboursements déjà reçus
+                const perteReelle = Math.max(0, inv.amount - alreadyReceived);
+                // Plafond 80% de la mise initiale
+                const plafond80 = Math.round(inv.amount * maxCoverageRate / 100);
+                // Prorata du fonds disponible pour cet investisseur
+                const proportion = totalInsured > 0 ? inv.amount / totalInsured : 0;
+                const fondsProrata = Math.round(availableGuarantee * proportion);
+                // Remboursement = MIN(perte réelle, plafond 80%, prorata fonds dispo)
+                const guaranteeShare = Math.min(perteReelle, plafond80, fondsProrata);
+                if (guaranteeShare <= 0)
+                    continue;
+                totalDistributed += guaranteeShare;
+                await tx.wallet.update({
+                    where: { userId: inv.userId },
+                    data: {
+                        balance: { increment: guaranteeShare },
+                        gainBalance: { increment: guaranteeShare },
+                        totalEarned: { increment: guaranteeShare },
+                    }
+                });
+                const couvertureMsg = guaranteeShare < perteReelle
+                    ? `Fonds insuffisant : ${guaranteeShare.toLocaleString()} FCFA verses sur ${perteReelle.toLocaleString()} FCFA de perte reelle.`
+                    : `Votre perte de ${perteReelle.toLocaleString()} FCFA est integralement couverte.`;
+                await tx.notification.create({
+                    data: {
+                        userId: inv.userId,
+                        title: 'Remboursement assurance capital',
+                        body: `Le projet "${project.title}" a echoue. ${couvertureMsg} Motif: ${reason || 'Non precise'}`,
+                        type: 'PROJECT_FAILED',
+                        data: JSON.stringify({
+                            projectId: project.id,
+                            guaranteeShare,
+                            perteReelle,
+                            alreadyReceived,
+                            plafond80,
+                            fondsProrata,
+                            covered: maxCoverageRate
+                        })
+                    }
+                });
+            }
+            // Notifier les non-assurés — perte sèche
+            const uninsuredInvs = project.investments.filter((i) => !(i.guaranteeContribution > 0));
+            for (const inv of uninsuredInvs) {
+                await tx.notification.create({
+                    data: {
+                        userId: inv.userId,
+                        title: '❌ Projet en échec — capital non protégé',
+                        body: 'Le projet "' + project.title + '" a echoue. Sans assurance capital, votre mise de ' + inv.amount.toLocaleString() + ' FCFA n\'est pas couverte.',
+                        type: 'PROJECT_FAILED',
+                        data: JSON.stringify({ projectId: project.id, guaranteeShare: 0 })
+                    }
+                });
+            }
+            // Débiter le fonds de garantie du wallet admin
+            if (adminUser && totalDistributed > 0) {
+                await tx.wallet.update({
+                    where: { userId: adminUser.id },
+                    data: { guaranteeBalance: { decrement: totalDistributed } }
+                });
+            }
+            // Pénaliser l'entrepreneur -50 pts
+            await tx.user.update({
+                where: { id: project.entrepreneurId },
+                data: { reputationScore: { decrement: 50 } }
+            });
+            // Notifier l'entrepreneur
+            await tx.notification.create({
+                data: {
+                    userId: project.entrepreneurId,
+                    title: 'Projet declare en echec',
+                    body: 'Votre projet "' + project.title + '" a ete declare en echec. Motif: ' + (reason || 'Non precise') + '. -50 points de reputation.',
+                    type: 'PROJECT_FAILED',
+                    data: JSON.stringify({ projectId: project.id })
+                }
+            });
+        });
+        successResponse(res, { guaranteeFund, investorsCount: project.investments.length }, 'Projet declare FAILED — ' + guaranteeFund.toLocaleString() + ' FCFA distribues depuis le fonds de garantie');
+    }
+    catch (e) {
+        console.error(e);
+        errorResponse(res);
+    }
+});
+//# sourceMappingURL=repayment.js.map

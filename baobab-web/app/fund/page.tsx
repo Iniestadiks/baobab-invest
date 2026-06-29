@@ -81,7 +81,7 @@ export default function FundPage() {
             <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-sm">B</span>
             </div>
-            <span className="font-bold text-gray-900">BAOBAB INVEST</span>
+            <span className="font-bold text-gray-900">KORAPACT</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/auth/login" className="text-sm text-gray-600 hover:text-green-600">Se connecter</Link>

@@ -11,7 +11,7 @@ interface Props {
 export default function ShareButtons({ title, url, amount, returnRate }: Props) {
   const [copied, setCopied] = useState(false);
   const shareUrl = url || (typeof window !== "undefined" ? window.location.href : "");
-  const text = `🌳 Investis dans ce projet BAOBAB INVEST : "${title}"${returnRate ? ` — Retour estimé : +${returnRate}%` : ""}${amount ? ` — Dès ${amount.toLocaleString()} FCFA` : ""}`;
+  const text = `🌳 Investis dans ce projet KORAPACT : "${title}"${returnRate ? ` — Retour estimé : +${returnRate}%` : ""}${amount ? ` — Dès ${amount.toLocaleString()} FCFA` : ""}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(shareUrl);

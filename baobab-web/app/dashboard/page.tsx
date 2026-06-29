@@ -171,7 +171,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center"><span className="text-white font-bold text-sm">B</span></div>
-            <span className="font-bold text-gray-900 hidden sm:block">BAOBAB INVEST</span>
+            <span className="font-bold text-gray-900 hidden sm:block">KORAPACT</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/projects" className="text-sm text-gray-500 hover:text-green-600 hidden sm:block font-medium">🔍 Explorer</Link>

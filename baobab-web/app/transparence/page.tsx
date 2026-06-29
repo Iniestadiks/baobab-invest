@@ -48,7 +48,7 @@ export default function TransparencePage() {
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-2xl">🌳</span>
-            <span className="font-bold text-green-600">BAOBAB INVEST</span>
+            <span className="font-bold text-green-600">KORAPACT</span>
           </Link>
           <Link href="/auth/login" className="bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-green-700">
             Se connecter →
@@ -62,7 +62,7 @@ export default function TransparencePage() {
         <div className="bg-green-700 text-white rounded-2xl p-8">
           <h1 className="text-3xl font-bold mb-3">💡 Transparence totale</h1>
           <p className="text-green-100 text-lg leading-relaxed">
-            Chez BAOBAB INVEST, chaque franc est tracé. Voici exactement comment fonctionne notre modèle économique,
+            Chez KORAPACT, chaque franc est tracé. Voici exactement comment fonctionne notre modèle économique,
             qui paie quoi, et combien chaque partie reçoit.
           </p>
         </div>
@@ -164,7 +164,7 @@ export default function TransparencePage() {
         {/* CTA */}
         <div className="bg-green-700 text-white rounded-2xl p-8 text-center">
           <h2 className="text-2xl font-bold mb-3">Prêt à investir ?</h2>
-          <p className="text-green-100 mb-6">Rejoignez des milliers d&apos;investisseurs africains qui font confiance à BAOBAB INVEST.</p>
+          <p className="text-green-100 mb-6">Rejoignez des milliers d&apos;investisseurs africains qui font confiance à KORAPACT.</p>
           <div className="flex gap-3 justify-center">
             <Link href="/auth/register" className="bg-white text-green-700 font-bold px-6 py-3 rounded-xl hover:bg-green-50">
               Créer un compte

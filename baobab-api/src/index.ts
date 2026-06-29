@@ -1,3 +1,4 @@
+// @ts-nocheck
 import express from 'express'
 import { PrismaClient } from '@prisma/client'
 import cors from 'cors'
@@ -37,7 +38,7 @@ app.use('/api/upload', (req: any, res: any, next: any) => {
   res.setTimeout(300000)
   next()
 })
-app.use('/uploads', require('express').static('/home/baobab-invest/baobab-api/uploads'))
+app.use('/uploads', require('express').static('/home/korapact/baobab-api/uploads'))
 
 app.get('/health', (_, res) => res.json({ status: 'ok' }))
 
@@ -106,7 +107,7 @@ const checkRepaymentDelays = async () => {
         scoreDecrement = 10; notifyInvestors = true
       } else if (dueDate <= late7days && dueDate > late15days) {
         title = '🚨 Retard critique — 7 jours'
-        body = `7 jours de retard. BAOBAB INVEST intervient. Score -30 points.`
+        body = `7 jours de retard. KORAPACT intervient. Score -30 points.`
         scoreDecrement = 30; notifyInvestors = true; notifyAdmin = true
       } else if (dueDate <= late15days) {
         title = '💀 Défaut de paiement — 15 jours'
@@ -176,7 +177,7 @@ const scheduleBuilderGamification = () => {
 checkAndPromoteWaitlist() // Lancer au démarrage
 
 app.listen(config.port, () => {
-  console.log(`🌳 BAOBAB INVEST API démarrée sur le port ${config.port}`)
+  console.log(`🌳 KORAPACT API démarrée sur le port ${config.port}`)
   console.log(`📡 Environnement : ${config.env}`)
   console.log(`🗄️  Routes : auth | projects | investments | milestones | suppliers | feed | admin | fund | upload | notifications`)
 })

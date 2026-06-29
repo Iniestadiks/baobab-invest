@@ -76,7 +76,7 @@ router.post('/apply', authenticate, async (req: AuthRequest, res: Response): Pro
         data: {
           userId: parrain.id,
           title: '🎁 Nouveau filleul !',
-          body: `${me?.firstName} a rejoint BAOBAB INVEST avec votre code. Bonus de ${REFERRAL_BONUS.toLocaleString()} FCFA crédité !`,
+          body: `${me?.firstName} a rejoint KORAPACT avec votre code. Bonus de ${REFERRAL_BONUS.toLocaleString()} FCFA crédité !`,
           type: 'REFERRAL_BONUS',
           data: { amount: REFERRAL_BONUS }
         }

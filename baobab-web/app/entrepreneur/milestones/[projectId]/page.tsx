@@ -150,7 +150,7 @@ export default function MilestonesPage() {
         )}
 
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6">
-          <div className="font-semibold text-yellow-800 mb-1">⚠️ Règle BAOBAB INVEST — Paiement direct fournisseur</div>
+          <div className="font-semibold text-yellow-800 mb-1">⚠️ Règle KORAPACT — Paiement direct fournisseur</div>
           <p className="text-sm text-yellow-700">
             Tu ne reçois <strong>jamais de cash direct</strong>. Les fonds sont payés directement 
             au fournisseur pré-enregistré après validation admin (48h ouvrées). 

@@ -67,7 +67,7 @@ export default function ProjectsPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-2xl">🌳</span>
-            <span className="font-bold text-green-600">BAOBAB INVEST</span>
+            <span className="font-bold text-green-600">KORAPACT</span>
           </Link>
           <div className="flex gap-3">
             <Link href="/dashboard/redirect" className="text-gray-600 hover:text-green-600 font-medium px-4 py-2 rounded-xl transition-colors">Dashboard</Link>

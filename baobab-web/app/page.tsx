@@ -49,7 +49,7 @@ export default function LandingPage() {
             <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center shadow-sm">
               <span className="text-white font-bold text-sm">🌳</span>
             </div>
-            <span className="font-bold text-gray-900 text-lg">BAOBAB INVEST</span>
+            <span className="font-bold text-gray-900 text-lg">KORAPACT</span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
             <a href="#comment" className="hover:text-green-600 transition-colors">Comment ça marche</a>
@@ -155,7 +155,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Une plateforme pour tous</h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Quel que soit votre rôle, BAOBAB INVEST vous accompagne.</p>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Quel que soit votre rôle, KORAPACT vous accompagne.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
@@ -380,7 +380,7 @@ export default function LandingPage() {
       <section className="py-20 bg-green-900 text-white">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Pourquoi BAOBAB INVEST ?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Pourquoi KORAPACT ?</h2>
             <p className="text-green-200 text-lg max-w-2xl mx-auto">Une plateforme construite pour la confiance et la transparence.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -489,7 +489,7 @@ export default function LandingPage() {
             Prêt à construire l'Afrique de demain ?
           </h2>
           <p className="text-green-100 text-lg mb-10 max-w-2xl mx-auto">
-            Rejoignez la communauté BAOBAB INVEST. Inscription gratuite, KYC rapide.
+            Rejoignez la communauté KORAPACT. Inscription gratuite, KYC rapide.
             Premiers retours en quelques mois.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
@@ -515,7 +515,7 @@ export default function LandingPage() {
                 <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center">
                   <span className="text-white font-bold text-sm">🌳</span>
                 </div>
-                <span className="font-bold text-white text-lg">BAOBAB INVEST</span>
+                <span className="font-bold text-white text-lg">KORAPACT</span>
               </div>
               <p className="text-sm leading-relaxed mb-4">
                 Plateforme de micro-investissement communautaire pour l'Afrique subsaharienne.
@@ -554,7 +554,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-xs">© 2026 BAOBAB INVEST. Tous droits réservés.</p>
+            <p className="text-xs">© 2026 KORAPACT. Tous droits réservés.</p>
             <p className="text-xs text-center">Plateforme régulée · L'investissement comporte des risques. Les performances passées ne préjugent pas des futures.</p>
           </div>
         </div>

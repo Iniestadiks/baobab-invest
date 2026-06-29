@@ -96,7 +96,7 @@ export default function ReferralPage() {
           <div className="space-y-3">
             {[
               { step: "1", text: "Partagez votre code ou lien unique à vos amis", icon: "📤" },
-              { step: "2", text: "Votre ami s'inscrit sur BAOBAB INVEST avec votre code", icon: "👤" },
+              { step: "2", text: "Votre ami s'inscrit sur KORAPACT avec votre code", icon: "👤" },
               { step: "3", text: `Vous recevez automatiquement ${(data?.bonusPerReferral || 2500).toLocaleString()} FCFA sur votre wallet`, icon: "💰" },
               { step: "4", text: "Pas de limite — parrainez autant d'amis que vous voulez !", icon: "🚀" },
             ].map(s => (

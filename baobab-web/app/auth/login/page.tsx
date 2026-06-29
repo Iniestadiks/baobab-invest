@@ -74,7 +74,7 @@ export default function LoginPage() {
             <div className="text-5xl mb-3 cursor-pointer">🌳</div>
           </Link>
           <h1 className="text-2xl font-bold text-green-600">Bon retour !</h1>
-          <p className="text-gray-500 text-sm mt-1">Connecte-toi à BAOBAB INVEST</p>
+          <p className="text-gray-500 text-sm mt-1">Connecte-toi à KORAPACT</p>
           {redirect && (
             <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs text-blue-600">
               🔒 Connecte-toi pour accéder à cette page

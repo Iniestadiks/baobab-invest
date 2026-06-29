@@ -499,7 +499,7 @@ export default function MessagesPage() {
                 <div className="flex-1 flex items-center justify-center bg-gray-50">
                   <div className="text-center max-w-sm mx-auto px-6">
                     <div className="text-6xl mb-4">💬</div>
-                    <h3 className="font-bold text-gray-900 text-lg mb-2">Messagerie BAOBAB INVEST</h3>
+                    <h3 className="font-bold text-gray-900 text-lg mb-2">Messagerie KORAPACT</h3>
                     <p className="text-gray-500 text-sm mb-6">
                       Communique directement avec les entrepreneurs, investisseurs et mentors.
                     </p>

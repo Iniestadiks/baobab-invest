@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import prisma from '../config/database'

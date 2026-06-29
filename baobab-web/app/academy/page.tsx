@@ -5,7 +5,7 @@ const COURSES = [
   { id:1, title:"Gestion de base d'une entreprise", duration:"8 min", level:"Débutant", emoji:"📊", certified:true, desc:"Comptabilité de base, gestion de trésorerie et obligations légales." },
   { id:2, title:"Marketing digital en Afrique", duration:"12 min", level:"Intermédiaire", emoji:"📱", certified:true, desc:"WhatsApp Business, Facebook Ads, storytelling pour vendre plus." },
   { id:3, title:"Agriculture rentable : production à la vente", duration:"15 min", level:"Débutant", emoji:"🌾", certified:true, desc:"Planification des cultures, gestion des stocks, circuits de distribution." },
-  { id:4, title:"Lever des fonds sur BAOBAB INVEST", duration:"6 min", level:"Débutant", emoji:"💰", certified:false, desc:"Créer un dossier convaincant, choisir son mentor, gérer sa campagne." },
+  { id:4, title:"Lever des fonds sur KORAPACT", duration:"6 min", level:"Débutant", emoji:"💰", certified:false, desc:"Créer un dossier convaincant, choisir son mentor, gérer sa campagne." },
   { id:5, title:"Artisanat et e-commerce", duration:"10 min", level:"Intermédiaire", emoji:"🎨", certified:true, desc:"Vendre ses créations en ligne, fixer ses prix, gérer les commandes." },
   { id:6, title:"Hygiène et sécurité alimentaire", duration:"8 min", level:"Débutant", emoji:"🍽️", certified:true, desc:"Normes d'hygiène, gestion des stocks alimentaires, formation du personnel." },
 ];
@@ -28,7 +28,7 @@ export default function AcademyPage() {
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="bg-gradient-to-r from-green-700 to-green-600 rounded-2xl p-8 text-white mb-8">
           <div className="text-4xl mb-3">📚</div>
-          <h1 className="text-2xl font-bold mb-2">Académie BAOBAB INVEST</h1>
+          <h1 className="text-2xl font-bold mb-2">Académie KORAPACT</h1>
           <p className="text-green-100 mb-4">Cours courts (5-15 min) pour renforcer tes compétences. Certifie-toi pour augmenter ton score de bankabilité.</p>
           <div className="flex gap-4 text-sm flex-wrap">
             <div className="bg-white/10 rounded-xl px-4 py-2">📹 {COURSES.length} cours</div>

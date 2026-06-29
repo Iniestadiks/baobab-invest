@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import prisma from '../config/database'
@@ -180,7 +181,7 @@ router.post('/auth/login', async (req: any, res: Response): Promise<void> => {
     if (!email || !password) { res.status(400).json({ success: false, message: 'Email et mot de passe requis' }); return }
     const supplier = await prisma.supplier.findUnique({ where: { email } })
     if (!supplier) { res.status(404).json({ success: false, message: 'Compte fournisseur introuvable' }); return }
-    if (!supplier.password) { res.status(400).json({ success: false, message: 'Mot de passe non configuré — contactez BAOBAB INVEST' }); return }
+    if (!supplier.password) { res.status(400).json({ success: false, message: 'Mot de passe non configuré — contactez KORAPACT' }); return }
     const bcrypt = await import('bcryptjs')
     const valid = await bcrypt.default.compare(password, supplier.password)
     if (!valid) { res.status(401).json({ success: false, message: 'Mot de passe incorrect' }); return }

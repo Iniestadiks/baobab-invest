@@ -72,7 +72,7 @@ export default function SupplierDashboardPage() {
           <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white text-2xl font-bold">B</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">BAOBAB INVEST</h1>
+          <h1 className="text-2xl font-bold text-gray-900">KORAPACT</h1>
           <p className="text-sm text-gray-500 mt-1">Espace Fournisseur</p>
         </div>
         <div className="space-y-4">
@@ -96,7 +96,7 @@ export default function SupplierDashboardPage() {
           </button>
         </div>
         <div className="mt-6 bg-gray-50 rounded-xl p-4 text-center text-xs text-gray-500">
-          Votre compte est créé par l&apos;équipe BAOBAB INVEST.<br/>
+          Votre compte est créé par l&apos;équipe KORAPACT.<br/>
           <a href="mailto:contact@baobabinvest.com" className="text-green-600 hover:underline mt-1 inline-block">Contactez-nous pour obtenir vos identifiants</a>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function SupplierDashboardPage() {
             <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-sm">B</span>
             </div>
-            <span className="font-bold text-gray-900 hidden sm:block">BAOBAB INVEST</span>
+            <span className="font-bold text-gray-900 hidden sm:block">KORAPACT</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-1 rounded-full font-medium">

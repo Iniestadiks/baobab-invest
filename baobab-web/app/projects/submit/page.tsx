@@ -213,14 +213,14 @@ export default function SubmitProjectPage() {
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                   <div className="font-semibold text-yellow-800 mb-2">⚡ Preuve d'Engagement Communautaire</div>
                   <p className="text-sm text-yellow-700 mb-3">
-                    Selon les règles BAOBAB INVEST, tout porteur de projet doit avoir déjà investi dans un autre projet pour prouver son engagement dans la communauté.
+                    Selon les règles KORAPACT, tout porteur de projet doit avoir déjà investi dans un autre projet pour prouver son engagement dans la communauté.
                   </p>
                   <div className="flex items-center gap-2">
                     <input type="checkbox" id="invested" name="hasInvestedBefore"
                       checked={form.hasInvestedBefore} onChange={handleChange}
                       className="accent-green-600 w-4 h-4" />
                     <label htmlFor="invested" className="text-sm font-medium text-yellow-800">
-                      J'ai déjà investi dans au moins un projet sur BAOBAB INVEST ✓
+                      J'ai déjà investi dans au moins un projet sur KORAPACT ✓
                     </label>
                   </div>
                 </div>

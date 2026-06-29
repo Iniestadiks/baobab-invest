@@ -172,7 +172,7 @@ export default function ProjectDetailPage() {
                       </div>
                       <div className="bg-gray-900 px-4 py-2.5 flex items-center justify-between">
                         <span className="text-xs text-green-400 font-medium">🎬 Pitch vidéo de l&apos;entrepreneur</span>
-                        <span className="text-xs text-gray-500">Stocké définitivement par BAOBAB INVEST 🔒</span>
+                        <span className="text-xs text-gray-500">Stocké définitivement par KORAPACT 🔒</span>
                       </div>
                     </div>
                   ) : (
@@ -357,7 +357,7 @@ export default function ProjectDetailPage() {
                       </Link>
                     </div>
                     <div className="mt-2 text-xs text-gray-400 text-center">
-                      ⚠️ Conversations modérées par BAOBAB INVEST
+                      ⚠️ Conversations modérées par KORAPACT
                     </div>
                   </div>
                 )}

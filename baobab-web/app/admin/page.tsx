@@ -1540,7 +1540,7 @@ function FinancesTab({ authGet }: any) {
     <div className="space-y-6">
       {/* En-tête */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-gray-900">💵 Finances BAOBAB INVEST</h2>
+        <h2 className="text-xl font-bold text-gray-900">💵 Finances KORAPACT</h2>
         <div className="flex gap-2">
           <button onClick={downloadAdminPDF} className="bg-purple-600 text-white text-sm px-4 py-2 rounded-xl font-medium hover:bg-purple-700">
             📄 Rapport PDF
@@ -1551,7 +1551,7 @@ function FinancesTab({ authGet }: any) {
       {/* Poches Wallet BAOBAB */}
       {adminWallet && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h3 className="font-bold text-gray-900 mb-4">🏦 Wallet BAOBAB INVEST — Répartition des fonds</h3>
+          <h3 className="font-bold text-gray-900 mb-4">🏦 Wallet KORAPACT — Répartition des fonds</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
               <div className="text-xs text-gray-500 mb-1">💰 Commissions nettes</div>
@@ -2322,7 +2322,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-3">
             <span className="text-2xl">🌳</span>
             <div>
-              <span className="font-bold text-lg">BAOBAB INVEST</span>
+              <span className="font-bold text-lg">KORAPACT</span>
               <span className="text-green-300 text-xs ml-2">Back-office Admin</span>
             </div>
           </div>
@@ -3155,7 +3155,7 @@ export default function AdminPage() {
         {tab === "reimburse" && <ReimburseTab allProjects={allProjects} flash={flash} authPost={authPost} authGet={authGet} loadData={loadData} />}
 
 
-        {/* FINANCES BAOBAB INVEST */}
+        {/* FINANCES KORAPACT */}
         {tab === "finances" && <FinancesTab authGet={authGet} />}
         {/* STATISTIQUES */}
         {tab === "active_projects" && (
@@ -3926,7 +3926,7 @@ function BuildersAdminTab({ flash }: { flash: (m: string) => void }) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">🏗️ Bâtisseurs BAOBAB INVEST</h2>
+          <h2 className="text-xl font-bold text-gray-900">🏗️ Bâtisseurs KORAPACT</h2>
           <p className="text-sm text-gray-500">Mécènes et donateurs — aucun KYC requis</p>
         </div>
         <button onClick={load} className="text-sm text-yellow-600 hover:underline">🔄 Actualiser</button>

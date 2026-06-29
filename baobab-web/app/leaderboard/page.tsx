@@ -129,7 +129,7 @@ export default function LeaderboardPage() {
             <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-sm">B</span>
             </div>
-            <span className="font-bold text-gray-900 hidden sm:block">BAOBAB INVEST</span>
+            <span className="font-bold text-gray-900 hidden sm:block">KORAPACT</span>
           </Link>
           <span className="text-sm font-bold text-gray-700">🏆 Classement</span>
           <DashboardLink />
@@ -143,7 +143,7 @@ export default function LeaderboardPage() {
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
           <div className="relative">
             <div className="text-5xl mb-3">🏆</div>
-            <h1 className="text-3xl font-bold mb-2">Classement BAOBAB INVEST</h1>
+            <h1 className="text-3xl font-bold mb-2">Classement KORAPACT</h1>
             <p className="text-green-200 text-sm max-w-lg mx-auto">Investissez, remboursez, parrainez — montez dans le classement et devenez une référence de la communauté africaine de l investissement.</p>
             <button onClick={() => setShowHowTo(!showHowTo)}
               className="mt-4 bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors border border-white/30">
@@ -268,7 +268,7 @@ export default function LeaderboardPage() {
             <p className="text-gray-700 font-bold text-lg mb-1">Aucun classement disponible</p>
             <p className="text-gray-400 text-sm">Soyez le premier à rejoindre la communauté !</p>
             <Link href="/auth/register" className="mt-4 inline-block bg-green-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-green-700">
-              Rejoindre BAOBAB INVEST →
+              Rejoindre KORAPACT →
             </Link>
           </div>
         ) : (
@@ -353,7 +353,7 @@ export default function LeaderboardPage() {
         {/* CTA bas de page */}
         <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-3xl p-8 text-center text-white">
           <div className="text-3xl mb-3">🌱</div>
-          <h3 className="text-xl font-bold mb-2">Rejoignez la communauté BAOBAB INVEST</h3>
+          <h3 className="text-xl font-bold mb-2">Rejoignez la communauté KORAPACT</h3>
           <p className="text-green-200 text-sm mb-4">Investissez dans l Afrique de demain et construisez votre réputation au sein de notre communauté.</p>
           <div className="flex gap-3 justify-center flex-wrap">
             <Link href="/auth/register" className="bg-white text-green-700 font-bold px-6 py-2.5 rounded-xl hover:bg-green-50 text-sm transition-colors">

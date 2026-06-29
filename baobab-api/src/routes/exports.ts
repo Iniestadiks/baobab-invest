@@ -129,7 +129,7 @@ router.get('/admin', authenticate, requireAdmin, async (req: AuthRequest, res: R
       ['Volume investissements (FCFA)', investments.reduce((s,i)=>s+i.amount,0)],
       ['Revenus BAOBAB (FCFA)', revenues.reduce((s,r)=>s+r.amount,0)],
     ]
-    const csv = '=== REVENUS BAOBAB INVEST ===\n' + toCSV(revHeaders, revRows) + '\n\n=== STATISTIQUES GLOBALES ===\n' + toCSV(statsHeaders, statsRows)
+    const csv = '=== REVENUS KORAPACT ===\n' + toCSV(revHeaders, revRows) + '\n\n=== STATISTIQUES GLOBALES ===\n' + toCSV(statsHeaders, statsRows)
     res.setHeader('Content-Type', 'text/csv; charset=utf-8')
     res.setHeader('Content-Disposition', `attachment; filename="baobab-admin-${Date.now()}.csv"`)
     res.send('\ufeff' + csv)

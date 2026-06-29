@@ -158,7 +158,7 @@ export default function BuilderDashboard() {
             <div className="w-8 h-8 bg-yellow-500 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-sm">🏗️</span>
             </div>
-            <span className="font-bold text-gray-900 hidden sm:block">BAOBAB INVEST</span>
+            <span className="font-bold text-gray-900 hidden sm:block">KORAPACT</span>
           </Link>
           <div className="flex items-center gap-3">
             <span className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2.5 py-1 rounded-full font-bold hidden sm:block">

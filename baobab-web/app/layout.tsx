@@ -8,7 +8,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "BAOBAB INVEST — Investis dans l'Afrique de demain",
+  title: "KORAPACT — Investis dans l'Afrique de demain",
   description: "La plateforme d'investissement communautaire pour la jeunesse africaine. Investis dès 500 FCFA dans des projets locaux vérifiés.",
 };
 

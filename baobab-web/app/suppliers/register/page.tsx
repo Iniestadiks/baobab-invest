@@ -95,7 +95,7 @@ export default function SupplierRegisterPage() {
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🏪</div>
           <h1 className="text-2xl font-bold text-green-600">Devenir Fournisseur Partenaire</h1>
-          <p className="text-gray-500 text-sm mt-1">BAOBAB INVEST — Programme Partenaires</p>
+          <p className="text-gray-500 text-sm mt-1">KORAPACT — Programme Partenaires</p>
         </div>
 
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-sm text-green-800">
@@ -201,7 +201,7 @@ export default function SupplierRegisterPage() {
           {step === 3 && (
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-green-700">
-                <strong>💳 Mobile Money</strong> — C'est sur ce numéro que tu recevras les paiements BAOBAB INVEST.
+                <strong>💳 Mobile Money</strong> — C'est sur ce numéro que tu recevras les paiements KORAPACT.
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600 mb-2 block">Opérateur *</label>
@@ -231,7 +231,7 @@ export default function SupplierRegisterPage() {
               <div className="flex items-start gap-2">
                 <input type="checkbox" required className="mt-1 accent-green-600 w-4 h-4" id="cgu" />
                 <label htmlFor="cgu" className="text-xs text-gray-500">
-                  Je certifie que les informations sont exactes et j'accepte les conditions d'utilisation BAOBAB INVEST.
+                  Je certifie que les informations sont exactes et j'accepte les conditions d'utilisation KORAPACT.
                 </label>
               </div>
               <div className="flex gap-3">

@@ -1,0 +1,73 @@
+import { PrismaClient } from '@prisma/client';
+declare const prisma: PrismaClient<import(".prisma/client").Prisma.PrismaClientOptions, never, import("@prisma/client/runtime/library").DefaultArgs>;
+export declare const REPUTATION_POINTS: {
+    KYC_VERIFIED: number;
+    PROFILE_COMPLETED: number;
+    FIRST_INVESTMENT: number;
+    INVESTMENT_MADE: number;
+    INVESTMENT_50K: number;
+    INVESTMENT_100K: number;
+    INVESTMENT_500K: number;
+    INVESTMENT_1M: number;
+    INVESTMENT_COMPLETES_PROJECT: number;
+    INVESTMENT_NEW_SECTOR: number;
+    INVESTMENT_SAME_ENTREPRENEUR: number;
+    REFERRAL_INVESTED: number;
+    PROJECT_REVIEW_LEFT: number;
+    PROJECT_REPAID_SUCCESS: number;
+    FIVE_PROJECTS_SUCCESS: number;
+    ENTREPRENEUR_KYC: number;
+    ENTREPRENEUR_PROFILE: number;
+    BUSINESS_PLAN_ADDED: number;
+    PROJECT_VALIDATED: number;
+    PROJECT_50_PERCENT_7DAYS: number;
+    PROJECT_FULLY_FUNDED: number;
+    PROJECT_FUNDED_48H: number;
+    MONTHLY_REPORT_PUBLISHED: number;
+    PROJECT_MEDIA_ADDED: number;
+    INVESTOR_QUESTION_ANSWERED: number;
+    PROJECT_FULLY_REPAID: number;
+    PROJECT_EARLY_REPAID: number;
+    SECOND_PROJECT_SUCCESS: number;
+    THIRD_PROJECT_PLUS: number;
+    MENTOR_POSITIVE_REVIEW: number;
+    PAYMENT_LATE_3DAYS: number;
+    PAYMENT_LATE_7DAYS: number;
+    PAYMENT_LATE_15DAYS: number;
+    PROJECT_FAILED: number;
+    FRAUD_PROVEN: number;
+    NO_MONTHLY_REPORT: number;
+    NO_UPDATE_30DAYS: number;
+    INACTIVE_90DAYS: number;
+    MENTOR_ACCEPTED: number;
+    MENTOR_PROJECT_FUNDED: number;
+    MENTOR_PROJECT_REPAID: number;
+    MENTOR_PROJECT_FAILED: number;
+    MENTOR_FRAUD: number;
+    MENTOR_NO_RESPONSE: number;
+    MENTOR_5_SUCCESS: number;
+};
+export declare const BADGES: Record<string, {
+    label: string;
+    icon: string;
+    description: string;
+}>;
+export declare function getLevel(points: number): {
+    level: number;
+    label: string;
+    icon: string;
+    nextLevelPoints: number;
+};
+export declare function addReputationPoints(userId: string, type: string, points: number, description: string, projectId?: string): Promise<{
+    newPoints: number;
+    newLevel: {
+        level: number;
+        label: string;
+        icon: string;
+        nextLevelPoints: number;
+    };
+}>;
+export declare function awardBadge(userId: string, badgeKey: string, projectId?: string): Promise<void>;
+export declare function checkAndAwardBadges(userId: string, role: string): Promise<void>;
+export { prisma };
+//# sourceMappingURL=reputationService.d.ts.map

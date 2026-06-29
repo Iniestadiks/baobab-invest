@@ -1,0 +1,686 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  INVESTOR
+  ENTREPRENEUR
+  ADMIN
+  MENTOR
+  BUILDER
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum SupplierStatus {
+  PENDING
+  VERIFIED
+  SUSPENDED
+}
+
+enum ProjectStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  FUNDED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  WAITLISTED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  INVESTMENT
+  RETURN
+  COMMISSION
+  GUARANTEE_FUND
+  REFUND
+  SUPPLIER_PAYMENT
+  FUND_ALLOCATION
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum ReactionType {
+  TRUST
+  WORRY
+  BRAVO
+}
+
+enum ProjectSector {
+  AGRICULTURE
+  ELEVAGE
+  COMMERCE
+  TRANSPORT
+  TECH
+  RESTAURATION
+  ARTISANAT
+  SANTE
+  EDUCATION
+  ENERGIE
+  SERVICES
+  IMMOBILIER
+  AUTRE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id                String     @id @default(uuid())
+  email             String     @unique
+  phone             String     @unique
+  password          String
+  firstName         String
+  lastName          String
+  role              UserRole   @default(INVESTOR)
+  isEmailVerified   Boolean    @default(false)
+  isPhoneVerified   Boolean    @default(false)
+  isActive          Boolean    @default(true)
+  isBanned          Boolean    @default(false)
+  banReason         String?
+  bannedAt          DateTime?
+  rehabilitationAt  DateTime?
+  kycStatus         KycStatus  @default(NOT_SUBMITTED)
+  kycDocumentUrl    String?
+  kycSelfieUrl      String?
+  kycRccmUrl        String?
+  kycVerifiedAt     DateTime?
+  kycSubmittedAt    DateTime?
+  kycRejectedReason String?
+  kycDocumentExpiry DateTime?
+  kycDocumentType   String?
+  kycVerifiedBy     String?
+  kycAttempts       Int       @default(0)
+  kycNotes          String?
+  profileImageUrl   String?
+  bio               String?
+  city              String?
+  region          String?
+  countryCode     String?  @default("SN")
+  indicatif       String?  @default("+221")
+  country           String     @default("SN")
+  level             Int        @default(1)
+  reputationScore      Int      @default(100)
+  savingsPlans        SavingsPlan[]
+  reputationPoints   Int              @default(0)
+  reputationEvents   ReputationEvent[]
+  userBadges         UserBadge[]
+  monthlyRankings    MonthlyRanking[]
+  sentMessages        Message[] @relation("SentMessages")
+  walletTransactions  WalletTransaction[]
+  fundContributions   FundContribution[]
+  fundAllocations     FundAllocation[]   @relation("AdminAllocations")
+  builderProfile      BuilderProfile?
+  fundBadges          FundBadge[]
+  receivedMessages    Message[] @relation("ReceivedMessages")
+  totalInvested     Float      @default(0)
+  totalEarned       Float      @default(0)
+  monthlyInvestmentLimit Float @default(500000)
+  referralCode      String?   @unique
+  referralCount     Int       @default(0)
+  referralEarned    Float     @default(0)
+  referredBy        String?
+  refreshToken      String?
+  otpCode           String?
+  otpExpiresAt      DateTime?
+  fcmToken          String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  wallet              Wallet?
+  projectsOwned       Project[]      @relation("EntrepreneurProjects")
+  investments         Investment[]
+  mentoredProjects    Project[]      @relation("MentorProjects")
+  posts         Post[]
+  postReactions       PostReaction[]
+  notifications       Notification[]
+  transactions        Transaction[]
+  guaranteeFundContributions GuaranteeFund[]
+
+  @@map("users")
+}
+
+model Supplier {
+  id              String         @id @default(uuid())
+  companyName     String
+  contactName     String
+  email           String         @unique
+  phone           String         @unique
+  sector          String
+  city            String
+  country         String         @default("SN")
+  rccmNumber      String?
+  nineaNumber     String?
+  mobileMoneyNumber String
+  mobileMoneyProvider String
+  description     String?
+  logoUrl         String?
+  status          SupplierStatus @default(PENDING)
+  isVerified      Boolean        @default(false)
+  verifiedAt      DateTime?
+  isPremium       Boolean        @default(false)
+  rating          Float          @default(0)
+  password       String?        // Mot de passe hashé (optionnel — set par admin)
+  lastLoginAt    DateTime?
+  totalPayments   Float          @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  milestonePayments MilestonePayment[]
+  milestones        Milestone[]
+
+  @@map("suppliers")
+}
+
+model Wallet {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  balance         Float    @default(0)
+  depositBalance  Float    @default(0)  // Dépôts non encore investis → retrait 7%
+  gainBalance     Float    @default(0)  // Gains remboursements reçus → retrait 3%
+  escrowBalance   Float    @default(0)
+  totalDeposited  Float    @default(0)
+  totalWithdrawn  Float    @default(0)
+  commissionBalance  Float    @default(0)
+  guaranteeBalance   Float    @default(0)
+  escrowInvestors    Float    @default(0)
+  totalEarned     Float    @default(0)
+  totalInvested   Float    @default(0)
+  guaranteeFund   Float    @default(0)
+  currency        String   @default("XOF")
+  scheduledAmount Float    @default(0)
+  scheduledDay    Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("wallets")
+}
+
+model Project {
+  id                  String        @id @default(uuid())
+  entrepreneurId      String
+  mentorId            String?
+  title               String
+  description         String
+  sector              ProjectSector @default(AUTRE)
+  subSector          String?
+  netAmount           Float?
+  gracePeriodMonths   Int             @default(0)
+  city                String
+  country             String        @default("SN")
+  goalAmount          Float
+  raisedAmount        Float         @default(0)
+  minimumInvestment   Float         @default(500)
+  expectedReturn      Float
+  durationMonths      Int
+  status              ProjectStatus @default(DRAFT)
+  riskLevel           RiskLevel     @default(MEDIUM)
+  useOfFunds          String?
+  pitchVideoUrl       String?
+  coverImageUrl       String?
+  businessPlanUrl     String?
+  investorCount       Int           @default(0)
+  campaignEndsAt      DateTime?
+  bankabilityScore    Int           @default(0)
+  reputationScore      Int      @default(100)
+  commissionRate      Float         @default(4)
+  commissionPaid      Float         @default(0)
+  guaranteeFundAmount Float         @default(0)
+  contractSignedAt    DateTime?
+  contractUrl         String?
+  adminNote           String?
+  viewCount           Int           @default(0)
+  disbursedP1         Float         @default(0)
+  disbursedP2         Float         @default(0)
+  disbursedP3         Float         @default(0)
+  currentPalier       Int           @default(0)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  entrepreneur  User         @relation("EntrepreneurProjects", fields: [entrepreneurId], references: [id])
+  mentor        User?        @relation("MentorProjects", fields: [mentorId], references: [id])
+  investments   Investment[]
+  milestones    Milestone[]
+  posts         Post[]
+  messages      Message[]
+  savingsPlans  SavingsPlan[]
+  guaranteeFund       GuaranteeFund[]
+  repaymentSchedules  RepaymentSchedule[]
+  fundContributions   FundContribution[]
+  fundAllocations     FundAllocation[]
+  fundCampaigns       FundCampaign[]
+  repaymentPayments   RepaymentPayment[]
+
+  @@map("projects")
+}
+
+model Investment {
+  id             String            @id @default(uuid())
+  userId         String
+  projectId      String
+  amount         Float
+  guaranteeContribution Float      @default(0)
+  sharePercent         Float?          // Part brute investisseur = montant / goalAmount
+  expectedReturn Float
+  status         TransactionStatus @default(PENDING)
+  returnedAmount Float             @default(0)
+  returnRate     Float             @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@map("investments")
+}
+
+model Milestone {
+  id            String          @id @default(uuid())
+  projectId     String
+  title         String
+  description   String
+  amount        Float
+  status        MilestoneStatus @default(PENDING)
+  proofUrl      String?
+  invoiceUrl    String?
+  supplierId    String?
+  adminNote     String?
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  project  Project            @relation(fields: [projectId], references: [id])
+  payments   MilestonePayment[]
+  supplier      Supplier?          @relation(fields: [supplierId], references: [id])
+
+  @@map("milestones")
+}
+
+model MilestonePayment {
+  id           String            @id @default(uuid())
+  milestoneId  String
+  supplierId   String
+  amount       Float
+  status       TransactionStatus @default(PENDING)
+  reference    String            @unique @default(uuid())
+  paidAt       DateTime?
+  proofUrl     String?
+  createdAt    DateTime          @default(now())
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id])
+  supplier  Supplier  @relation(fields: [supplierId], references: [id])
+
+  @@map("milestone_payments")
+}
+
+model GuaranteeFund {
+  id        String   @id @default(uuid())
+  userId    String
+  projectId String
+  amount    Float
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@map("guarantee_fund")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  userId      String
+  type        TransactionType
+  amount      Float
+  currency    String            @default("XOF")
+  status      TransactionStatus @default(PENDING)
+  reference   String            @unique @default(uuid())
+  description String?
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("transactions")
+}
+
+model Post {
+  id          String   @id @default(uuid())
+  authorId    String
+  projectId   String
+  content     String
+  mediaUrls   String[]
+  likesCount  Int      @default(0)
+  trustCount  Int      @default(0)
+  worryCount  Int      @default(0)
+  bravoCount  Int      @default(0)
+  isRequired  Boolean  @default(false)
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author    User           @relation(fields: [authorId], references: [id])
+  project   Project        @relation(fields: [projectId], references: [id])
+  reactions PostReaction[]
+
+  @@map("posts")
+}
+
+model PostReaction {
+  id        String       @id @default(uuid())
+  postId    String
+  userId    String
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@map("post_reactions")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      String
+  isRead    Boolean  @default(false)
+  data      Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  fromUserId  String
+  toUserId    String
+  content     String
+  projectId   String?
+  isRead      Boolean  @default(false)
+  attachmentUrl String?
+  attachmentName String?
+  attachmentType String?
+  createdAt   DateTime @default(now())
+
+  fromUser    User     @relation("SentMessages", fields: [fromUserId], references: [id])
+  toUser      User     @relation("ReceivedMessages", fields: [toUserId], references: [id])
+  project     Project? @relation(fields: [projectId], references: [id])
+
+  @@map("messages")
+}
+
+model SavingsPlan {
+  id              String   @id @default(cuid())
+  userId          String
+  projectId       String?
+  amount          Float
+  frequency       String   @default("WEEKLY")
+  dayOfWeek       Int      @default(5)
+  isActive        Boolean  @default(true)
+  nextExecutionAt DateTime
+  lastExecutedAt  DateTime?
+  totalExecutions Int      @default(0)
+  totalInvested   Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@map("savings_plans")
+}
+
+model PlatformRevenue {
+  id          String   @id @default(cuid())
+  type        String   // COMMISSION_COLLECTION, COMMISSION_RETURN, WITHDRAWAL_FEE, SUCCESS_FEE
+  amount      Float
+  projectId   String?
+  investmentId String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("platform_revenues")
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // DEPOSIT, WITHDRAWAL
+  amount      Float
+  status      String   @default("PENDING") // PENDING, COMPLETED, REJECTED
+  phoneNumber String?
+  operator    String?
+  description String?
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+  @@map("wallet_transactions")
+}
+
+model PlatformConfig {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Float
+  draftValue  Float?   // Valeur brouillon — pas encore active
+  label       String
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+  @@map("platform_config")
+}
+
+model RepaymentSchedule {
+  id              String   @id @default(uuid())
+  projectId       String
+  totalAmount     Float
+  monthlyAmount   Float
+  totalMonths     Int
+  paidMonths      Int      @default(0)
+  remainingAmount Float
+  nextDueDate     DateTime?
+  status          String   @default("ACTIVE")
+  adminNote       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  project         Project  @relation(fields: [projectId], references: [id])
+  payments        RepaymentPayment[]
+  @@map("repayment_schedules")
+}
+
+model RepaymentPayment {
+  id           String    @id @default(uuid())
+  scheduleId   String
+  projectId    String
+  amount       Float
+  monthNumber  Int
+  status       String    @default("PENDING")
+  paidAt       DateTime?
+  dueDate      DateTime?
+  createdAt    DateTime  @default(now())
+  schedule     RepaymentSchedule @relation(fields: [scheduleId], references: [id])
+  project      Project   @relation(fields: [projectId], references: [id])
+  @@map("repayment_payments")
+}
+
+model ReputationEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  points      Int
+  description String?
+  projectId   String?
+  createdAt   DateTime @default(now())
+  @@map("reputation_events")
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     String
+  label     String?
+  icon      String?
+  awardedAt DateTime @default(now())
+  projectId String?
+  @@unique([userId, badge])
+  @@map("user_badges")
+}
+
+model MonthlyRanking {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String
+  month       Int
+  year        Int
+  score       Float    @default(0)
+  rank        Int?
+  rewardBadge String?
+  createdAt   DateTime @default(now())
+  @@unique([userId, role, month, year])
+  @@map("monthly_rankings")
+}
+
+model SolidaryFund {
+  id                String   @id @default(uuid())
+  totalReceived     Float    @default(0)
+  totalAllocated    Float    @default(0)
+  totalContributors Int      @default(0)
+  totalProjects     Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@map("solidary_fund")
+}
+
+model FundContribution {
+  id            String    @id @default(uuid())
+  amount        Float
+  netAmount     Float
+  baobabFee     Float     @default(0)
+  operatorFee   Float     @default(0)
+  anonymous     Boolean   @default(false)
+  message       String?
+  userId        String?
+  guestName     String?
+  guestEmail    String?
+  guestPhone    String?
+  projectId     String?
+  campaignId    String?
+  paymentMethod String    @default("WAVE")
+  operator      String?
+  txRef         String?
+  status        String    @default("PENDING")
+  allocatedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  campaign      FundCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  @@map("fund_contribution")
+}
+
+model FundAllocation {
+  id        String   @id @default(uuid())
+  amount    Float
+  projectId String?
+  adminId   String?
+  note      String?
+  createdAt DateTime @default(now())
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  admin     User?    @relation("AdminAllocations", fields: [adminId], references: [id])
+  @@map("fund_allocation")
+}
+
+model FundCampaign {
+  id            String    @id @default(uuid())
+  title         String
+  description   String?
+  goalAmount    Float
+  raised        Float     @default(0)
+  startDate     DateTime
+  endDate       DateTime
+  active        Boolean   @default(true)
+  projectId     String?
+  imageUrl      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  contributions FundContribution[]
+  @@map("fund_campaign")
+}
+
+model BuilderProfile {
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  companyName        String?
+  sector             String?
+  description        String?
+  website            String?
+  logoUrl            String?
+  country            String    @default("SN")
+  totalDonated       Float     @default(0)
+  totalInvested      Float     @default(0)
+  projectsSupported  Int       @default(0)
+  isPublic           Boolean   @default(true)
+  verified           Boolean   @default(false)
+  reputationPoints   Int       @default(0)
+  donationStreak     Int       @default(0)
+  lastDonationAt     DateTime?
+  isTopDonor         Boolean   @default(false)
+  isFounder          Boolean   @default(false)
+  specialBadges      String[]  @default([])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("builder_profile")
+}
+
+model FundBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badge     String
+  awardedAt DateTime @default(now())
+  earnedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, badge])
+  @@map("fund_badge")
+}

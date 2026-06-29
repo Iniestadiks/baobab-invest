@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import path from 'path'
@@ -12,7 +13,7 @@ const storage = multer.diskStorage({
   destination: (req: any, file, cb) => {
     const userId = req.userId || 'unknown'
     const typeMap: any = { document: 'identity', selfie: 'selfie', rccm: 'rccm' }
-    const folder = `/home/baobab-invest/baobab-api/uploads/kyc/${userId}/${typeMap[file.fieldname] || 'other'}`
+    const folder = `/home/korapact/baobab-api/uploads/kyc/${userId}/${typeMap[file.fieldname] || 'other'}`
     fs.mkdirSync(folder, { recursive: true })
     cb(null, folder)
   },
@@ -176,7 +177,7 @@ router.get('/admin/dossier/:userId', authenticate, requireAdmin, async (req: Aut
   try {
     const user = await prisma.user.findUnique({ where: { id: req.params.userId } })
     if (!user) { res.status(404).json({ success: false }); return }
-    const dir = `/home/baobab-invest/baobab-api/uploads/kyc/${req.params.userId}`
+    const dir = `/home/korapact/baobab-api/uploads/kyc/${req.params.userId}`
     if (!fs.existsSync(dir)) {
       successResponse(res, { user: { id: user.id, name: `${user.firstName} ${user.lastName}`, role: user.role }, files: [] })
       return

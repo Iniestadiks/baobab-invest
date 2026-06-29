@@ -11,7 +11,7 @@ const BORDER = '#e5e7eb'
 function header(doc: any, title: string, subtitle: string) {
   doc.rect(0, 0, doc.page.width, 90).fill(GREEN)
   doc.fillColor('white').fontSize(20).font('Helvetica-Bold')
-    .text('BAOBAB INVEST', 40, 20)
+    .text('KORAPACT', 40, 20)
   doc.fontSize(10).font('Helvetica')
     .text('Plateforme de micro-investissement UEMOA/CEMAC', 40, 45)
   doc.fontSize(10).font('Helvetica')
@@ -28,7 +28,7 @@ function footer(doc: any) {
   doc.strokeColor(BORDER).lineWidth(1)
     .moveTo(40, y).lineTo(doc.page.width - 40, y).stroke()
   doc.fillColor(GRAY).fontSize(8).font('Helvetica')
-    .text('BAOBAB INVEST — Document confidentiel — Plateforme de micro-investissement', 40, y + 10, { align: 'center', width: doc.page.width - 80 })
+    .text('KORAPACT — Document confidentiel — Plateforme de micro-investissement', 40, y + 10, { align: 'center', width: doc.page.width - 80 })
     .text(`Genere le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`, 40, y + 22, { align: 'center', width: doc.page.width - 80 })
 }
 
@@ -123,7 +123,7 @@ export function generateInvestmentCertificate(res: Response, data: {
   doc.rect(40, boxY, doc.page.width - 80, 50).stroke(GREEN)
   doc.fillColor(DARK).fontSize(9).font('Helvetica')
     .text(
-      'Ce document certifie la participation de l\'investisseur au projet mentionne ci-dessus sur la plateforme BAOBAB INVEST. Les fonds sont securises en sequestre jusqu\'au remboursement conformement aux conditions generales.',
+      'Ce document certifie la participation de l\'investisseur au projet mentionne ci-dessus sur la plateforme KORAPACT. Les fonds sont securises en sequestre jusqu\'au remboursement conformement aux conditions generales.',
       50, boxY + 8, { width: doc.page.width - 100, align: 'center' }
     )
 
@@ -404,7 +404,7 @@ export function generateBuilderReport(res: Response, data: {
   res.setHeader('Content-Type', 'application/pdf')
   res.setHeader('Content-Disposition', `attachment; filename="rapport-batisseur-${Date.now()}.pdf"`)
   doc.pipe(res)
-  header(doc, 'RAPPORT BÂTISSEUR', `Fonds Solidaire BAOBAB INVEST — ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`)
+  header(doc, 'RAPPORT BÂTISSEUR', `Fonds Solidaire KORAPACT — ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`)
 
   // Profil
   section(doc, 'PROFIL BÂTISSEUR')

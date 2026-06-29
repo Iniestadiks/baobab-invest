@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, Response } from 'express'
 import prisma from '../config/database'
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth'
@@ -248,7 +249,7 @@ router.post('/upload-attachment', authenticate, async (req: AuthRequest, res: Re
 
     const storage = multer.diskStorage({
       destination: (r: any, f: any, cb: any) => {
-        const dir = '/home/baobab-invest/baobab-api/uploads/messages'
+        const dir = '/home/korapact/baobab-api/uploads/messages'
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
         cb(null, dir)
       },

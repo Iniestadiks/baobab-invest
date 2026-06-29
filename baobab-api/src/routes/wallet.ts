@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authenticate, requireAdmin } from '../middleware/auth'
@@ -41,7 +42,7 @@ router.post('/deposit', authenticate, async (req: AuthRequest, res: Response): P
     // Initier paiement PayDunya
     const paydunyaRes = await initPayin({
       amount,
-      description: `Depot wallet BAOBAB INVEST — ${amount.toLocaleString()} FCFA`,
+      description: `Depot wallet KORAPACT — ${amount.toLocaleString()} FCFA`,
       callbackUrl: `${API_URL}/api/wallet/webhook/paydunya`,
       returnUrl: `${FRONTEND_URL}/wallet/deposit?status=success&txId=${tx.id}`,
       cancelUrl: `${FRONTEND_URL}/wallet/deposit?status=cancel&txId=${tx.id}`,
@@ -115,7 +116,7 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
         data: {
           userId,
           title: 'Depot confirme',
-          body: `${amount.toLocaleString()} FCFA ont ete credites sur votre wallet BAOBAB INVEST.`,
+          body: `${amount.toLocaleString()} FCFA ont ete credites sur votre wallet KORAPACT.`,
           type: 'DEPOSIT_CONFIRMED',
           data: JSON.stringify({ amount, txId })
         }
@@ -253,7 +254,7 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
         amount: grossAmount,
         phoneNumber,
         operator,
-        description: `Retrait BAOBAB INVEST — ${amount.toLocaleString()} FCFA`
+        description: `Retrait KORAPACT — ${amount.toLocaleString()} FCFA`
       })
 
       if (payoutRes.response_code === '00') {

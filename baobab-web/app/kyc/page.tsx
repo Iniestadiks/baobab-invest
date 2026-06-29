@@ -178,7 +178,7 @@ export default function KYCPage() {
                   ))}
                 </div>
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
-                  🔒 <strong>Confidentialité</strong> — Tes documents sont chiffrés et accessibles uniquement par l'équipe BAOBAB INVEST pour la vérification. Ils ne sont jamais partagés avec des tiers.
+                  🔒 <strong>Confidentialité</strong> — Tes documents sont chiffrés et accessibles uniquement par l'équipe KORAPACT pour la vérification. Ils ne sont jamais partagés avec des tiers.
                 </div>
                 <button onClick={() => setStep(2)} className="btn-primary w-full">Continuer →</button>
               </div>
