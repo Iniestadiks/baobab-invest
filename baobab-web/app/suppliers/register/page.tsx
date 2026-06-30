@@ -48,7 +48,7 @@ export default function SupplierRegisterPage() {
     setLoading(true);
     setError("");
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
       const res = await fetch(`${API_URL}/api/suppliers/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

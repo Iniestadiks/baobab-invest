@@ -110,7 +110,7 @@ export default function BuilderDashboard() {
 
   const downloadPDF = async () => {
     const token = localStorage.getItem("accessToken");
-    const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+    const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
     const res = await fetch(`${API}/api/pdf/builder/report`, {
       headers: { Authorization: `Bearer ${token}` }
     });

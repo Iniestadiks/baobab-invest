@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://46.202.132.161:3001'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://korapact.com'
 
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   let token = localStorage.getItem('accessToken')

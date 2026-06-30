@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString("fr-FR");

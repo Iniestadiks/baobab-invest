@@ -9,7 +9,7 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sector, setSector] = useState("Tous");
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+  const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
 
   useEffect(() => {
     fetch(`${API}/api/suppliers`)

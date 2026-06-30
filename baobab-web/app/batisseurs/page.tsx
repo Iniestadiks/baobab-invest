@@ -39,7 +39,7 @@ export default function HallOfFame() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<"classement"|"comment"|"badges">("classement");
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+  const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
 
   useEffect(() => {
     fetch(`${API}/api/fund/builders/public`)

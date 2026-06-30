@@ -488,7 +488,7 @@ function KycTab({ flash, authPost, authPatch, authGet }: any) {
     return "📄 Non soumis";
   };
 
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+  const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
 
   return (
     <div className="space-y-5">
@@ -1057,7 +1057,7 @@ function StatsTab({ authGet }: any) {
   const [dateTo, setDateTo] = React.useState("");
   const [stats, setStats] = React.useState<any>(null);
   const [loadingStats, setLoadingStats] = React.useState(true);
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+  const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
   React.useEffect(() => {
     authGet("/api/admin/stats").then((res: any) => {
       if (res.success) setStats(res.data);
@@ -1494,7 +1494,7 @@ function FinancesTab({ authGet }: any) {
   const [revenues, setRevenues] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [openProject, setOpenProject] = React.useState<string | null>(null);
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+  const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
 
   const [adminWallet, setAdminWallet] = React.useState<any>(null);
   const [schedules, setSchedules] = React.useState<any[]>([]);
@@ -1520,7 +1520,7 @@ function FinancesTab({ authGet }: any) {
 
   const downloadAdminPDF = async () => {
     const token = localStorage.getItem("accessToken");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://46.202.132.161:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://korapact.com';
     const res = await fetch(`${apiUrl}/api/pdf/report/admin`, { headers: { Authorization: `Bearer ${token}` } });
     const blob = await res.blob();
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "rapport-admin.pdf"; a.click(); URL.revokeObjectURL(a.href);
@@ -2793,7 +2793,7 @@ export default function AdminPage() {
                       <div className="flex gap-2">
                         <button onClick={async () => {
                           const token = localStorage.getItem("accessToken");
-                          const API = process.env.NEXT_PUBLIC_API_URL || "http://46.202.132.161:3001";
+                          const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
                           const role = selectedUser.role.toLowerCase();
                           const type = role === "investor" ? "investor" : role === "entrepreneur" ? "entrepreneur" : "mentor";
                           const res = await fetch(`${API}/api/pdf/admin/user/${selectedUser.id}?type=${type}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -3620,7 +3620,7 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
                           <div className="text-gray-500 mt-0.5">{p.sector} · {p.city||"N/A"} · {p.status}</div>
                         </div>
                         <div className="flex gap-1">
-                          <a href={`http://46.202.132.161:3000/projects/${p.id}`} target="_blank"
+                          <a href={`https://korapact.com/projects/${p.id}`} target="_blank"
                             className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded-lg hover:bg-gray-50">👁️</a>
                           <button onClick={() => setAllocForm(f => ({ ...f, projectId: "" }))}
                             className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg hover:bg-red-100">✕</button>
@@ -3681,7 +3681,7 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
                                     <div className="text-xs text-gray-500 mt-0.5">{p.sector} · {p.city||"N/A"} · {p.investorCount||0} investisseur(s)</div>
                                   </div>
                                   <div className="flex gap-1 ml-2">
-                                    <a href={`http://46.202.132.161:3000/projects/${p.id}`} target="_blank"
+                                    <a href={`https://korapact.com/projects/${p.id}`} target="_blank"
                                       onClick={e => e.stopPropagation()}
                                       className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg hover:bg-gray-200">👁️</a>
                                     <button onClick={() => setAllocForm(f => ({ ...f, projectId: p.id, showProjectModal: false } as any))}
