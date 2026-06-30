@@ -3,6 +3,7 @@ import express from 'express'
 import { PrismaClient } from '@prisma/client'
 import cors from 'cors'
 import helmet from 'helmet'
+import path from 'path'
 import { config } from './config'
 import authRoutes from './routes/auth'
 import projectRoutes from './routes/projects'
@@ -27,18 +28,26 @@ import reputationRoutes from './routes/reputation'
 import { checkAndPromoteWaitlist } from './jobs/waitlistPromotion'
 import { computeMonthlyRankings } from './jobs/monthlyRankings'
 
-const app = express()
+process.on('uncaughtException', (err) => {
+  console.error('🔥 uncaughtException:', err)
+})
+process.on('unhandledRejection', (err) => {
+  console.error('🔥 unhandledRejection:', err)
+})
 
+const app = express()
 app.use(helmet())
 app.use(cors({ origin: '*', credentials: true }))
 app.use(express.json({ limit: '10mb' }))
+
 // Timeout étendu pour les uploads vidéo (5 minutes)
 app.use('/api/upload', (req: any, res: any, next: any) => {
   req.setTimeout(300000)  // 5 minutes
   res.setTimeout(300000)
   next()
 })
-app.use('/uploads', require('express').static('/home/korapact/baobab-api/uploads'))
+
+app.use('/uploads', require('express').static(path.join(__dirname, '../uploads')))
 
 app.get('/health', (_, res) => res.json({ status: 'ok' }))
 
@@ -64,7 +73,9 @@ app.use('/api/geo', geoRoutes)
 app.use('/api/reputation', reputationRoutes)
 
 // Cron toutes les heures — promotion liste d'attente
-setInterval(checkAndPromoteWaitlist, 60 * 60 * 1000)
+setInterval(() => {
+  checkAndPromoteWaitlist().catch((e: any) => console.error('[CRON] Erreur waitlist:', e))
+}, 60 * 60 * 1000)
 
 // Cron quotidien — vérification retards paiement (tous les jours à 9h)
 const checkRepaymentDelays = async () => {
@@ -130,6 +141,7 @@ const checkRepaymentDelays = async () => {
     await prisma.$disconnect()
   } catch (e) { console.error('[CRON] Erreur check retards:', e) }
 }
+
 // Lancer quotidiennement à 9h
 const scheduleDelayCheck = () => {
   const now = new Date()
@@ -145,17 +157,15 @@ scheduleDelayCheck()
 // Cron mensuel — classements (1er du mois à 8h)
 const scheduleMonthlyRankings = () => {
   const now = new Date()
-  // Toujours programmer pour le 1er du PROCHAIN mois
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 8, 0, 0)
   const delay = next.getTime() - now.getTime()
   setTimeout(() => {
     computeMonthlyRankings()
-    // Reprogrammer chaque mois
     setInterval(computeMonthlyRankings, 30 * 24 * 60 * 60 * 1000)
   }, delay)
   console.log('[CRON] Classement mensuel prévu le', next.toLocaleDateString())
 }
-// // scheduleMonthlyRankings() // desactive // desactive
+// scheduleMonthlyRankings() // desactive
 
 // CRON mensuel — gamification bâtisseurs (1er du mois à 8h30)
 const scheduleBuilderGamification = () => {
@@ -172,12 +182,12 @@ const scheduleBuilderGamification = () => {
   }, delay)
   console.log('[CRON] Gamification bâtisseurs prévue le', next.toLocaleDateString())
 }
-// // scheduleBuilderGamification() // desactive // desactive
+// scheduleBuilderGamification() // desactive
 
-checkAndPromoteWaitlist() // Lancer au démarrage
+checkAndPromoteWaitlist().catch((e: any) => console.error('[STARTUP] Erreur waitlist:', e))
 
 app.listen(config.port, () => {
   console.log(`🌳 KORAPACT API démarrée sur le port ${config.port}`)
-  console.log(`📡 Environnement : ${config.env}`)
+  console.log(`📡 Environnement : ${config.nodeEnv}`)
   console.log(`🗄️  Routes : auth | projects | investments | milestones | suppliers | feed | admin | fund | upload | notifications`)
 })
