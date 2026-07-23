@@ -72,7 +72,9 @@ router.post('/register', async (req, res): Promise<void> => {
     const { email, password, firstName, lastName, phone, role, country, city, region, countryCode, indicatif, companyName, sector } = req.body
     if (!email || !password || !firstName || !lastName) { res.status(400).json({ success: false, message: 'Champs obligatoires manquants' }); return }
     const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) { res.status(409).json({ success: false, message: 'Email déjà utilisé' }); return }
+    if (existing) { res.status(409).json({ success: false, message: 'Un compte existe déjà avec cet email — connectez-vous' }); return }
+    const existingPhone = await prisma.user.findUnique({ where: { phone } })
+    if (existingPhone) { res.status(409).json({ success: false, message: 'Un compte existe déjà avec ce numéro de téléphone — connectez-vous' }); return }
     const hashed = await bcrypt.hash(password, 10)
     const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase()
 
