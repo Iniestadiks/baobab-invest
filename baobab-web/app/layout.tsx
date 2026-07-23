@@ -2,24 +2,17 @@ import type { Metadata } from "next";
 import { Sora } from "next/font/google";
 import "./globals.css";
 
-const sora = Sora({
-  subsets: ["latin"],
-  variable: "--font-sora",
-});
+const sora = Sora({ subsets: ["latin"], variable: "--font-sora" });
 
 export const metadata: Metadata = {
-  title: "KORAPACT — Investis dans l'Afrique de demain",
-  description: "La plateforme d'investissement communautaire pour la jeunesse africaine. Investis dès 500 FCFA dans des projets locaux vérifiés.",
+  title: "KORAPACT — Investissez dans l'avenir",
+  description: "La plateforme d'investissement communautaire. Investissez dès 500 FCFA dans des projets vérifiés.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      <body className={`${sora.variable} font-sans bg-gray-50`}>
+      <body className={`${sora.variable}`}>
         {children}
       </body>
     </html>

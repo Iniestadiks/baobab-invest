@@ -2,33 +2,57 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://korapact.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://api.korapact.com";
+function fmt(n: number) { return Math.round(n).toLocaleString("fr-FR"); }
 
-function fmt(n: number) {
-  return Math.round(n).toLocaleString("fr-FR");
+function Skeleton({ w = "100%", h = 24 }: { w?: string; h?: number }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: 8,
+      background: "linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%)",
+      backgroundSize: "200% 100%",
+      animation: "skeleton-shine 1.5s infinite",
+    }} />
+  );
 }
 
 export default function LandingPage() {
-  const [stats, setStats] = useState<any>({ totalRaised: 0, activeProjects: 0, totalUsers: 0, kycVerified: 0 });
+  const [stats, setStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
-  const [fund, setFund] = useState<any>({ totalReceived: 0, totalContributors: 0, totalProjects: 0 });
+  const [fund, setFund] = useState<any>(null);
   const [fees, setFees] = useState<any>({ commission_baobab_collection: 6, commission_mentor: 2, commission_guarantee: 2, payin_repayment: 4, return_min: 23, withdrawal_fee_standard: 0 });
+  const [loading, setLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    fetch(`${API}/api/projects?limit=3&status=ACTIVE`).then(r => r.json()).then(d => { if (d.success) setProjects(d.data?.projects || []); }).catch(() => {});
-    fetch(`${API}/api/admin/stats/charts`).then(r => r.json()).then(d => { if (d.success) setStats(d.data?.kpis || {}); }).catch(() => {});
-    fetch(`${API}/api/fund/stats`).then(r => r.json()).then(d => { if (d.success) setFund(d.data?.fund || {}); }).catch(() => {});
-    fetch(`${API}/api/config/public`).then(r => r.json()).then(d => {
-      if (d.success) {
-        const cfg: any = {};
-        d.data.forEach((c: any) => { cfg[c.key] = Number(c.value); });
-        setFees(cfg);
-      }
-    }).catch(() => {});
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onMouse = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("scroll", onScroll);
+    window.addEventListener("mousemove", onMouse);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("mousemove", onMouse); };
   }, []);
 
-  // Calcul simulation dynamique depuis la config
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API}/api/projects?limit=3&status=ACTIVE`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/admin/stats/charts`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/fund/stats`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/config/public`).then(r => r.json()).catch(() => null),
+    ]).then(([proj, st, fd, cfg]) => {
+      if (proj?.success) setProjects(proj.data?.projects || []);
+      if (st?.success) setStats(st.data?.kpis || {});
+      if (fd?.success) setFund(fd.data?.fund || {});
+      if (cfg?.success) {
+        const c: any = {};
+        cfg.data.forEach((x: any) => { c[x.key] = Number(x.value); });
+        setFees(c);
+      }
+      setLoading(false);
+    });
+  }, []);
+
   const simAmount = 100000;
   const totalFeesPct = (fees.commission_baobab_collection || 6) + (fees.commission_mentor || 2) + (fees.commission_guarantee || 2);
   const simFees = Math.round(simAmount * totalFeesPct / 100);
@@ -39,137 +63,138 @@ export default function LandingPage() {
   const simGainNet = simGain - simAmount;
   const simGainPct = ((simGainNet / simAmount) * 100).toFixed(1);
 
-  return (
-    <div className="min-h-screen bg-white font-sans">
+  const statItems = [
+    {
+      label: "Capital levé",
+      value: loading ? null : `${fmt(stats?.totalRaised || 0)} F`,
+      color: "#2563EB"
+    },
+    {
+      label: "Projets actifs",
+      value: loading ? null : String(stats?.activeProjects || 0),
+      color: "#06B6D4"
+    },
+    {
+      label: "Investisseurs",
+      value: loading ? null : String(stats?.totalUsers || 0),
+      color: "#F59E0B"
+    },
+    {
+      label: "Fonds Solidaire",
+      value: loading ? null : `${fmt(fund?.totalReceived || 0)} F`,
+      color: "#8B5CF6"
+    },
+  ];
 
-      {/* ═══ NAVBAR ═══ */}
-      <nav className="fixed top-0 w-full z-50 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-sm">🌳</span>
-            </div>
-            <span className="font-bold text-gray-900 text-lg">KORAPACT</span>
+  return (
+    <>
+      <div className="cursor-glow" style={{ left: mousePos.x, top: mousePos.y }} />
+
+      {/* NAVBAR */}
+      <nav className={`nav ${scrolled ? "scrolled" : ""}`}>
+        <div className="nav-inner">
+          <Link href="/" className="logo">
+            <div className="logo-mark">K</div>
+            <span className="logo-text">KORAPACT</span>
+          </Link>
+          <div className="nav-links">
+            {[["Fonctionnement","#comment"],["Projets","#projets"],["Fonds Solidaire","/fund"],["Bâtisseurs","#batisseurs"],["Transparence","#transparence"]].map(([l,h])=>(
+              <a key={l} href={h} className="nav-link">{l}</a>
+            ))}
           </div>
-          <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
-            <a href="#comment" className="hover:text-green-600 transition-colors">Comment ça marche</a>
-            <a href="#projets" className="hover:text-green-600 transition-colors">Projets</a>
-            <Link href="/fund" className="hover:text-green-600 transition-colors flex items-center gap-1">
-              🌱 Fonds Solidaire
-            </Link>
-            <a href="#batisseurs" className="hover:text-green-600 transition-colors">Bâtisseurs</a>
-            <Link href="/batisseurs" className="hover:text-green-600 transition-colors">🏆 Hall of Fame</Link>
-            <Link href="/supplier/dashboard" className="hover:text-green-600 transition-colors">🏪 Fournisseurs</Link>
-            <Link href="/transparence" className="hover:text-green-600 transition-colors">Transparence</Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/auth/login" className="hidden sm:block text-sm text-gray-600 hover:text-green-600 font-medium">
-              Connexion
-            </Link>
-            <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors shadow-sm">
-              Commencer →
-            </Link>
-            <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 text-gray-600">
+          <div className="nav-actions">
+            <Link href="/auth/login" className="btn-ghost">Connexion</Link>
+            <Link href="/auth/register" className="btn-cta">Commencer →</Link>
+            <button onClick={() => setMobileMenu(!mobileMenu)}
+              style={{background:"none",border:"none",color:"rgba(255,255,255,0.7)",fontSize:22,cursor:"pointer",padding:4}}
+              className="mobile-btn">
               {mobileMenu ? "✕" : "☰"}
             </button>
           </div>
         </div>
         {mobileMenu && (
-          <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-3 text-sm">
-            <a href="#comment" className="block text-gray-600 hover:text-green-600">Comment ça marche</a>
-            <a href="#projets" className="block text-gray-600 hover:text-green-600">Projets</a>
-            <Link href="/fund" className="block text-gray-600 hover:text-green-600">🌱 Fonds Solidaire</Link>
-            <a href="#batisseurs" className="block text-gray-600 hover:text-green-600">Bâtisseurs</a>
-            <Link href="/supplier/dashboard" className="block text-gray-600 hover:text-green-600">🏪 Espace Fournisseur</Link>
-            <Link href="/transparence" className="block text-gray-600 hover:text-green-600">Transparence</Link>
-            <Link href="/auth/login" className="block text-gray-600 hover:text-green-600">Connexion</Link>
+          <div style={{background:"rgba(5,8,16,0.97)",backdropFilter:"blur(24px)",borderTop:"1px solid var(--border)",padding:"20px 32px",display:"flex",flexDirection:"column",gap:16}}>
+            {[["Fonctionnement","#comment"],["Projets","#projets"],["Fonds Solidaire","/fund"],["Transparence","#transparence"],["Connexion","/auth/login"]].map(([l,h])=>(
+              <a key={l} href={h} onClick={() => setMobileMenu(false)}
+                style={{color:"rgba(255,255,255,0.65)",fontSize:15,fontWeight:500}}>{l}</a>
+            ))}
           </div>
         )}
       </nav>
 
-      {/* ═══ HERO ═══ */}
-      <section className="pt-20 pb-0 bg-gradient-to-br from-green-950 via-green-900 to-green-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-yellow-400 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-green-400 rounded-full blur-3xl"></div>
+      {/* HERO */}
+      <section className="hero">
+        <div className="hero-bg">
+          <div className="grid-bg"/>
+          <div className="orb orb-1"/><div className="orb orb-2"/><div className="orb orb-3"/>
         </div>
-        <div className="max-w-6xl mx-auto px-6 pt-16 pb-20 relative">
-          <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur text-white text-xs px-4 py-2 rounded-full mb-6 border border-white/20">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              Plateforme de micro-investissement UEMOA / CEMAC · Africa First 🌍
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-              Investissez dans<br />
-              <span className="text-yellow-400">l'Afrique de demain</span>
-            </h1>
-            <p className="text-green-100 text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
-              Soutenez les jeunes entrepreneurs africains, faites fructifier votre épargne,
-              ou contribuez au <strong className="text-yellow-300">Fonds Solidaire BAOBAB</strong>.
-              À partir de <strong>500 FCFA</strong>.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
-              <Link href="/auth/register" className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-8 py-4 rounded-2xl text-lg transition-all transform hover:scale-105 shadow-xl">
-                💰 Investir maintenant
-              </Link>
-              <Link href="/fund" className="bg-white/20 hover:bg-white/30 text-white font-bold px-8 py-4 rounded-2xl text-lg transition-all border border-white/30 backdrop-blur flex items-center gap-2 justify-center">
-                🌱 Fonds Solidaire
-              </Link>
-            </div>
-            <div className="flex flex-wrap justify-center gap-3 text-sm">
-              <Link href="/projects" className="text-green-300 hover:text-white underline underline-offset-2">Explorer les projets →</Link>
-              <span className="text-green-500">·</span>
-              <Link href="/transparence" className="text-green-300 hover:text-white underline underline-offset-2">Voir les frais →</Link>
-            </div>
+        <div className="hero-content">
+          <div className="hero-badge">
+            <div className="badge-dot"><div className="badge-dot-inner"/></div>
+            Plateforme d'investissement communautaire · 2026
+          </div>
+          <h1 className="hero-title">
+            Faites fructifier<br/>
+            <span className="gradient-text">votre capital.</span>
+          </h1>
+          <p className="hero-sub">
+            Investissez dans des projets vérifiés, soutenez des entrepreneurs ambitieux et percevez des retours mensuels. Dès <strong style={{color:"#F59E0B"}}>5 000 F</strong>.
+          </p>
+          <div className="hero-actions">
+            <Link href="/auth/register" className="btn-hero-primary">Commencer maintenant →</Link>
+            <Link href="/projects" className="btn-hero-ghost">Explorer les projets</Link>
           </div>
 
-          {/* Stats temps réel */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Total levé", value: `${((stats.totalRaised || 0) / 1000000).toFixed(1)}M FCFA`, icon: "💰", sub: "Capital investi" },
-              { label: "Projets actifs", value: String(stats.activeProjects || 0), icon: "🚀", sub: "En cours de financement" },
-              { label: "Membres", value: String(stats.totalUsers || 0), icon: "👥", sub: "Communauté BAOBAB" },
-              { label: "Fonds Solidaire", value: `${fmt(fund.totalReceived || 0)} F`, icon: "🌱", sub: `${fund.totalContributors || 0} contributeurs` },
-            ].map(s => (
-              <div key={s.label} className="bg-white/10 backdrop-blur rounded-2xl p-5 text-center border border-white/15 hover:bg-white/15 transition-colors">
-                <div className="text-2xl mb-2">{s.icon}</div>
-                <div className="text-xl font-bold text-white">{s.value}</div>
-                <div className="text-green-200 text-xs mt-1 font-medium">{s.label}</div>
-                <div className="text-green-400 text-xs mt-0.5">{s.sub}</div>
+          {/* STATS avec skeletons */}
+          <div className="stats-grid">
+            {statItems.map(s => (
+              <div key={s.label} className="stat-card">
+                <div className="stat-accent" style={{background:`linear-gradient(90deg,${s.color},transparent)`}}/>
+                <div className="stat-value">
+                  {s.value === null ? <Skeleton h={28} w="80%" /> : s.value}
+                </div>
+                <div className="stat-label">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Vague de transition */}
-        <div className="relative h-16 overflow-hidden">
-          <svg viewBox="0 0 1200 80" className="absolute bottom-0 w-full" preserveAspectRatio="none">
-            <path d="M0,40 C300,80 900,0 1200,40 L1200,80 L0,80 Z" fill="white"/>
-          </svg>
-        </div>
       </section>
 
-      {/* ═══ 4 PROFILS ═══ */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Une plateforme pour tous</h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Quel que soit votre rôle, KORAPACT vous accompagne.</p>
+      {/* ROLES */}
+      <section className="section" style={{background:"#0C1024"}}>
+        <div className="section-inner">
+          <div className="section-header" style={{textAlign:"center"}}>
+            <div className="section-eyebrow" style={{color:"#06B6D4"}}>Votre profil</div>
+            <h2 className="section-title">Une plateforme pour chaque ambition</h2>
+            <p className="section-sub" style={{maxWidth:440,margin:"0 auto"}}>Investisseur, entrepreneur, mentor ou mécène — choisissez votre rôle.</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="roles-grid">
             {[
-              { role: "Investisseur", icon: "💼", color: "border-green-200 hover:border-green-400", bg: "bg-green-50", btn: "bg-green-600", desc: "Faites fructifier votre épargne en finançant des projets vérifiés. Retour minimum garanti.", gain: `+${fees.return_min || 23}% minimum`, href: "/auth/register?role=INVESTOR" },
-              { role: "Entrepreneur", icon: "🚀", color: "border-blue-200 hover:border-blue-400", bg: "bg-blue-50", btn: "bg-blue-600", desc: "Obtenez un financement communautaire pour votre projet. Simple, rapide et sans banque.", gain: "Financé en 30 jours", href: "/auth/register?role=ENTREPRENEUR" },
-              { role: "Mentor", icon: "🎓", color: "border-purple-200 hover:border-purple-400", bg: "bg-purple-50", btn: "bg-purple-600", desc: "Parrainez des projets, engagez votre réputation et touchez une commission à la clôture.", gain: `${fees.commission_mentor || 2}% à la clôture`, href: "/auth/register?role=MENTOR" },
-              { role: "Bâtisseur", icon: "🏗️", color: "border-yellow-200 hover:border-yellow-400", bg: "bg-yellow-50", btn: "bg-yellow-500", desc: "Mécènes, entreprises et institutions : soutenez les jeunes talents africains à grande échelle.", gain: "Impact & visibilité", href: "/auth/register?role=BUILDER" },
+              {role:"Investisseur",icon:"💼",href:"/auth/register?role=INVESTOR",color:"#2563EB",grad:"rgba(37,99,235,0.12)",desc:"Financez des projets vérifiés et percevez des retours mensuels.",gain:`+${fees.return_min||23}% min`},
+              {role:"Entrepreneur",icon:"🚀",href:"/auth/register?role=ENTREPRENEUR",color:"#06B6D4",grad:"rgba(6,182,212,0.12)",desc:"Obtenez un financement communautaire sans banque, en moins de 30 jours.",gain:"Financé en 30j"},
+              {role:"Mentor",icon:"🎓",href:"/auth/register?role=MENTOR",color:"#8B5CF6",grad:"rgba(139,92,246,0.12)",desc:"Parrainez des projets et percevez une commission à la clôture.",gain:`${fees.commission_mentor||2}% commission`},
+              {role:"Bâtisseur",icon:"🏗️",href:"/auth/register?role=BUILDER",color:"#F59E0B",grad:"rgba(245,158,11,0.12)",desc:"Mécènes et entreprises — soutenez à grande échelle.",gain:"Impact & prestige"},
             ].map(p => (
-              <div key={p.role} className={`border-2 ${p.color} ${p.bg} rounded-3xl p-6 transition-all hover:shadow-lg group`}>
-                <div className="text-4xl mb-4">{p.icon}</div>
-                <h3 className="font-bold text-gray-900 text-xl mb-2">{p.role}</h3>
-                <p className="text-gray-600 text-sm mb-4 leading-relaxed">{p.desc}</p>
-                <div className="text-xs font-bold text-gray-500 bg-white rounded-xl px-3 py-1.5 inline-block mb-4">{p.gain}</div>
-                <Link href={p.href} className={`block text-center ${p.btn} text-white font-bold py-2.5 rounded-xl text-sm hover:opacity-90 transition-opacity`}>
+              <div key={p.role} className="role-card"
+                style={{borderColor:`${p.color}20`}}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.background = p.grad;
+                  el.style.borderColor = `${p.color}40`;
+                  el.style.boxShadow = `0 24px 64px ${p.color}18`;
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.background = "rgba(255,255,255,0.025)";
+                  el.style.borderColor = `${p.color}20`;
+                  el.style.boxShadow = "none";
+                }}>
+                <span className="role-icon">{p.icon}</span>
+                <h3 className="role-title">{p.role}</h3>
+                <p className="role-desc">{p.desc}</p>
+                <span className="role-badge" style={{background:`${p.color}18`,color:p.color,border:`1px solid ${p.color}30`}}>{p.gain}</span>
+                <Link href={p.href} className="role-btn"
+                  style={{background:`linear-gradient(135deg,${p.color},${p.color}bb)`,color:p.role==="Bâtisseur"?"#050810":"#fff"}}>
                   Commencer →
                 </Link>
               </div>
@@ -178,141 +203,70 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ FONDS SOLIDAIRE ═══ */}
-      <section className="py-20 bg-gradient-to-br from-green-50 to-emerald-100">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
-                🌱 NOUVEAU — Fonds Solidaire
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Le <span className="text-green-600">Fonds Solidaire</span><br />BAOBAB
-              </h2>
-              <p className="text-gray-600 text-lg mb-6 leading-relaxed">
-                Une cagnotte participative communautaire où chacun contribue selon ses moyens 
-                pour financer les rêves des jeunes entrepreneurs africains.
-              </p>
-              <div className="space-y-3 mb-8">
-                {[
-                  { icon: "💝", text: "Contribution dès 500 FCFA — anonyme ou publique" },
-                  { icon: "🌍", text: "Avec ou sans compte — ouvert à tous" },
-                  { icon: "📊", text: "100% transparent — chaque franc tracé" },
-                  { icon: "🏆", text: "Badges et reconnaissance pour les contributeurs" },
-                ].map(i => (
-                  <div key={i.text} className="flex items-center gap-3">
-                    <span className="text-xl">{i.icon}</span>
-                    <span className="text-gray-700 text-sm">{i.text}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-3">
-                <Link href="/fund" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors">
-                  🌱 Contribuer
-                </Link>
-                <Link href="/fund" className="border border-green-300 text-green-700 font-medium px-6 py-3 rounded-xl hover:bg-green-50 transition-colors">
-                  Voir le fonds →
-                </Link>
-              </div>
-            </div>
-            <div className="bg-white rounded-3xl p-8 shadow-xl border border-green-100">
-              <h3 className="font-bold text-gray-900 text-xl mb-6 text-center">🏆 Impact du fonds</h3>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {[
-                  { label: "Total collecté", value: `${fmt(fund.totalReceived || 0)} FCFA`, color: "text-green-700", bg: "bg-green-50" },
-                  { label: "Contributeurs", value: String(fund.totalContributors || 0), color: "text-blue-700", bg: "bg-blue-50" },
-                  { label: "Projets aidés", value: String(fund.totalProjects || 0), color: "text-purple-700", bg: "bg-purple-50" },
-                  { label: "Net aux projets", value: `${fmt((fund.totalReceived || 0) * 0.9)} F`, color: "text-orange-700", bg: "bg-orange-50" },
-                ].map(s => (
-                  <div key={s.label} className={`${s.bg} rounded-2xl p-4 text-center`}>
-                    <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-                    <div className="text-xs text-gray-500 mt-1">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4 text-sm text-gray-600 text-center">
-                <strong>90%</strong> de chaque don va directement aux projets.<br />
-                BAOBAB prend <strong>10%</strong> pour la gestion de la plateforme.
-              </div>
-            </div>
+      {/* STEPS */}
+      <section id="comment" className="section" style={{background:"#050810"}}>
+        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(37,99,235,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,0.025) 1px,transparent 1px)",backgroundSize:"72px 72px",pointerEvents:"none"}}/>
+        <div className="section-inner" style={{position:"relative"}}>
+          <div className="section-header" style={{textAlign:"center"}}>
+            <div className="section-eyebrow" style={{color:"#2563EB"}}>Processus</div>
+            <h2 className="section-title">3 étapes, zéro complexité</h2>
+            <p className="section-sub">De l'inscription au premier remboursement, tout est guidé.</p>
           </div>
-        </div>
-      </section>
-
-      {/* ═══ COMMENT ÇA MARCHE ═══ */}
-      <section id="comment" className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Comment ça marche ?</h2>
-            <p className="text-gray-500 text-lg">Simple, transparent et sécurisé. En 3 étapes.</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="steps-grid">
             {[
-              { step: "01", title: "Créez votre compte", desc: "Inscrivez-vous en 2 minutes et vérifiez votre identité (KYC). Choisissez votre rôle : investisseur, entrepreneur, mentor ou bâtisseur.", icon: "👤", color: "bg-blue-50 border-blue-200" },
-              { step: "02", title: "Choisissez un projet", desc: "Parcourez les projets vérifiés. Chaque projet a un score de crédibilité, un mentor garant et des statistiques transparentes.", icon: "🔍", color: "bg-green-50 border-green-200" },
-              { step: "03", title: "Percevez vos retours", desc: "Suivez vos investissements en temps réel. Recevez vos remboursements mensuels sur votre wallet. Retrait vers Mobile Money.", icon: "💸", color: "bg-yellow-50 border-yellow-200" },
-            ].map(s => (
-              <div key={s.step} className={`${s.color} border-2 rounded-3xl p-8 relative hover:shadow-lg transition-shadow`}>
-                <div className="absolute -top-4 left-8 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md">{s.step}</div>
-                <div className="text-4xl mb-4">{s.icon}</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{s.title}</h3>
-                <p className="text-gray-600 leading-relaxed text-sm">{s.desc}</p>
+              {num:"01",title:"Créez votre compte",desc:"Inscription en 2 minutes. Vérification KYC rapide. Choisissez votre rôle.",icon:"👤",color:"#2563EB"},
+              {num:"02",title:"Sélectionnez un projet",desc:"Parcourez des projets vérifiés avec scores de crédibilité et mentors garants.",icon:"🔍",color:"#06B6D4"},
+              {num:"03",title:"Percevez vos retours",desc:"Remboursements mensuels automatiques. Retrait vers votre compte à tout moment.",icon:"💸",color:"#F59E0B"},
+            ].map((s, i) => (
+              <div key={s.num} className="step-card">
+                <div className="step-num" style={{color:`${s.color}10`}}>{s.num}</div>
+                <div className="step-icon-wrap" style={{background:`${s.color}12`,border:`1px solid ${s.color}25`}}>{s.icon}</div>
+                <div className="step-label" style={{color:s.color}}>Étape {i+1}</div>
+                <h3 className="step-title">{s.title}</h3>
+                <p className="step-desc">{s.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══ PROJETS EN COURS ═══ */}
+      {/* PROJECTS */}
       {projects.length > 0 && (
-        <section id="projets" className="py-20 bg-gray-50">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex items-center justify-between mb-12 flex-wrap gap-4">
+        <section id="projets" className="section" style={{background:"#0C1024"}}>
+          <div className="section-inner">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:56,flexWrap:"wrap",gap:16}}>
               <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Projets en cours</h2>
-                <p className="text-gray-500">Des opportunités vérifiées, près de chez vous.</p>
+                <div className="section-eyebrow" style={{color:"#06B6D4"}}>Live</div>
+                <h2 className="section-title" style={{marginBottom:0}}>Projets en cours</h2>
               </div>
-              <Link href="/projects" className="bg-green-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-green-700 transition-colors">
-                Voir tous →
-              </Link>
+              <Link href="/projects" className="btn-section-ghost">Voir tous →</Link>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="projects-grid">
               {projects.map((p: any) => {
                 const pct = Math.round(((p.raisedAmount || 0) / (p.goalAmount || 1)) * 100);
                 return (
-                  <Link key={p.id} href={`/projects/${p.id}`} className="bg-white border border-gray-100 rounded-3xl overflow-hidden hover:shadow-xl transition-all group">
-                    <div className="h-2 bg-gray-100">
-                      <div className="h-2 bg-green-500 transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
-                    </div>
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">{p.sector}</span>
-                        <span className="text-xs text-gray-400">📍 {p.city}</span>
+                  <Link key={p.id} href={`/projects/${p.id}`} className="project-card">
+                    <div className="progress-bar"><div className="progress-fill" style={{width:`${Math.min(pct,100)}%`}}/></div>
+                    <div className="project-body">
+                      <span className="project-sector">{p.sector}</span>
+                      <h3 className="project-title">{p.title}</h3>
+                      <p className="project-desc">{p.description}</p>
+                      <div className="project-metrics">
+                        {[{l:"Retour",v:`${p.expectedReturn}%`,c:"#06B6D4"},{l:"Durée",v:`${p.durationMonths}m`,c:"#93C5FD"},{l:"Levé",v:`${pct}%`,c:"#F59E0B"}].map(m=>(
+                          <div key={m.l} className="metric">
+                            <div className="metric-val" style={{color:m.c}}>{m.v}</div>
+                            <div className="metric-label">{m.l}</div>
+                          </div>
+                        ))}
                       </div>
-                      <h3 className="font-bold text-gray-900 text-lg mb-2 group-hover:text-green-700 transition-colors line-clamp-1">{p.title}</h3>
-                      <p className="text-gray-500 text-sm mb-4 line-clamp-2">{p.description}</p>
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-                        <div className="bg-green-50 rounded-xl p-2">
-                          <div className="font-bold text-green-700">{p.expectedReturn}%</div>
-                          <div className="text-gray-400">Retour</div>
-                        </div>
-                        <div className="bg-gray-50 rounded-xl p-2">
-                          <div className="font-bold text-gray-900">{p.durationMonths}m</div>
-                          <div className="text-gray-400">Durée</div>
-                        </div>
-                        <div className="bg-blue-50 rounded-xl p-2">
-                          <div className="font-bold text-blue-700">{pct}%</div>
-                          <div className="text-gray-400">Levé</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div>
-                          <div className="font-bold text-gray-900 text-sm">{fmt(p.raisedAmount || 0)} FCFA</div>
-                          <div className="text-xs text-gray-400">sur {fmt(p.goalAmount || 0)} FCFA</div>
+                          <div style={{fontWeight:900,fontSize:14}}>{fmt(p.raisedAmount||0)} F</div>
+                          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.32)"}}>sur {fmt(p.goalAmount||0)} F</div>
                         </div>
-                        <span className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-xl font-medium group-hover:bg-green-700 transition-colors">
+                        <div style={{fontWeight:700,fontSize:13,color:"#fff",padding:"9px 18px",borderRadius:12,background:"linear-gradient(135deg,#2563EB,#06B6D4)"}}>
                           Investir →
-                        </span>
+                        </div>
                       </div>
                     </div>
                   </Link>
@@ -323,52 +277,88 @@ export default function LandingPage() {
         </section>
       )}
 
-      {/* ═══ BÂTISSEURS ═══ */}
-      <section id="batisseurs" className="py-20 bg-gradient-to-br from-gray-900 to-gray-800 text-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+      {/* FONDS SOLIDAIRE */}
+      <section className="section" style={{background:"#050810",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:800,height:800,borderRadius:"50%",background:"radial-gradient(circle,rgba(139,92,246,0.06) 0%,transparent 70%)",pointerEvents:"none"}}/>
+        <div className="section-inner" style={{position:"relative"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center"}}>
             <div>
-              <div className="inline-flex items-center gap-2 bg-yellow-400/20 text-yellow-300 text-xs font-bold px-3 py-1.5 rounded-full mb-4 border border-yellow-400/30">
-                🏗️ NOUVEAU RÔLE — Bâtisseur d'avenir
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                Devenez un<br />
-                <span className="text-yellow-400">Bâtisseur d'avenir</span>
+              <div className="section-eyebrow" style={{color:"#8B5CF6"}}>Solidarité</div>
+              <h2 className="section-title">Fonds Solidaire<br/>
+                <span style={{background:"linear-gradient(135deg,#8B5CF6,#06B6D4)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>KORAPACT</span>
               </h2>
-              <p className="text-gray-300 text-lg mb-6 leading-relaxed">
-                Mécènes, grandes entreprises, institutions, diaspora fortunée —
-                soutenez les jeunes entrepreneurs africains à grande échelle 
-                et bénéficiez d'une visibilité exceptionnelle.
+              <p style={{fontSize:17,color:"rgba(255,255,255,0.45)",lineHeight:1.8,marginBottom:36}}>
+                Une cagnotte communautaire. Contribuez dès <strong style={{color:"#8B5CF6"}}>5 000 F</strong>, avec ou sans compte, pour soutenir des projets ambitieux.
               </p>
-              <div className="space-y-3 mb-8">
+              <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+                <Link href="/fund" className="btn-section-primary" style={{background:"linear-gradient(135deg,#8B5CF6,#6D28D9)"}}>🌱 Contribuer</Link>
+                <Link href="/fund" className="btn-section-ghost" style={{borderColor:"rgba(139,92,246,0.3)",color:"#A78BFA"}}>Voir le fonds →</Link>
+              </div>
+            </div>
+            <div className="glass-card" style={{padding:36,borderColor:"rgba(139,92,246,0.18)"}}>
+              <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.35)",textAlign:"center",letterSpacing:3,textTransform:"uppercase",marginBottom:28}}>Impact en temps réel</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
                 {[
-                  { icon: "👁️", text: "Visibilité & reconnaissance publique sur la plateforme" },
-                  { icon: "📊", text: "Dashboard dédié avec impact social mesuré" },
-                  { icon: "🤝", text: "Connexion directe avec les entrepreneurs" },
-                  { icon: "🏆", text: "Hall of Fame des plus grands Bâtisseurs" },
-                  { icon: "📄", text: "Rapport d'impact annuel personnalisé" },
-                ].map(i => (
-                  <div key={i.text} className="flex items-center gap-3">
-                    <span className="text-xl">{i.icon}</span>
-                    <span className="text-gray-300 text-sm">{i.text}</span>
+                  {label:"Total collecté",value:loading?null:`${fmt(fund?.totalReceived||0)} F`,color:"#8B5CF6"},
+                  {label:"Contributeurs",value:loading?null:String(fund?.totalContributors||0),color:"#06B6D4"},
+                  {label:"Projets aidés",value:loading?null:String(fund?.totalProjects||0),color:"#2563EB"},
+                  {label:"Net aux projets",value:loading?null:`${fmt((fund?.totalReceived||0)*0.9)} F`,color:"#F59E0B"},
+                ].map(s=>(
+                  <div key={s.label} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${s.color}20`,borderRadius:16,padding:"18px 14px",textAlign:"center"}}>
+                    <div style={{fontSize:20,fontWeight:900,color:s.color,minHeight:28}}>
+                      {s.value === null ? <Skeleton h={24} w="70%" /> : s.value}
+                    </div>
+                    <div style={{fontSize:11.5,color:"rgba(255,255,255,0.32)",marginTop:6}}>{s.label}</div>
                   </div>
                 ))}
               </div>
-              <Link href="/auth/register?role=BUILDER" className="inline-block bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-8 py-3 rounded-xl transition-colors">
+              <div style={{background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.15)",borderRadius:14,padding:"14px 18px",textAlign:"center",fontSize:13,color:"rgba(255,255,255,0.48)",lineHeight:1.7}}>
+                <span style={{color:"#A78BFA",fontWeight:700}}>90%</span> va directement aux projets.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* BATISSEURS */}
+      <section id="batisseurs" className="section" style={{background:"#0C1024"}}>
+        <div className="section-inner">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center"}}>
+            <div>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.25)",borderRadius:100,padding:"5px 14px",fontSize:11.5,fontWeight:700,color:"#F59E0B",marginBottom:24}}>
+                🏗️ Rôle premium — Bâtisseur
+              </div>
+              <h2 className="section-title">Devenez un<br/><span style={{color:"#F59E0B"}}>Bâtisseur d'avenir</span></h2>
+              <p style={{fontSize:17,color:"rgba(255,255,255,0.45)",lineHeight:1.8,marginBottom:28}}>
+                Mécènes, entreprises, fonds — investissez à grande échelle et bénéficiez d'une visibilité exceptionnelle.
+              </p>
+              {["Reconnaissance publique sur la plateforme","Dashboard dédié avec impact mesuré","Connexion directe avec les entrepreneurs","Hall of Fame des plus grands Bâtisseurs"].map(item=>(
+                <div key={item} style={{display:"flex",alignItems:"center",gap:12,marginBottom:13}}>
+                  <div style={{width:18,height:18,borderRadius:"50%",background:"rgba(245,158,11,0.15)",border:"1px solid rgba(245,158,11,0.3)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B"}}/>
+                  </div>
+                  <span style={{fontSize:14,color:"rgba(255,255,255,0.55)"}}>{item}</span>
+                </div>
+              ))}
+              <Link href="/auth/register?role=BUILDER" className="btn-section-primary"
+                style={{marginTop:28,background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#050810"}}>
                 🏗️ Devenir Bâtisseur →
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               {[
-                { title: "Entreprises", icon: "🏢", desc: "RSE & impact social mesurable", color: "bg-yellow-400/10 border-yellow-400/30" },
-                { title: "Institutions", icon: "🏛️", desc: "Partenariats officiels", color: "bg-blue-400/10 border-blue-400/30" },
-                { title: "Diaspora", icon: "🌍", desc: "Investissez dans vos origines", color: "bg-green-400/10 border-green-400/30" },
-                { title: "Mécènes", icon: "💎", desc: "Philanthropie africaine", color: "bg-purple-400/10 border-purple-400/30" },
-              ].map(b => (
-                <div key={b.title} className={`${b.color} border rounded-2xl p-5 text-center hover:opacity-90 transition-opacity`}>
-                  <div className="text-3xl mb-2">{b.icon}</div>
-                  <div className="font-bold text-white text-sm">{b.title}</div>
-                  <div className="text-gray-400 text-xs mt-1">{b.desc}</div>
+                {icon:"🏢",title:"Entreprises",desc:"RSE & impact mesurable",color:"#F59E0B"},
+                {icon:"🏛️",title:"Institutions",desc:"Partenariats officiels",color:"#2563EB"},
+                {icon:"🌐",title:"International",desc:"Accès global",color:"#06B6D4"},
+                {icon:"💎",title:"Mécènes",desc:"Philanthropie moderne",color:"#8B5CF6"},
+              ].map(b=>(
+                <div key={b.title}
+                  style={{background:`${b.color}08`,border:`1px solid ${b.color}20`,borderRadius:20,padding:"26px 18px",textAlign:"center",transition:"all 0.25s",cursor:"pointer"}}
+                  onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.transform="translateY(-4px)";el.style.borderColor=`${b.color}40`;}}
+                  onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.transform="translateY(0)";el.style.borderColor=`${b.color}20`;}}>
+                  <div style={{fontSize:36,marginBottom:12}}>{b.icon}</div>
+                  <div style={{fontWeight:700,fontSize:14,color:"#fff",marginBottom:4}}>{b.title}</div>
+                  <div style={{fontSize:12,color:"rgba(255,255,255,0.35)"}}>{b.desc}</div>
                 </div>
               ))}
             </div>
@@ -376,189 +366,126 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ AVANTAGES ═══ */}
-      <section className="py-20 bg-green-900 text-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Pourquoi KORAPACT ?</h2>
-            <p className="text-green-200 text-lg max-w-2xl mx-auto">Une plateforme construite pour la confiance et la transparence.</p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { title: "KYC vérifié", desc: "Tous les participants sont vérifiés. Sécurité maximale pour vos investissements.", icon: "🛡️" },
-              { title: "Mentors garants", desc: "Chaque projet supervisé par un mentor certifié qui engage sa réputation.", icon: "🎓" },
-              { title: "Fonds sécurisés", desc: "Vos fonds en séquestre jusqu'au remboursement. Vous êtes protégés.", icon: "🔒" },
-              { title: "Transparence totale", desc: "Tous les taux publics. Commission BAOBAB : 6% seulement à la clôture.", icon: "📊" },
-              { title: "Remboursement progressif", desc: "L'entrepreneur rembourse mensuellement. Vous recevez votre part chaque mois.", icon: "📅" },
-              { title: "Fonds Solidaire", desc: "Contribuez dès 500 FCFA au fonds communautaire pour les jeunes entrepreneurs.", icon: "🌱" },
-            ].map(a => (
-              <div key={a.title} className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/15 hover:bg-white/15 transition-colors">
-                <div className="text-3xl mb-3">{a.icon}</div>
-                <h3 className="font-bold text-lg mb-2">{a.title}</h3>
-                <p className="text-green-200 text-sm leading-relaxed">{a.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ TRANSPARENCE + SIMULATION ═══ */}
-      <section id="transparence" className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-12 items-start">
+      {/* TRANSPARENCE + SIMULATION */}
+      <section id="transparence" className="section" style={{background:"#050810"}}>
+        <div className="section-inner">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"start"}}>
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Transparence<br /><span className="text-green-600">totale sur les frais</span>
-              </h2>
-              <p className="text-gray-500 text-lg mb-8 leading-relaxed">
-                Nous ne cachons rien. Tous nos taux sont publics et mis à jour en temps réel.
+              <div className="section-eyebrow" style={{color:"#06B6D4"}}>Transparence</div>
+              <h2 className="section-title">Zéro surprise.<br/><span style={{color:"#06B6D4"}}>Tous les frais publics.</span></h2>
+              <p style={{fontSize:17,color:"rgba(255,255,255,0.42)",lineHeight:1.8,marginBottom:36}}>
+                Tous nos taux sont mis à jour en temps réel. Aucun frais caché.
               </p>
-              <div className="space-y-3">
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 {[
-                  { label: `Commission collecte BAOBAB`, value: `${fees.commission_baobab_collection || 6}%`, note: "Prélevé à la clôture du projet", color: "text-red-600" },
-                  { label: `Commission mentor`, value: `${fees.commission_mentor || 2}%`, note: "Versé au mentor garant à la clôture", color: "text-purple-600" },
-                  { label: `Fonds de garantie`, value: `${fees.commission_guarantee || 2}%`, note: "Réserve communautaire — optionnelle", color: "text-orange-600" },
-                  { label: `Payin mensualités`, value: `${fees.payin_repayment || 4}%`, note: "Frais opérateur Mobile Money absorbés", color: "text-blue-600" },
-                  { label: `Retrait gains`, value: `${fees.withdrawal_fee_standard || 0}%`, note: "Retrait sur gains — BAOBAB absorbe les frais", color: "text-green-600" },
-                ].map(f => (
-                  <div key={f.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
+                  {label:"Commission collecte",value:`${fees.commission_baobab_collection||6}%`,note:"Prélevé à la clôture",color:"#EF4444"},
+                  {label:"Commission mentor",value:`${fees.commission_mentor||2}%`,note:"Versé au mentor garant",color:"#8B5CF6"},
+                  {label:"Fonds de garantie",value:`${fees.commission_guarantee||2}%`,note:"Réserve communautaire",color:"#F59E0B"},
+                  {label:"Payin mensualités",value:`${fees.payin_repayment||4}%`,note:"Frais opérateur absorbés",color:"#2563EB"},
+                  {label:"Retrait gains",value:`${fees.withdrawal_fee_standard||0}%`,note:"Nous absorbons les frais",color:"#06B6D4"},
+                ].map(f=>(
+                  <div key={f.label} className="fee-row">
                     <div>
-                      <div className="font-medium text-gray-900 text-sm">{f.label}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">{f.note}</div>
+                      <div style={{fontWeight:600,fontSize:14,color:"#fff"}}>{f.label}</div>
+                      <div style={{fontSize:12,color:"rgba(255,255,255,0.32)",marginTop:3}}>{f.note}</div>
                     </div>
-                    <span className={`font-bold ${f.color} bg-white border border-gray-200 px-3 py-1 rounded-xl text-sm`}>{f.value}</span>
+                    <span className="fee-badge" style={{background:`${f.color}14`,color:f.color,border:`1px solid ${f.color}28`}}>{f.value}</span>
                   </div>
                 ))}
               </div>
-              <Link href="/transparence" className="inline-block mt-6 text-green-600 font-medium hover:underline text-sm">
-                Voir la page transparence complète →
+              <Link href="/transparence" style={{display:"inline-block",marginTop:22,color:"#06B6D4",fontWeight:600,fontSize:13.5}}>
+                Page transparence complète →
               </Link>
             </div>
-
-            {/* Simulation dynamique */}
-            <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-3xl p-8 border border-green-200 sticky top-24">
-              <h3 className="font-bold text-gray-900 text-xl mb-2">🧮 Simulation investissement</h3>
-              <p className="text-xs text-gray-500 mb-6">Taux mis à jour en temps réel depuis la plateforme</p>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between py-2 border-b border-green-200">
-                  <span className="text-gray-600">Vous investissez</span>
-                  <span className="font-bold text-gray-900">{fmt(simAmount)} FCFA</span>
+            <div className="sim-card">
+              <div style={{fontSize:11,fontWeight:800,color:"#2563EB",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Calculateur</div>
+              <h3 style={{fontWeight:900,fontSize:22,marginBottom:4}}>🧮 Simulation</h3>
+              <p style={{fontSize:12,color:"rgba(255,255,255,0.3)",marginBottom:28}}>Basé sur les taux actuels</p>
+              {[
+                {l:"Vous investissez",v:`${fmt(simAmount)} F`,c:"#fff",bold:true},
+                {l:`Frais clôture (${totalFeesPct}%)`,v:`-${fmt(simFees)} F`,c:"#EF4444"},
+                {l:"Net dans le projet",v:`${fmt(simNet)} F`,c:"rgba(255,255,255,0.55)"},
+                {l:`Retour brut (min ${fees.return_min||23}%)`,v:`+${fmt(simRetour)} F`,c:"#F59E0B"},
+                {l:`Payin (${fees.payin_repayment||4}%)`,v:`-${fmt(simPayin)} F`,c:"#93C5FD"},
+                {l:"Retrait gains",v:"Gratuit ✅",c:"#06B6D4"},
+              ].map((row,i)=>(
+                <div key={i}>
+                  <div className="sim-row">
+                    <span style={{color:"rgba(255,255,255,0.42)",fontSize:13.5}}>{row.l}</span>
+                    <span style={{fontWeight:row.bold?900:700,color:row.c,fontSize:13.5}}>{row.v}</span>
+                  </div>
+                  {i<5&&<hr className="sim-divider"/>}
                 </div>
-                <div className="flex justify-between py-2 border-b border-green-200 text-red-500">
-                  <span>Frais à la clôture ({totalFeesPct}%)</span>
-                  <span>-{fmt(simFees)} FCFA</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-green-200">
-                  <span className="text-gray-600">Net dans le projet</span>
-                  <span className="font-bold">{fmt(simNet)} FCFA</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-green-200">
-                  <span className="text-gray-600">Retour brut (min {fees.return_min || 23}%)</span>
-                  <span className="font-bold text-orange-600">+{fmt(simRetour)} FCFA</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-green-200 text-blue-500">
-                  <span>Payin mensualités ({fees.payin_repayment || 4}%)</span>
-                  <span>-{fmt(simPayin)} FCFA</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-green-200 text-green-600">
-                  <span>Retrait gains (0%)</span>
-                  <span>Gratuit ✅</span>
-                </div>
-                <div className="flex justify-between py-3 bg-green-600 rounded-2xl px-4 mt-2 text-white">
-                  <span className="font-bold">Vous recevez</span>
-                  <span className="font-bold text-lg">{fmt(simGain)} FCFA</span>
-                </div>
-                <div className="text-center text-green-700 font-bold text-base pt-2">
-                  Gain net : +{fmt(simGainNet)} FCFA (+{simGainPct}%) 🎉
-                </div>
+              ))}
+              <div className="sim-result">
+                <span style={{fontWeight:700,fontSize:16}}>Vous recevez</span>
+                <span style={{fontWeight:900,fontSize:22}}>{fmt(simGain)} F</span>
+              </div>
+              <div style={{textAlign:"center",marginTop:14,color:"#06B6D4",fontWeight:700,fontSize:15}}>
+                Gain net : +{fmt(simGainNet)} F (+{simGainPct}%) 🎉
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══ CTA FINAL ═══ */}
-      <section className="py-20 bg-gradient-to-br from-green-700 via-green-800 to-green-900 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-400 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-        </div>
-        <div className="max-w-4xl mx-auto px-6 text-center relative">
-          <div className="text-5xl mb-4">🌳</div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Prêt à construire l'Afrique de demain ?
+      {/* CTA */}
+      <section className="cta-section" style={{background:"#0C1024"}}>
+        <div className="cta-glow"/>
+        <div style={{maxWidth:860,margin:"0 auto",textAlign:"center",position:"relative"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(37,99,235,0.1)",border:"1px solid rgba(37,99,235,0.22)",borderRadius:100,padding:"5px 16px",fontSize:11.5,fontWeight:700,color:"#93C5FD",marginBottom:32}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#06B6D4",display:"inline-block"}}/>
+            Rejoignez la communauté KORAPACT
+          </div>
+          <h2 style={{fontSize:"clamp(40px,6vw,76px)",fontWeight:900,letterSpacing:"-3px",lineHeight:1.02,marginBottom:24}}>
+            Prêt à faire<br/>
+            <span style={{background:"linear-gradient(135deg,#2563EB,#06B6D4,#F59E0B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
+              fructifier votre argent ?
+            </span>
           </h2>
-          <p className="text-green-100 text-lg mb-10 max-w-2xl mx-auto">
-            Rejoignez la communauté KORAPACT. Inscription gratuite, KYC rapide.
-            Premiers retours en quelques mois.
+          <p style={{fontSize:19,color:"rgba(255,255,255,0.42)",lineHeight:1.75,maxWidth:460,margin:"0 auto 52px"}}>
+            Inscription gratuite. Premiers retours en quelques mois.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
-            <Link href="/auth/register?role=INVESTOR" className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-8 py-4 rounded-2xl text-lg transition-all transform hover:scale-105 shadow-xl">
-              💰 Je veux investir
-            </Link>
-            <Link href="/auth/register?role=ENTREPRENEUR" className="bg-white/20 hover:bg-white/30 text-white font-bold px-8 py-4 rounded-2xl text-lg border border-white/30 backdrop-blur transition-all">
-              🚀 Je cherche des fonds
-            </Link>
-            <Link href="/fund" className="bg-white/20 hover:bg-white/30 text-white font-bold px-8 py-4 rounded-2xl text-lg border border-white/30 backdrop-blur transition-all">
-              🌱 Contribuer au fonds
-            </Link>
+          <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
+            <Link href="/auth/register?role=INVESTOR" className="btn-hero-primary">💰 Investir maintenant</Link>
+            <Link href="/auth/register?role=ENTREPRENEUR" className="btn-hero-ghost">🚀 Financer un projet</Link>
+            <Link href="/fund" style={{fontSize:15,fontWeight:600,color:"#A78BFA",padding:"15px 32px",borderRadius:14,border:"1px solid rgba(139,92,246,0.25)",transition:"all 0.25s",display:"inline-block"}}>🌱 Fonds Solidaire</Link>
           </div>
         </div>
       </section>
 
-      {/* ═══ FOOTER ═══ */}
-      <footer className="bg-gray-950 text-gray-400 py-14">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-5 gap-8 mb-10">
-            <div className="md:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">🌳</span>
-                </div>
-                <span className="font-bold text-white text-lg">KORAPACT</span>
-              </div>
-              <p className="text-sm leading-relaxed mb-4">
-                Plateforme de micro-investissement communautaire pour l'Afrique subsaharienne.
-                UEMOA / CEMAC.
+      {/* FOOTER */}
+      <footer className="footer">
+        <div className="footer-inner">
+          <div className="footer-grid">
+            <div>
+              <Link href="/" className="logo" style={{marginBottom:20,display:"inline-flex"}}>
+                <div className="logo-mark">K</div>
+                <span className="logo-text" style={{marginLeft:10}}>KORAPACT</span>
+              </Link>
+              <p style={{fontSize:13.5,color:"rgba(255,255,255,0.3)",lineHeight:1.7,marginTop:16,maxWidth:260}}>
+                Plateforme d'investissement communautaire. Lancée en 2026.
               </p>
-              <div className="flex gap-3">
-                <Link href="/fund" className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-green-700">🌱 Fonds Solidaire</Link>
-                <Link href="/transparence" className="border border-gray-700 text-gray-400 text-xs px-3 py-1.5 rounded-lg hover:border-gray-500">Transparence</Link>
+            </div>
+            {[
+              {title:"Plateforme",links:[["Projets","/projects"],["Fonds Solidaire","/fund"],["Transparence","/transparence"],["Classement","/leaderboard"]]},
+              {title:"Rejoindre",links:[["Investisseur","/auth/register?role=INVESTOR"],["Entrepreneur","/auth/register?role=ENTREPRENEUR"],["Mentor","/auth/register?role=MENTOR"],["Bâtisseur","/auth/register?role=BUILDER"]]},
+              {title:"Partenaires",links:[["Fournisseurs","/suppliers/register"],["Institutions","/auth/register?role=BUILDER"],["Mécènes","/fund"]]},
+            ].map(col=>(
+              <div key={col.title}>
+                <div style={{fontWeight:700,fontSize:13,color:"#fff",marginBottom:18}}>{col.title}</div>
+                {col.links.map(([l,h])=>(
+                  <Link key={l} href={h} className="footer-link">{l}</Link>
+                ))}
               </div>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3 text-sm">Plateforme</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/projects" className="hover:text-green-400 transition-colors">Projets</Link></li>
-                <li><Link href="/fund" className="hover:text-green-400 transition-colors">Fonds Solidaire</Link></li>
-                <li><Link href="/transparence" className="hover:text-green-400 transition-colors">Transparence</Link></li>
-                <li><Link href="/leaderboard" className="hover:text-green-400 transition-colors">Classement</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3 text-sm">Rejoindre</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/auth/register?role=INVESTOR" className="hover:text-green-400 transition-colors">Investisseur</Link></li>
-                <li><Link href="/auth/register?role=ENTREPRENEUR" className="hover:text-green-400 transition-colors">Entrepreneur</Link></li>
-                <li><Link href="/auth/register?role=MENTOR" className="hover:text-green-400 transition-colors">Mentor</Link></li>
-                <li><Link href="/auth/register?role=BUILDER" className="hover:text-green-400 transition-colors">🏗️ Bâtisseur</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3 text-sm">Partenaires</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/suppliers/register" className="hover:text-green-400 transition-colors">Fournisseurs</Link></li>
-                <li><Link href="/auth/register?role=BUILDER" className="hover:text-green-400 transition-colors">Institutions</Link></li>
-                <li><Link href="/fund" className="hover:text-green-400 transition-colors">Mécènes</Link></li>
-              </ul>
-            </div>
+            ))}
           </div>
-          <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-xs">© 2026 KORAPACT. Tous droits réservés.</p>
-            <p className="text-xs text-center">Plateforme régulée · L'investissement comporte des risques. Les performances passées ne préjugent pas des futures.</p>
+          <div className="footer-bottom">
+            <p className="footer-small">© 2026 KORAPACT. Tous droits réservés.</p>
+            <p className="footer-small">L'investissement comporte des risques.</p>
           </div>
         </div>
       </footer>
-    </div>
+    </>
   );
 }

@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,23 +8,27 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        green: {
-          50:  "#E8F5EE",
-          100: "#C5E5D3",
-          500: "#23A663",
-          600: "#1A7A4A",
-          700: "#0F5C37",
-          900: "#0a2e1a",
-        },
-        gold: {
-          50:  "#FEF9EC",
-          400: "#E8A020",
-          500: "#C9972A",
-          600: "#A07820",
+        kora: {
+          blue: "#1B4FFF",
+          teal: "#00D4AA",
+          gold: "#FFB800",
+          dark: "#0A0F1E",
+          card: "#0D1220",
+          border: "rgba(255,255,255,0.08)",
         },
       },
       fontFamily: {
         sans: ["var(--font-sora)", "sans-serif"],
+      },
+      animation: {
+        "pulse-dot": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "float": "float 6s ease-in-out infinite",
+      },
+      keyframes: {
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
       },
     },
   },
