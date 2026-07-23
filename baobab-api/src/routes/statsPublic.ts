@@ -4,11 +4,6 @@ import { successResponse } from '../utils/helpers'
 
 const router = Router()
 
-/**
- * GET /api/stats/public
- * Statistiques publiques pour la landing page — aucune donnée sensible.
- * Pas d'authentification requise.
- */
 router.get('/', async (_req: Request, res: Response): Promise<void> => {
   try {
     const [userCount, projectStats, fund, configRates] = await Promise.all([
@@ -20,12 +15,11 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
       }),
       prisma.solidaryFund.findFirst(),
       prisma.platformConfig.findMany({
-        where: { key: { in: ['commission_baobab_collection', 'commission_mentor', 'commission_guarantee', 'payin_repayment', 'return_min', 'withdrawal_fee_standard'] } },
+        where: { key: { in: ['commission_baobab_collection','commission_mentor','commission_guarantee','payin_repayment','return_min','withdrawal_fee_standard'] } },
       }),
     ])
 
     const activeProjects = await prisma.project.count({ where: { status: 'ACTIVE' } })
-
     const feeMap: Record<string, number> = {}
     configRates.forEach(c => { feeMap[c.key] = c.value })
 
@@ -44,7 +38,7 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
       config: configRates.map(c => ({ key: c.key, value: c.value })),
     })
   } catch (e) {
-    console.error('[STATS PUBLIC] Erreur:', e)
+    console.error('[STATS PUBLIC]', e)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })

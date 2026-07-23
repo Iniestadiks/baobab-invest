@@ -167,7 +167,7 @@ router.get('/users', authenticate, requireAdmin, async (req: AuthRequest, res: R
 router.post('/users/:id/ban', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { reason, until } = req.body as { reason?: string; until?: string }
-    const targetId = req.params.id
+    const targetId = String(req.params.id)
     const adminId = req.userId!
 
     // Un admin ne peut pas se bannir lui-même
@@ -222,7 +222,7 @@ router.post('/users/:id/ban', authenticate, requireAdmin, async (req: AuthReques
 
 router.post('/users/:id/unban', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const targetId = req.params.id
+    const targetId = String(req.params.id)
     const adminId = req.userId!
 
     const target = await prisma.user.findUnique({ where: { id: targetId } })
@@ -257,7 +257,7 @@ router.post('/users/:id/unban', authenticate, requireAdmin, async (req: AuthRequ
 
 router.patch('/users/:id/toggle-active', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const targetId = req.params.id
+    const targetId = String(req.params.id)
     const adminId = req.userId!
 
     if (targetId === adminId) {
@@ -297,7 +297,7 @@ router.patch('/users/:id/toggle-active', authenticate, requireAdmin, async (req:
 
 router.delete('/users/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const targetId = req.params.id
+    const targetId = String(req.params.id)
     const adminId = req.userId!
 
     if (targetId === adminId) {
@@ -361,7 +361,7 @@ router.delete('/users/:id', authenticate, requireAdmin, async (req: AuthRequest,
 
 router.patch('/users/:id/anonymize', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const targetId = req.params.id
+    const targetId = String(req.params.id)
     const adminId = req.userId!
 
     const target = await prisma.user.findUnique({ where: { id: targetId } })
@@ -406,7 +406,7 @@ router.patch('/users/:id/anonymize', authenticate, requireAdmin, async (req: Aut
 router.post('/users/:id/verify-kyc', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: { kycStatus: 'VERIFIED', kycVerifiedAt: new Date() },
     })
 
@@ -445,7 +445,7 @@ router.post('/users/:id/reject-kyc', authenticate, requireAdmin, async (req: Aut
     }
 
     const user = await prisma.user.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: { kycStatus: 'REJECTED', kycRejectedReason: reason },
     })
 
@@ -559,18 +559,18 @@ router.patch('/users/:userId/role', authenticate, requireAdmin, async (req: Auth
       return
     }
 
-    if (req.params.userId === req.userId) {
+    if (String(req.params.userId) === req.userId) {
       res.status(400).json({ success: false, message: 'Vous ne pouvez pas modifier votre propre rôle' })
       return
     }
 
     const user = await prisma.user.update({
-      where: { id: req.params.userId },
+      where: { id: String(req.params.userId) },
       data: { role: role as 'INVESTOR' | 'ENTREPRENEUR' | 'MENTOR' | 'BUILDER' },
     })
 
     await logAdminAction(
-      req.userId!, 'CHANGE_ROLE', req.params.userId, `Rôle changé en ${role}`,
+      req.userId!, 'CHANGE_ROLE', String(req.params.userId), `Rôle changé en ${role}`,
       getClientIp(req), req.headers['user-agent'] || 'unknown',
     )
 
@@ -824,7 +824,7 @@ router.get('/audit-logs', authenticate, requireAdmin, async (req: AuthRequest, r
 
 router.get('/users/:id/wallet', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const wallet = await prisma.wallet.findUnique({ where: { userId: req.params.id } })
+    const wallet = await prisma.wallet.findUnique({ where: { userId: String(req.params.id) } })
     successResponse(res, wallet)
   } catch (e) { errorResponse(res) }
 })
@@ -832,7 +832,7 @@ router.get('/users/:id/wallet', authenticate, requireAdmin, async (req: AuthRequ
 router.get('/users/:id/investments', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const investments = await prisma.investment.findMany({
-      where: { userId: req.params.id },
+      where: { userId: String(req.params.id) },
       include: {
         project: {
           select: {
@@ -853,7 +853,7 @@ router.get('/users/:id/investments', authenticate, requireAdmin, async (req: Aut
 router.get('/users/:id/projects', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const projects = await prisma.project.findMany({
-      where: { entrepreneurId: req.params.id },
+      where: { entrepreneurId: String(req.params.id) },
       include: {
         investments: { select: { amount: true, userId: true, returnedAmount: true, user: { select: { firstName: true, lastName: true } } } },
         mentor: { select: { firstName: true, lastName: true } },
@@ -869,7 +869,7 @@ router.get('/users/:id/projects', authenticate, requireAdmin, async (req: AuthRe
 router.get('/users/:id/schedules', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const investments = await prisma.investment.findMany({
-      where: { userId: req.params.id },
+      where: { userId: String(req.params.id) },
       select: { projectId: true, amount: true, sharePercent: true },
     })
     const schedules: unknown[] = []
@@ -890,7 +890,7 @@ router.get('/users/:id/schedules', authenticate, requireAdmin, async (req: AuthR
 router.get('/users/:id/transactions', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const txs = await prisma.walletTransaction.findMany({
-      where: { userId: req.params.id },
+      where: { userId: String(req.params.id) },
       orderBy: { createdAt: 'desc' },
     })
     successResponse(res, txs)
@@ -900,7 +900,7 @@ router.get('/users/:id/transactions', authenticate, requireAdmin, async (req: Au
 router.get('/users/:id/notifications', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const notifs = await prisma.notification.findMany({
-      where: { userId: req.params.id },
+      where: { userId: String(req.params.id) },
       orderBy: { createdAt: 'desc' },
       take: 20,
     })
@@ -1013,13 +1013,13 @@ router.patch('/milestones/:id/approve', authenticate, requireAdmin, async (req: 
   try {
     const { adminNote } = req.body as { adminNote?: string }
     const milestone = await prisma.milestone.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: { project: { select: { title: true, entrepreneurId: true } } },
     })
     if (!milestone) { res.status(404).json({ success: false, message: 'Jalon introuvable' }); return }
 
     const updated = await prisma.milestone.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: { status: 'APPROVED', adminNote: adminNote || 'Approuvé', paidAt: new Date() },
     })
 
@@ -1043,13 +1043,13 @@ router.patch('/milestones/:id/reject', authenticate, requireAdmin, async (req: A
     if (!adminNote) { res.status(400).json({ success: false, message: 'Raison de rejet obligatoire' }); return }
 
     const milestone = await prisma.milestone.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: { project: { select: { title: true, entrepreneurId: true } } },
     })
     if (!milestone) { res.status(404).json({ success: false, message: 'Jalon introuvable' }); return }
 
     const updated = await prisma.milestone.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: { status: 'REJECTED', adminNote },
     })
 
@@ -1075,7 +1075,7 @@ router.post('/projects/:projectId/reimburse', authenticate, requireAdmin, async 
   try {
     const { note } = req.body as { note?: string }
     const project = await prisma.project.findUnique({
-      where: { id: req.params.projectId },
+      where: { id: String(req.params.projectId) },
       include: { investments: { include: { user: { include: { wallet: true } } } } },
     })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }

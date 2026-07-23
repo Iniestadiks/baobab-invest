@@ -714,7 +714,7 @@ router.patch('/avatar', authenticate, async (req: AuthRequest, res: Response): P
 router.get('/profile/:userId', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.params.userId },
+      where: { id: String(req.params.userId) },
       select: {
         id: true, firstName: true, lastName: true, role: true,
         city: true, country: true, bio: true, profileImageUrl: true,
@@ -730,8 +730,8 @@ router.get('/profile/:userId', async (req: Request, res: Response): Promise<void
 
     const projects = await prisma.project.findMany({
       where: user.role === 'MENTOR'
-        ? { mentorId: req.params.userId, status: { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS', 'COMPLETED'] } }
-        : { entrepreneurId: req.params.userId, status: { not: 'PENDING_REVIEW' } },
+        ? { mentorId: String(req.params.userId), status: { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS', 'COMPLETED'] } }
+        : { entrepreneurId: String(req.params.userId), status: { not: 'PENDING_REVIEW' } },
       select: { id: true, title: true, sector: true, city: true, raisedAmount: true, status: true },
       orderBy: { createdAt: 'desc' },
     })
