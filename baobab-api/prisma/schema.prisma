@@ -169,6 +169,8 @@ model User {
   notifications       Notification[]
   transactions        Transaction[]
   guaranteeFundContributions GuaranteeFund[]
+  adminAuditLogs       AdminAuditLog[] @relation("AdminAuditAdmin")
+  auditLogsAsTarget    AdminAuditLog[] @relation("AdminAuditTarget")
 
   @@map("users")
 }
@@ -686,4 +688,20 @@ model FundBadge {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([userId, badge])
   @@map("fund_badge")
+}
+
+model AdminAuditLog {
+  id           String   @id @default(uuid())
+  adminId      String?
+  action       String
+  targetUserId String?
+  reason       String?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  admin      User? @relation("AdminAuditAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+  targetUser User? @relation("AdminAuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@map("admin_audit_logs")
 }

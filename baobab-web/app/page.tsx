@@ -37,17 +37,17 @@ export default function LandingPage() {
   useEffect(() => {
     Promise.all([
       fetch(`${API}/api/projects?limit=3&status=ACTIVE`).then(r => r.json()).catch(() => null),
-      fetch(`${API}/api/admin/stats/charts`).then(r => r.json()).catch(() => null),
-      fetch(`${API}/api/fund/stats`).then(r => r.json()).catch(() => null),
-      fetch(`${API}/api/config/public`).then(r => r.json()).catch(() => null),
-    ]).then(([proj, st, fd, cfg]) => {
+      fetch(`${API}/api/stats/public`).then(r => r.json()).catch(() => null),
+    ]).then(([proj, pub]) => {
       if (proj?.success) setProjects(proj.data?.projects || []);
-      if (st?.success) setStats(st.data?.kpis || {});
-      if (fd?.success) setFund(fd.data?.fund || {});
-      if (cfg?.success) {
-        const c: any = {};
-        cfg.data.forEach((x: any) => { c[x.key] = Number(x.value); });
-        setFees(c);
+      if (pub?.success) {
+        setStats(pub.data?.kpis || {});
+        setFund(pub.data?.fund || {});
+        if (pub.data?.config) {
+          const c: any = {};
+          (pub.data.config as any[]).forEach((x: any) => { c[x.key] = Number(x.value); });
+          setFees(c);
+        }
       }
       setLoading(false);
     });

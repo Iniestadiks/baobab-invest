@@ -1,4 +1,3 @@
-// @ts-nocheck
 import express from 'express'
 import { PrismaClient } from '@prisma/client'
 import cors from 'cors'
@@ -25,6 +24,7 @@ import referralRoutes from './routes/referral'
 import pdfRoutes from './routes/pdf'
 import geoRoutes from './routes/geo'
 import reputationRoutes from './routes/reputation'
+import statsPublicRoutes from './routes/statsPublic'
 import { checkAndPromoteWaitlist } from './jobs/waitlistPromotion'
 import { computeMonthlyRankings } from './jobs/monthlyRankings'
 
@@ -37,7 +37,20 @@ process.on('unhandledRejection', (err) => {
 
 const app = express()
 app.use(helmet())
-app.use(cors({ origin: '*', credentials: true }))
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'https://korapact.com',
+  'https://www.korapact.com',
+]
+app.use(cors({
+  origin: (origin, callback) => {
+    // Autoriser les requêtes sans origin (mobile, Postman, etc.)
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('CORS non autorisé'), false)
+  },
+  credentials: true,
+}))
 app.use(express.json({ limit: '10mb' }))
 
 // Timeout étendu pour les uploads vidéo (5 minutes)
@@ -70,6 +83,7 @@ app.use('/api/config', configRoutes)
 app.use('/api/referral', referralRoutes)
 app.use('/api/pdf', pdfRoutes)
 app.use('/api/geo', geoRoutes)
+app.use('/api/stats', statsPublicRoutes)
 app.use('/api/reputation', reputationRoutes)
 
 // Cron toutes les heures — promotion liste d'attente

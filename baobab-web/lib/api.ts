@@ -1,7 +1,30 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://korapact.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.korapact.com'
+
+/** Renvoie le chemin de connexion selon le rôle stocké localement. */
+function getLoginPath(): string {
+  if (typeof window === 'undefined') return '/auth/login'
+  try {
+    const stored = localStorage.getItem('user')
+    if (stored) {
+      const user = JSON.parse(stored)
+      if (user?.role === 'ADMIN') return '/admin-access'
+    }
+  } catch {
+    // localStorage corrompu — on nettoie
+    localStorage.clear()
+  }
+  return '/auth/login'
+}
+
+function clearSessionAndRedirect(path: string): void {
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('user')
+  window.location.href = path
+}
 
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  let token = localStorage.getItem('accessToken')
+  const token = localStorage.getItem('accessToken')
 
   const makeRequest = (t: string) =>
     fetch(`${API_URL}${url}`, {
@@ -15,19 +38,20 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 
   let res = await makeRequest(token || '')
 
-  // Ignorer le rate limit — ne pas déconnecter
+  // Rate limit — ne pas déconnecter, juste attendre
   if (res.status === 429) {
-    console.warn('Rate limit atteint — on attend 2s');
-    await new Promise(r => setTimeout(r, 2000));
-    return res;
+    console.warn('[API] Rate limit — attente 2s')
+    await new Promise(r => setTimeout(r, 2000))
+    return res
   }
 
-  // Token expiré (401) → on rafraîchit automatiquement
+  // Token expiré → tentative de refresh
   if (res.status === 401) {
     const refreshToken = localStorage.getItem('refreshToken')
+    const loginPath = getLoginPath()
+
     if (!refreshToken) {
-      localStorage.clear()
-      window.location.href = '/auth/login'
+      clearSessionAndRedirect(loginPath)
       return res
     }
 
@@ -41,76 +65,86 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
       const refreshData = await refreshRes.json()
 
       if (!refreshData.success) {
-        localStorage.clear()
-        window.location.href = '/auth/login'
+        clearSessionAndRedirect(loginPath)
         return res
       }
 
-      // Nouveau token sauvegardé
       localStorage.setItem('accessToken', refreshData.data.accessToken)
       localStorage.setItem('refreshToken', refreshData.data.refreshToken)
 
-      // On relance la requête originale avec le nouveau token
       res = await makeRequest(refreshData.data.accessToken)
     } catch {
-      localStorage.clear()
-      window.location.href = '/auth/login'
+      clearSessionAndRedirect(loginPath)
     }
   }
 
   return res
 }
 
-export async function authGet(url: string) {
+export async function authGet(url: string): Promise<Record<string, unknown>> {
   try {
     const res = await authFetch(url)
     const text = await res.text()
-    try { return JSON.parse(text) }
-    catch { return { success: false, message: "Erreur serveur" } }
-  } catch (e: any) {
-    return { success: false, message: e.message || "Erreur de connexion" }
+    try { return JSON.parse(text) } catch { return { success: false, message: 'Erreur serveur' } }
+  } catch (e) {
+    const err = e as Error
+    return { success: false, message: err.message || 'Erreur de connexion' }
   }
 }
 
-export async function authPost(url: string, body: any) {
+export async function authPost(url: string, body: unknown): Promise<Record<string, unknown>> {
   try {
     const res = await authFetch(url, {
       method: 'POST',
       body: JSON.stringify(body),
     })
     const text = await res.text()
-    try { return JSON.parse(text) }
-    catch { return { success: false, message: text || "Erreur serveur" } }
-  } catch (e: any) {
-    return { success: false, message: e.message || "Erreur de connexion" }
+    try { return JSON.parse(text) } catch { return { success: false, message: text || 'Erreur serveur' } }
+  } catch (e) {
+    const err = e as Error
+    return { success: false, message: err.message || 'Erreur de connexion' }
   }
 }
 
-export async function authPatch(url: string, body: any) {
+export async function authPatch(url: string, body: unknown): Promise<Record<string, unknown>> {
   try {
     const res = await authFetch(url, {
       method: 'PATCH',
       body: JSON.stringify(body),
     })
     const text = await res.text()
-    try { return JSON.parse(text) }
-    catch { return { success: false, message: "Erreur serveur" } }
-  } catch (e: any) {
-    return { success: false, message: e.message || "Erreur de connexion" }
+    try { return JSON.parse(text) } catch { return { success: false, message: 'Erreur serveur' } }
+  } catch (e) {
+    const err = e as Error
+    return { success: false, message: err.message || 'Erreur de connexion' }
   }
 }
 
-export async function authDelete(url: string) {
-  const res = await authFetch(url, { method: 'DELETE' })
-  return res.json()
+export async function authDelete(url: string): Promise<Record<string, unknown>> {
+  try {
+    const res = await authFetch(url, { method: 'DELETE' })
+    return res.json()
+  } catch (e) {
+    const err = e as Error
+    return { success: false, message: err.message || 'Erreur de connexion' }
+  }
 }
 
-export function redirectByRole(router: any) {
-  const stored = localStorage.getItem("user")
-  if (!stored) { router.push("/auth/login"); return; }
-  const user = JSON.parse(stored)
-  if (user.role === "ENTREPRENEUR") router.push("/entrepreneur")
-  else if (user.role === "ADMIN") router.push("/admin")
-  else if (user.role === "MENTOR") router.push("/mentor")
-  else router.push("/dashboard")
+/** Redirige selon le rôle utilisateur stocké en local. */
+export function redirectByRole(router: { push: (path: string) => void }): void {
+  const stored = localStorage.getItem('user')
+  if (!stored) { router.push('/auth/login'); return }
+
+  try {
+    const user = JSON.parse(stored)
+    switch (user.role) {
+      case 'ENTREPRENEUR': router.push('/entrepreneur'); break
+      case 'ADMIN': router.push('/admin'); break
+      case 'MENTOR': router.push('/mentor'); break
+      case 'BUILDER': router.push('/builder'); break
+      default: router.push('/dashboard')
+    }
+  } catch {
+    router.push('/auth/login')
+  }
 }
