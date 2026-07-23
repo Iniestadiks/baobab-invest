@@ -818,3 +818,99 @@ async function logAdminAction(
 
 export { logAdminAction }
 export default router
+// ═══════════════════════════════════════════════════════
+// MOT DE PASSE OUBLIÉ
+// ═══════════════════════════════════════════════════════
+
+router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body as { email?: string }
+    if (!email) { res.status(400).json({ success: false, message: 'Email requis' }); return }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+
+    // Réponse neutre — ne pas révéler si le compte existe
+    if (!user || user.role === 'ADMIN') {
+      res.json({ success: true, message: 'Si ce compte existe, un email a été envoyé.' })
+      return
+    }
+
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
+    const resetExpiry = new Date(Date.now() + 15 * 60 * 1000) // 15 min
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerifyCode: resetCode, emailVerifyExpiry: resetExpiry },
+    })
+
+    await transporter.sendMail({
+      from: `"KORAPACT" <${process.env.SMTP_USER}>`,
+      to: user.email,
+      subject: 'Réinitialisation de votre mot de passe KORAPACT',
+      html: `
+        <div style="max-width:520px;margin:40px auto;background:#0C1024;border:1px solid rgba(255,255,255,0.07);border-radius:24px;overflow:hidden;font-family:'Segoe UI',sans-serif;">
+          <div style="background:linear-gradient(135deg,#2563EB,#06B6D4);padding:40px;text-align:center;">
+            <div style="width:52px;height:52px;background:rgba(255,255,255,0.15);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:#fff;margin-bottom:16px;">K</div>
+            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;">KORAPACT</h1>
+          </div>
+          <div style="padding:40px;">
+            <h2 style="color:#fff;font-size:20px;font-weight:800;margin:0 0 12px;">Bonjour ${user.firstName} 👋</h2>
+            <p style="color:rgba(255,255,255,0.55);font-size:15px;line-height:1.7;margin:0 0 32px;">Votre code de réinitialisation de mot de passe :</p>
+            <div style="background:rgba(37,99,235,0.1);border:2px solid rgba(37,99,235,0.4);border-radius:20px;padding:32px;text-align:center;margin-bottom:32px;">
+              <div style="font-size:48px;font-weight:900;letter-spacing:20px;color:#fff;font-family:monospace;">${resetCode}</div>
+              <p style="color:rgba(255,255,255,0.4);font-size:13px;margin:16px 0 0;">Expire dans <strong style="color:#06B6D4;">15 minutes</strong></p>
+            </div>
+            <p style="color:rgba(255,255,255,0.3);font-size:13px;">Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+          </div>
+          <div style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
+            <p style="color:rgba(255,255,255,0.2);font-size:12px;margin:0;">© 2026 KORAPACT</p>
+          </div>
+        </div>
+      `,
+    })
+
+    res.json({ success: true, message: 'Si ce compte existe, un email a été envoyé.' })
+  } catch (e) {
+    console.error('[AUTH] Erreur forgot-password:', e)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
+
+// ═══════════════════════════════════════════════════════
+// RÉINITIALISATION DU MOT DE PASSE
+// ═══════════════════════════════════════════════════════
+
+router.post('/reset-password', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, code, newPassword } = req.body as { email?: string; code?: string; newPassword?: string }
+
+    if (!email || !code || !newPassword) {
+      res.status(400).json({ success: false, message: 'Email, code et nouveau mot de passe requis' }); return
+    }
+    if (newPassword.length < 8) {
+      res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caractères' }); return
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+    if (!user || !user.emailVerifyCode || !user.emailVerifyExpiry) {
+      res.status(400).json({ success: false, message: 'Code invalide ou expiré' }); return
+    }
+    if (new Date() > user.emailVerifyExpiry) {
+      res.status(400).json({ success: false, message: 'Code expiré — recommencez' }); return
+    }
+    if (user.emailVerifyCode !== code.trim()) {
+      res.status(400).json({ success: false, message: 'Code incorrect' }); return
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed, emailVerifyCode: null, emailVerifyExpiry: null },
+    })
+
+    successResponse(res, {}, 'Mot de passe réinitialisé avec succès ✅')
+  } catch (e) {
+    console.error('[AUTH] Erreur reset-password:', e)
+    res.status(500).json({ success: false, message: 'Erreur serveur' })
+  }
+})
