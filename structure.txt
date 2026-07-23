@@ -1,0 +1,363 @@
+.
+├── backup.sh
+├── baobab-api
+│   ├── dist
+│   │   ├── config
+│   │   │   ├── database.d.ts
+│   │   │   ├── database.d.ts.map
+│   │   │   ├── database.js
+│   │   │   ├── database.js.map
+│   │   │   ├── fees.d.ts
+│   │   │   ├── fees.d.ts.map
+│   │   │   ├── fees.js
+│   │   │   ├── fees.js.map
+│   │   │   ├── index.d.ts
+│   │   │   ├── index.d.ts.map
+│   │   │   ├── index.js
+│   │   │   ├── index.js.map
+│   │   │   ├── taxonomy.d.ts
+│   │   │   ├── taxonomy.d.ts.map
+│   │   │   ├── taxonomy.js
+│   │   │   └── taxonomy.js.map
+│   │   ├── index.d.ts
+│   │   ├── index.d.ts.map
+│   │   ├── index.js
+│   │   ├── index.js.map
+│   │   ├── jobs
+│   │   │   ├── monthlyRankings.d.ts
+│   │   │   ├── monthlyRankings.d.ts.map
+│   │   │   ├── monthlyRankings.js
+│   │   │   ├── monthlyRankings.js.map
+│   │   │   ├── waitlistPromotion.d.ts
+│   │   │   ├── waitlistPromotion.d.ts.map
+│   │   │   ├── waitlistPromotion.js
+│   │   │   └── waitlistPromotion.js.map
+│   │   ├── middleware
+│   │   │   ├── auth.d.ts
+│   │   │   ├── auth.d.ts.map
+│   │   │   ├── auth.js
+│   │   │   └── auth.js.map
+│   │   ├── routes
+│   │   │   ├── admin.d.ts
+│   │   │   ├── admin.d.ts.map
+│   │   │   ├── admin.js
+│   │   │   ├── admin.js.map
+│   │   │   ├── auth.d.ts
+│   │   │   ├── auth.d.ts.map
+│   │   │   ├── auth.js
+│   │   │   ├── auth.js.map
+│   │   │   ├── config.d.ts
+│   │   │   ├── config.d.ts.map
+│   │   │   ├── config.js
+│   │   │   ├── config.js.map
+│   │   │   ├── exports.d.ts
+│   │   │   ├── exports.d.ts.map
+│   │   │   ├── exports.js
+│   │   │   ├── exports.js.map
+│   │   │   ├── feed.d.ts
+│   │   │   ├── feed.d.ts.map
+│   │   │   ├── feed.js
+│   │   │   ├── feed.js.map
+│   │   │   ├── fund.d.ts
+│   │   │   ├── fund.d.ts.map
+│   │   │   ├── fund.js
+│   │   │   ├── fund.js.map
+│   │   │   ├── geo.d.ts
+│   │   │   ├── geo.d.ts.map
+│   │   │   ├── geo.js
+│   │   │   ├── geo.js.map
+│   │   │   ├── investments.d.ts
+│   │   │   ├── investments.d.ts.map
+│   │   │   ├── investments.js
+│   │   │   ├── investments.js.map
+│   │   │   ├── kyc.d.ts
+│   │   │   ├── kyc.d.ts.map
+│   │   │   ├── kyc.js
+│   │   │   ├── kyc.js.map
+│   │   │   ├── messages.d.ts
+│   │   │   ├── messages.d.ts.map
+│   │   │   ├── messages.js
+│   │   │   ├── messages.js.map
+│   │   │   ├── milestones.d.ts
+│   │   │   ├── milestones.d.ts.map
+│   │   │   ├── milestones.js
+│   │   │   ├── milestones.js.map
+│   │   │   ├── notifications.d.ts
+│   │   │   ├── notifications.d.ts.map
+│   │   │   ├── notifications.js
+│   │   │   ├── notifications.js.map
+│   │   │   ├── pdf.d.ts
+│   │   │   ├── pdf.d.ts.map
+│   │   │   ├── pdf.js
+│   │   │   ├── pdf.js.map
+│   │   │   ├── projects.d.ts
+│   │   │   ├── projects.d.ts.map
+│   │   │   ├── projects.js
+│   │   │   ├── projects.js.map
+│   │   │   ├── referral.d.ts
+│   │   │   ├── referral.d.ts.map
+│   │   │   ├── referral.js
+│   │   │   ├── referral.js.map
+│   │   │   ├── repayment.d.ts
+│   │   │   ├── repayment.d.ts.map
+│   │   │   ├── repayment.js
+│   │   │   ├── repayment.js.map
+│   │   │   ├── reputation.d.ts
+│   │   │   ├── reputation.d.ts.map
+│   │   │   ├── reputation.js
+│   │   │   ├── reputation.js.map
+│   │   │   ├── suppliers.d.ts
+│   │   │   ├── suppliers.d.ts.map
+│   │   │   ├── suppliers.js
+│   │   │   ├── suppliers.js.map
+│   │   │   ├── upload.d.ts
+│   │   │   ├── upload.d.ts.map
+│   │   │   ├── upload.js
+│   │   │   ├── upload.js.map
+│   │   │   ├── wallet.d.ts
+│   │   │   ├── wallet.d.ts.map
+│   │   │   ├── wallet.js
+│   │   │   └── wallet.js.map
+│   │   ├── services
+│   │   │   ├── builderGamification.d.ts
+│   │   │   ├── builderGamification.d.ts.map
+│   │   │   ├── builderGamification.js
+│   │   │   ├── builderGamification.js.map
+│   │   │   ├── paliers.d.ts
+│   │   │   ├── paliers.d.ts.map
+│   │   │   ├── paliers.js
+│   │   │   ├── paliers.js.map
+│   │   │   ├── paydunya.d.ts
+│   │   │   ├── paydunya.d.ts.map
+│   │   │   ├── paydunya.js
+│   │   │   ├── paydunya.js.map
+│   │   │   ├── pdf.d.ts
+│   │   │   ├── pdf.d.ts.map
+│   │   │   ├── pdf.js
+│   │   │   ├── pdf.js.map
+│   │   │   ├── reputationService.d.ts
+│   │   │   ├── reputationService.d.ts.map
+│   │   │   ├── reputationService.js
+│   │   │   └── reputationService.js.map
+│   │   └── utils
+│   │       ├── helpers.d.ts
+│   │       ├── helpers.d.ts.map
+│   │       ├── helpers.js
+│   │       ├── helpers.js.map
+│   │       ├── jwt.d.ts
+│   │       ├── jwt.d.ts.map
+│   │       ├── jwt.js
+│   │       └── jwt.js.map
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── prisma
+│   │   ├── migrations
+│   │   │   ├── 20260517011405_add_supplier_password
+│   │   │   │   └── migration.sql
+│   │   │   ├── 20260526132342_add_use_of_funds
+│   │   │   │   └── migration.sql
+│   │   │   └── migration_lock.toml
+│   │   ├── schema.prisma
+│   │   └── schema.prisma.pg.bak
+│   ├── reseed.js
+│   ├── seed.js
+│   ├── src
+│   │   ├── config
+│   │   │   ├── database.js
+│   │   │   ├── database.ts
+│   │   │   ├── fees.js
+│   │   │   ├── fees.ts
+│   │   │   ├── index.js
+│   │   │   ├── index.ts
+│   │   │   ├── taxonomy.js
+│   │   │   └── taxonomy.ts
+│   │   ├── index.js
+│   │   ├── index.ts
+│   │   ├── jobs
+│   │   │   ├── monthlyRankings.js
+│   │   │   ├── monthlyRankings.ts
+│   │   │   ├── waitlistPromotion.js
+│   │   │   └── waitlistPromotion.ts
+│   │   ├── middleware
+│   │   │   ├── auth.js
+│   │   │   └── auth.ts
+│   │   ├── routes
+│   │   │   ├── admin.js
+│   │   │   ├── admin.ts
+│   │   │   ├── auth.js
+│   │   │   ├── auth.ts
+│   │   │   ├── config.js
+│   │   │   ├── config.ts
+│   │   │   ├── exports.js
+│   │   │   ├── exports.ts
+│   │   │   ├── feed.js
+│   │   │   ├── feed.ts
+│   │   │   ├── fund.js
+│   │   │   ├── fund.ts
+│   │   │   ├── geo.js
+│   │   │   ├── geo.ts
+│   │   │   ├── investments.js
+│   │   │   ├── investments.ts
+│   │   │   ├── kyc.js
+│   │   │   ├── kyc.ts
+│   │   │   ├── messages.js
+│   │   │   ├── messages.ts
+│   │   │   ├── milestones.js
+│   │   │   ├── milestones.ts
+│   │   │   ├── notifications.js
+│   │   │   ├── notifications.ts
+│   │   │   ├── pdf.js
+│   │   │   ├── pdf.ts
+│   │   │   ├── projects.js
+│   │   │   ├── projects.ts
+│   │   │   ├── referral.js
+│   │   │   ├── referral.ts
+│   │   │   ├── repayment.js
+│   │   │   ├── repayment.ts
+│   │   │   ├── reputation.js
+│   │   │   ├── reputation.ts
+│   │   │   ├── suppliers.js
+│   │   │   ├── suppliers.ts
+│   │   │   ├── upload.js
+│   │   │   ├── upload.ts
+│   │   │   ├── wallet.js
+│   │   │   └── wallet.ts
+│   │   ├── services
+│   │   │   ├── builderGamification.js
+│   │   │   ├── builderGamification.ts
+│   │   │   ├── emailService.ts
+│   │   │   ├── paliers.js
+│   │   │   ├── paliers.ts
+│   │   │   ├── paydunya.js
+│   │   │   ├── paydunya.ts
+│   │   │   ├── pdf.js
+│   │   │   ├── pdf.ts
+│   │   │   ├── reputationService.js
+│   │   │   └── reputationService.ts
+│   │   └── utils
+│   │       ├── helpers.js
+│   │       ├── helpers.ts
+│   │       ├── jwt.js
+│   │       └── jwt.ts
+│   └── tsconfig.json
+├── baobab-web
+│   ├── README.md
+│   ├── app
+│   │   ├── academy
+│   │   │   └── page.tsx
+│   │   ├── admin
+│   │   │   ├── charts.tsx
+│   │   │   ├── kyc-pending
+│   │   │   │   └── page.tsx
+│   │   │   ├── milestones
+│   │   │   │   └── page.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── projects-pending
+│   │   │       └── page.tsx
+│   │   ├── auth
+│   │   │   ├── forgot-password
+│   │   │   │   └── page.tsx
+│   │   │   ├── login
+│   │   │   │   └── page.tsx
+│   │   │   ├── profile
+│   │   │   │   └── [userId]
+│   │   │   │       └── page.tsx
+│   │   │   └── register
+│   │   │       └── page.tsx
+│   │   ├── batisseurs
+│   │   │   └── page.tsx
+│   │   ├── builder
+│   │   │   └── page.tsx
+│   │   ├── dashboard
+│   │   │   ├── charts.tsx
+│   │   │   └── page.tsx
+│   │   ├── entrepreneur
+│   │   │   ├── [id]
+│   │   │   │   └── page.tsx
+│   │   │   ├── charts.tsx
+│   │   │   ├── milestones
+│   │   │   │   └── [projectId]
+│   │   │   │       └── page.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── page.tsx.bak
+│   │   ├── favicon.ico
+│   │   ├── feed
+│   │   │   └── [projectId]
+│   │   │       └── page.tsx
+│   │   ├── fonts
+│   │   │   ├── GeistMonoVF.woff
+│   │   │   └── GeistVF.woff
+│   │   ├── fund
+│   │   │   └── page.tsx
+│   │   ├── globals.css
+│   │   ├── investments
+│   │   │   └── page.tsx
+│   │   ├── kyc
+│   │   │   └── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── leaderboard
+│   │   │   └── page.tsx
+│   │   ├── mentor
+│   │   │   └── page.tsx
+│   │   ├── messages
+│   │   │   └── page.tsx
+│   │   ├── notifications
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   ├── profile
+│   │   │   ├── [id]
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx
+│   │   ├── projects
+│   │   │   ├── [id]
+│   │   │   │   └── page.tsx
+│   │   │   ├── new
+│   │   │   │   └── page.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── submit
+│   │   │       └── page.tsx
+│   │   ├── referral
+│   │   │   └── page.tsx
+│   │   ├── savings
+│   │   │   └── page.tsx
+│   │   ├── supplier
+│   │   │   └── dashboard
+│   │   │       └── page.tsx
+│   │   ├── suppliers
+│   │   │   ├── page.tsx
+│   │   │   └── register
+│   │   │       └── page.tsx
+│   │   ├── transparence
+│   │   │   └── page.tsx
+│   │   └── wallet
+│   │       ├── deposit
+│   │       │   └── page.tsx
+│   │       ├── history
+│   │       │   └── page.tsx
+│   │       └── withdraw
+│   │           └── page.tsx
+│   ├── components
+│   │   ├── MentorPicker.tsx
+│   │   ├── ReputationWidget.tsx
+│   │   └── ShareButtons.tsx
+│   ├── hooks
+│   │   ├── useGeo.tsx
+│   │   ├── usePlatformConfig.ts
+│   │   ├── useRequireRole.ts
+│   │   └── useRoleRedirect.ts
+│   ├── lib
+│   │   └── api.ts
+│   ├── middleware.ts.bak
+│   ├── next-env.d.ts
+│   ├── next.config.mjs
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.mjs
+│   ├── public
+│   │   └── countries.json
+│   ├── tailwind.config.ts
+│   └── tsconfig.json
+├── docker-compose.yml
+└── structure.txt
+
+71 directories, 290 files
