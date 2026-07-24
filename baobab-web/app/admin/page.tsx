@@ -4,7 +4,7 @@ import { useRequireRole } from "@/hooks/useRequireRole";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { authGet, authPost, authPatch } from "@/lib/api";
+import { authGet, authPost, authPatch, authFetch } from "@/lib/api";
 import AdminCharts from "./charts";
 
 const TABS = [
@@ -2766,6 +2766,48 @@ export default function AdminPage() {
                             await loadUserDetail(u.id);
                           }} className="text-xs bg-gray-800 text-white px-2 py-1 rounded-lg hover:bg-gray-900">
                             🔍 Détail
+                          </button>
+                          <button onClick={async () => {
+                            if (!window.confirm(`Supprimer définitivement ${u.email} ?`)) return;
+                            const res = await authFetch(`/api/admin/users/${u.id}`, { method: 'DELETE' });
+                            const data = await res.json();
+                            if (data.success) { flash('Utilisateur supprimé'); loadData(); }
+                            else if (data.canAnonymize) {
+                              if (window.confirm('Données financières détectées. Anonymiser à la place ?')) {
+                                const r = await authFetch(`/api/admin/users/${u.id}/anonymize`, { method: 'PATCH' });
+                                const d = await r.json();
+                                if (d.success) { flash('Compte anonymisé'); loadData(); }
+                              }
+                            }
+                            else flash('Erreur: ' + data.message);
+                          }} className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg border border-red-200 hover:bg-red-100">
+                            🗑️ Suppr.
+                          </button>
+                          <button onClick={async () => {
+                            if (!window.confirm(`Supprimer définitivement ${u.email} ?`)) return;
+                            const res = await authFetch(`/api/admin/users/${u.id}`, { method: 'DELETE' });
+                            const data = await res.json();
+                            if (data.success) { flash('Utilisateur supprimé'); loadData(); }
+                            else if (data.canAnonymize) {
+                              if (window.confirm('Données financières détectées. Anonymiser à la place ?')) {
+                                const r = await authFetch(`/api/admin/users/${u.id}/anonymize`, { method: 'PATCH' });
+                                const d = await r.json();
+                                if (d.success) { flash('Compte anonymisé'); loadData(); }
+                              }
+                            }
+                            else flash('Erreur: ' + data.message);
+                          }} className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg border border-red-200 hover:bg-red-100">
+                            🗑️ Suppr.
+                          </button>
+                          <button onClick={async () => {
+                            if (!window.confirm("Supprimer " + u.email + " ?")) return;
+                            const res = await authFetch("/api/admin/users/" + u.id, { method: "DELETE" });
+                            const data = await res.json();
+                            if (data.success) { flash("Supprime"); loadData(); }
+                            else if (data.canAnonymize) { if (window.confirm("Anonymiser ?")) { const r = await authFetch("/api/admin/users/" + u.id + "/anonymize", { method: "PATCH" }); const d = await r.json(); if (d.success) { flash("Anonymise"); loadData(); } } }
+                            else flash("Erreur: " + data.message);
+                          }} className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg border border-red-200">
+                            Suppr.
                           </button>
                           <button onClick={async () => {
                             const newRole = prompt(`Changer rôle de ${u.firstName} (INVESTOR/ENTREPRENEUR/MENTOR/ADMIN):`);
