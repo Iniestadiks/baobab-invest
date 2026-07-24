@@ -2107,7 +2107,7 @@ export default function AdminPage() {
 
       const pendingList = pendingProj.data?.projects || [];
       const allProjList = allProj.data?.projects || [];
-      const userList = usrs.data || [];
+      const userList = usrs.data?.users || usrs.data || [];
       const supplList = suppl.data || [];
 
       setProjects(pendingList);
