@@ -280,3 +280,20 @@ a { text-decoration: none; color: inherit; }
   transition: border-color 0.2s; outline: none;
 }
 .input-field:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.1); }
+
+/* ── Fix inputs dans pages light (KYC, register, etc.) ─────────── */
+.input-field,
+input[type="date"],
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="password"],
+select,
+textarea {
+  color: #111827 !important;
+  background: #fff !important;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+}
