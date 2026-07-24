@@ -714,7 +714,7 @@ router.patch('/avatar', authenticate, async (req: AuthRequest, res: Response): P
 router.get('/profile/:userId', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: String(req.params.userId) },
+      where: { id: req.params.userId },
       select: {
         id: true, firstName: true, lastName: true, role: true,
         city: true, country: true, bio: true, profileImageUrl: true,
@@ -730,8 +730,8 @@ router.get('/profile/:userId', async (req: Request, res: Response): Promise<void
 
     const projects = await prisma.project.findMany({
       where: user.role === 'MENTOR'
-        ? { mentorId: String(req.params.userId), status: { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS', 'COMPLETED'] } }
-        : { entrepreneurId: String(req.params.userId), status: { not: 'PENDING_REVIEW' } },
+        ? { mentorId: req.params.userId, status: { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS', 'COMPLETED'] } }
+        : { entrepreneurId: req.params.userId, status: { not: 'PENDING_REVIEW' } },
       select: { id: true, title: true, sector: true, city: true, raisedAmount: true, status: true },
       orderBy: { createdAt: 'desc' },
     })
@@ -816,8 +816,7 @@ async function logAdminAction(
   }
 }
 
-export { logAdminAction }
-export default router
+
 // ═══════════════════════════════════════════════════════
 // MOT DE PASSE OUBLIÉ
 // ═══════════════════════════════════════════════════════
@@ -829,14 +828,13 @@ router.post('/forgot-password', async (req: Request, res: Response): Promise<voi
 
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
 
-    // Réponse neutre — ne pas révéler si le compte existe
     if (!user || user.role === 'ADMIN') {
       res.json({ success: true, message: 'Si ce compte existe, un email a été envoyé.' })
       return
     }
 
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
-    const resetExpiry = new Date(Date.now() + 15 * 60 * 1000) // 15 min
+    const resetExpiry = new Date(Date.now() + 15 * 60 * 1000)
 
     await prisma.user.update({
       where: { id: user.id },
@@ -854,22 +852,22 @@ router.post('/forgot-password', async (req: Request, res: Response): Promise<voi
             <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;">KORAPACT</h1>
           </div>
           <div style="padding:40px;">
-            <h2 style="color:#fff;font-size:20px;font-weight:800;margin:0 0 12px;">Bonjour ${user.firstName} 👋</h2>
-            <p style="color:rgba(255,255,255,0.55);font-size:15px;line-height:1.7;margin:0 0 32px;">Votre code de réinitialisation de mot de passe :</p>
+            <h2 style="color:#fff;font-size:20px;font-weight:800;margin:0 0 12px;">Bonjour ${user.firstName}</h2>
+            <p style="color:rgba(255,255,255,0.55);font-size:15px;line-height:1.7;margin:0 0 32px;">Votre code de réinitialisation :</p>
             <div style="background:rgba(37,99,235,0.1);border:2px solid rgba(37,99,235,0.4);border-radius:20px;padding:32px;text-align:center;margin-bottom:32px;">
               <div style="font-size:48px;font-weight:900;letter-spacing:20px;color:#fff;font-family:monospace;">${resetCode}</div>
               <p style="color:rgba(255,255,255,0.4);font-size:13px;margin:16px 0 0;">Expire dans <strong style="color:#06B6D4;">15 minutes</strong></p>
             </div>
-            <p style="color:rgba(255,255,255,0.3);font-size:13px;">Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
+            <p style="color:rgba(255,255,255,0.3);font-size:13px;">Si vous n avez pas demande cette reinitialisation, ignorez cet email.</p>
           </div>
           <div style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
-            <p style="color:rgba(255,255,255,0.2);font-size:12px;margin:0;">© 2026 KORAPACT</p>
+            <p style="color:rgba(255,255,255,0.2);font-size:12px;margin:0;">2026 KORAPACT</p>
           </div>
         </div>
       `,
     })
 
-    res.json({ success: true, message: 'Si ce compte existe, un email a été envoyé.' })
+    res.json({ success: true, message: 'Si ce compte existe, un email a ete envoye.' })
   } catch (e) {
     console.error('[AUTH] Erreur forgot-password:', e)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
@@ -888,15 +886,15 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: 'Email, code et nouveau mot de passe requis' }); return
     }
     if (newPassword.length < 8) {
-      res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caractères' }); return
+      res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caracteres' }); return
     }
 
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
     if (!user || !user.emailVerifyCode || !user.emailVerifyExpiry) {
-      res.status(400).json({ success: false, message: 'Code invalide ou expiré' }); return
+      res.status(400).json({ success: false, message: 'Code invalide ou expire' }); return
     }
     if (new Date() > user.emailVerifyExpiry) {
-      res.status(400).json({ success: false, message: 'Code expiré — recommencez' }); return
+      res.status(400).json({ success: false, message: 'Code expire — recommencez' }); return
     }
     if (user.emailVerifyCode !== code.trim()) {
       res.status(400).json({ success: false, message: 'Code incorrect' }); return
@@ -908,9 +906,12 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
       data: { password: hashed, emailVerifyCode: null, emailVerifyExpiry: null },
     })
 
-    successResponse(res, {}, 'Mot de passe réinitialisé avec succès ✅')
+    successResponse(res, {}, 'Mot de passe reinitialise avec succes')
   } catch (e) {
     console.error('[AUTH] Erreur reset-password:', e)
     res.status(500).json({ success: false, message: 'Erreur serveur' })
   }
 })
+
+export { logAdminAction }
+export default router
