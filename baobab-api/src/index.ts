@@ -37,6 +37,7 @@ process.on('unhandledRejection', (err) => {
 
 const app = express()
 app.use(helmet())
+app.set("trust proxy", 1)
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'https://korapact.com',
