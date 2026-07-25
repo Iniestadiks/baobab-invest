@@ -69,23 +69,28 @@ export default function ProfilePage() {
   const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { setMsg("❌ Photo trop lourde (max 2MB)"); return; }
+    if (file.size > 5 * 1024 * 1024) { setMsg("❌ Photo trop lourde (max 5MB)"); return; }
+    const allowed = ["image/jpeg","image/jpg","image/png","image/webp"];
+    if (!allowed.includes(file.type)) { setMsg("❌ Format non supporté (JPG, PNG, WEBP)"); return; }
     setUploading(true);
     try {
-      // Convertir en base64
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        const res = await authPatch("/api/auth/avatar", { avatarUrl: base64 });
-        if (res.success) {
-          setUser((prev: any) => ({ ...prev, profileImageUrl: base64 }));
-          setMsg("✅ Photo mise à jour !");
-        } else setMsg("❌ " + res.message);
-        setUploading(false);
-        setTimeout(() => setMsg(""), 3000);
-      };
-      reader.readAsDataURL(file);
-    } catch { setUploading(false); }
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "korapact_avatars");
+      formData.append("folder", `korapact/avatars/${user?.id || "unknown"}`);
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      const cloudData = await cloudRes.json();
+      if (!cloudData.secure_url) { setMsg("❌ Erreur upload Cloudinary"); setUploading(false); return; }
+      const res = await authPatch("/api/auth/avatar", { avatarUrl: cloudData.secure_url });
+      if (res.success) {
+        setUser((prev: any) => ({ ...prev, profileImageUrl: cloudData.secure_url }));
+        setMsg("✅ Photo mise à jour !");
+      } else setMsg("❌ " + res.message);
+    } catch { setMsg("❌ Erreur upload photo"); }
+    finally { setUploading(false); setTimeout(() => setMsg(""), 3000); }
   };
 
   if (loading) return (
