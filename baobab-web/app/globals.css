@@ -297,3 +297,26 @@ textarea {
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0);
 }
+
+/* ── Fix inputs admin (fond blanc, texte noir) ─────────────────── */
+.bg-gray-50 input,
+.bg-white input,
+.bg-white textarea,
+.bg-orange-50 input,
+.bg-red-50 input,
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="datetime-local"],
+textarea,
+select {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important;
+}
