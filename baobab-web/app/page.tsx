@@ -156,31 +156,48 @@ export default function LandingPage() {
           <div className="orb orb-1"/><div className="orb orb-2"/><div className="orb orb-3"/>
         </div>
         <div className="hero-content">
-          <div className="hero-badge">
-            <div className="badge-dot"><div className="badge-dot-inner"/></div>
-            Plateforme d'investissement communautaire · 2026
-          </div>
-          <h1 className="hero-title">
-            Faites fructifier<br/>
-            <span className="gradient-text">votre capital.</span>
-          </h1>
-          <p className="hero-sub">
-            Investissez dans des projets vérifiés, soutenez des entrepreneurs ambitieux et percevez des retours mensuels. Dès <strong style={{color:"#C8860D"}}>5 000 F</strong>.
-          </p>
-          <div className="hero-actions">
-            <Link href="/auth/register" className="btn-hero-primary">Commencer maintenant →</Link>
-            <Link href="/projects" className="btn-hero-ghost">Explorer les projets</Link>
-          </div>
-          <div className="stats-grid">
-            {statItems.map(s => (
-              <div key={s.label} className="stat-card">
-                <div className="stat-accent" style={{background:`linear-gradient(90deg,${s.color},transparent)`}}/>
-                <div className="stat-value">
-                  {s.value === null ? <Skeleton h={28} w="80%" /> : s.value}
-                </div>
-                <div className="stat-label">{s.label}</div>
+          <div className="hero-grid">
+            <div>
+              <div className="hero-badge">
+                <div className="badge-dot"><div className="badge-dot-inner"/></div>
+                Plateforme d'investissement communautaire · 2026
               </div>
-            ))}
+              <h1 className="hero-title">
+                Faites fructifier<br/>
+                <span className="gradient-text">votre capital.</span>
+              </h1>
+              <p className="hero-sub">
+                Investissez dans des projets vérifiés, soutenez des entrepreneurs ambitieux et percevez des retours mensuels. Dès <strong style={{color:"#C8860D"}}>5 000 F</strong>.
+              </p>
+              <div className="hero-actions">
+                <Link href="/auth/register" className="btn-hero-primary">Commencer maintenant →</Link>
+                <Link href="/projects" className="btn-hero-ghost">Explorer les projets</Link>
+              </div>
+              <div className="stats-grid">
+                {statItems.map(s => (
+                  <div key={s.label} className="stat-card">
+                    <div className="stat-accent" style={{background:`linear-gradient(90deg,${s.color},transparent)`}}/>
+                    <div className="stat-value">
+                      {s.value === null ? <Skeleton h={28} w="80%" /> : s.value}
+                    </div>
+                    <div className="stat-label">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="hero-visual">
+              <div className="hv-ring"/>
+              <div className="hv-ring hv-ring-2"/>
+              <div className="hv-center"><span className="hv-sprout">🌱</span></div>
+              <div className="hv-hand hv-hand-1">🤝</div>
+              <div className="hv-hand hv-hand-2">💼</div>
+              <div className="hv-hand hv-hand-3">🚀</div>
+              <div className="hv-hand hv-hand-4">🎓</div>
+              <div className="hv-hand hv-hand-5">🏗️</div>
+              <div className="hv-hand hv-hand-6">💰</div>
+              <div className="hv-badge hv-badge-1">🟢 +23% retour moyen</div>
+              <div className="hv-badge hv-badge-2">🔒 100% transparent</div>
+            </div>
           </div>
         </div>
       </section>
