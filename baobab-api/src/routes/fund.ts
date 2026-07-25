@@ -295,9 +295,6 @@ router.post('/confirm/:id', async (req: any, res: Response): Promise<void> => {
     successResponse(res, { confirmed: true }, 'Contribution confirmée')
   } catch (e) { console.error(e); errorResponse(res) }
 })
-    successResponse(res, { confirmed: true }, 'Contribution confirmée')
-  } catch (e) { console.error(e); errorResponse(res) }
-})
 
 // ─── ADMIN — CONFIRMER MANUELLEMENT ─────────────────────────────────────────
 router.post('/admin/confirm/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
