@@ -161,38 +161,35 @@ export default function LandingPage() {
       </section>
 
       {/* ROLES */}
-      <section className="section" style={{background:"#0C1024"}}>
+      <section className="section section-light">
         <div className="section-inner">
           <div className="section-header" style={{textAlign:"center"}}>
-            <div className="section-eyebrow" style={{color:"#22c55e"}}>Votre profil</div>
+            <div className="badge-light" style={{margin:"0 auto 20px",width:"fit-content"}}>👥 Votre profil</div>
             <h2 className="section-title">Une plateforme pour chaque ambition</h2>
             <p className="section-sub" style={{maxWidth:440,margin:"0 auto"}}>Investisseur, entrepreneur, mentor ou mécène — choisissez votre rôle.</p>
           </div>
           <div className="roles-grid">
             {[
-              {role:"Investisseur",icon:"💼",href:"/auth/register?role=INVESTOR",color:"#16a34a",grad:"rgba(22,163,74,0.12)",desc:"Financez des projets vérifiés et percevez des retours mensuels.",gain:`+${fees.return_min||23}% min`},
-              {role:"Entrepreneur",icon:"🚀",href:"/auth/register?role=ENTREPRENEUR",color:"#22c55e",grad:"rgba(34,197,94,0.12)",desc:"Obtenez un financement communautaire sans banque, en moins de 30 jours.",gain:"Financé en 30j"},
-              {role:"Mentor",icon:"🎓",href:"/auth/register?role=MENTOR",color:"#8B5CF6",grad:"rgba(139,92,246,0.12)",desc:"Parrainez des projets et percevez une commission à la clôture.",gain:`${fees.commission_mentor||2}% commission`},
-              {role:"Bâtisseur",icon:"🏗️",href:"/auth/register?role=BUILDER",color:"#F59E0B",grad:"rgba(245,158,11,0.12)",desc:"Mécènes et entreprises — soutenez à grande échelle.",gain:"Impact & prestige"},
+              {role:"Investisseur",icon:"💼",href:"/auth/register?role=INVESTOR",color:"#16a34a",grad:"rgba(22,163,74,0.06)",desc:"Financez des projets vérifiés et percevez des retours mensuels.",gain:`+${fees.return_min||23}% min`},
+              {role:"Entrepreneur",icon:"🚀",href:"/auth/register?role=ENTREPRENEUR",color:"#22c55e",grad:"rgba(34,197,94,0.06)",desc:"Obtenez un financement communautaire sans banque, en moins de 30 jours.",gain:"Financé en 30j"},
+              {role:"Mentor",icon:"🎓",href:"/auth/register?role=MENTOR",color:"#8B5CF6",grad:"rgba(139,92,246,0.06)",desc:"Parrainez des projets et percevez une commission à la clôture.",gain:`${fees.commission_mentor||2}% commission`},
+              {role:"Bâtisseur",icon:"🏗️",href:"/auth/register?role=BUILDER",color:"#F59E0B",grad:"rgba(245,158,11,0.06)",desc:"Mécènes et entreprises — soutenez à grande échelle.",gain:"Impact & prestige"},
             ].map(p => (
-              <div key={p.role} className="role-card"
-                style={{borderColor:`${p.color}20`}}
+              <div key={p.role} className="role-card-light"
                 onMouseEnter={e => {
                   const el = e.currentTarget as HTMLElement;
                   el.style.background = p.grad;
-                  el.style.borderColor = `${p.color}40`;
-                  el.style.boxShadow = `0 24px 64px ${p.color}18`;
+                  el.style.borderColor = `${p.color}35`;
                 }}
                 onMouseLeave={e => {
                   const el = e.currentTarget as HTMLElement;
-                  el.style.background = "rgba(255,255,255,0.025)";
-                  el.style.borderColor = `${p.color}20`;
-                  el.style.boxShadow = "none";
+                  el.style.background = "#fff";
+                  el.style.borderColor = "rgba(11,17,32,0.06)";
                 }}>
                 <span className="role-icon">{p.icon}</span>
                 <h3 className="role-title">{p.role}</h3>
                 <p className="role-desc">{p.desc}</p>
-                <span className="role-badge" style={{background:`${p.color}18`,color:p.color,border:`1px solid ${p.color}30`}}>{p.gain}</span>
+                <span className="role-badge" style={{background:`${p.color}14`,color:p.color,border:`1px solid ${p.color}28`}}>{p.gain}</span>
                 <Link href={p.href} className="role-btn"
                   style={{background:`linear-gradient(135deg,${p.color},${p.color}bb)`,color:p.role==="Bâtisseur"?"#050810":"#fff"}}>
                   Commencer →
@@ -232,27 +229,27 @@ export default function LandingPage() {
 
       {/* PROJECTS */}
       {projects.length > 0 && (
-        <section id="projets" className="section" style={{background:"#0C1024"}}>
+        <section id="projets" className="section section-light">
           <div className="section-inner">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:56,flexWrap:"wrap",gap:16}}>
               <div>
-                <div className="section-eyebrow" style={{color:"#22c55e"}}>Live</div>
+                <div className="badge-light" style={{marginBottom:16,width:"fit-content"}}>🟢 Live</div>
                 <h2 className="section-title" style={{marginBottom:0}}>Projets en cours</h2>
               </div>
-              <Link href="/projects" className="btn-section-ghost">Voir tous →</Link>
+              <Link href="/projects" className="btn-section-ghost" style={{borderColor:"rgba(11,17,32,0.15)",color:"rgba(11,17,32,0.7)"}}>Voir tous →</Link>
             </div>
             <div className="projects-grid">
               {projects.map((p: any) => {
                 const pct = Math.round(((p.raisedAmount || 0) / (p.goalAmount || 1)) * 100);
                 return (
-                  <Link key={p.id} href={`/projects/${p.id}`} className="project-card">
-                    <div className="progress-bar"><div className="progress-fill" style={{width:`${Math.min(pct,100)}%`}}/></div>
+                  <Link key={p.id} href={`/projects/${p.id}`} className="project-card-light">
+                    <div className="progress-bar" style={{background:"rgba(11,17,32,0.05)"}}><div className="progress-fill" style={{width:`${Math.min(pct,100)}%`}}/></div>
                     <div className="project-body">
                       <span className="project-sector">{p.sector}</span>
                       <h3 className="project-title">{p.title}</h3>
                       <p className="project-desc">{p.description}</p>
                       <div className="project-metrics">
-                        {[{l:"Retour",v:`${p.expectedReturn}%`,c:"#22c55e"},{l:"Durée",v:`${p.durationMonths}m`,c:"#86efac"},{l:"Levé",v:`${pct}%`,c:"#F59E0B"}].map(m=>(
+                        {[{l:"Retour",v:`${p.expectedReturn}%`,c:"#16a34a"},{l:"Durée",v:`${p.durationMonths}m`,c:"#0B1120"},{l:"Levé",v:`${pct}%`,c:"#D97706"}].map(m=>(
                           <div key={m.l} className="metric">
                             <div className="metric-val" style={{color:m.c}}>{m.v}</div>
                             <div className="metric-label">{m.l}</div>
@@ -261,8 +258,8 @@ export default function LandingPage() {
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div>
-                          <div style={{fontWeight:900,fontSize:14}}>{fmt(p.raisedAmount||0)} F</div>
-                          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.32)"}}>sur {fmt(p.goalAmount||0)} F</div>
+                          <div style={{fontWeight:900,fontSize:14,color:"#0B1120"}}>{fmt(p.raisedAmount||0)} F</div>
+                          <div style={{fontSize:11.5,color:"rgba(11,17,32,0.35)"}}>sur {fmt(p.goalAmount||0)} F</div>
                         </div>
                         <div style={{fontWeight:700,fontSize:13,color:"#fff",padding:"9px 18px",borderRadius:12,background:"linear-gradient(135deg,#16a34a,#22c55e)"}}>
                           Investir →
@@ -321,44 +318,44 @@ export default function LandingPage() {
       </section>
 
       {/* BATISSEURS */}
-      <section id="batisseurs" className="section" style={{background:"#0C1024"}}>
+      <section id="batisseurs" className="section section-light">
         <div className="section-inner">
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center"}}>
             <div>
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.25)",borderRadius:100,padding:"5px 14px",fontSize:11.5,fontWeight:700,color:"#F59E0B",marginBottom:24}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.22)",borderRadius:100,padding:"5px 14px",fontSize:11.5,fontWeight:700,color:"#D97706",marginBottom:24}}>
                 🏗️ Rôle premium — Bâtisseur
               </div>
-              <h2 className="section-title">Devenez un<br/><span style={{color:"#F59E0B"}}>Bâtisseur d'avenir</span></h2>
-              <p style={{fontSize:17,color:"rgba(255,255,255,0.45)",lineHeight:1.8,marginBottom:28}}>
+              <h2 className="section-title">Devenez un<br/><span style={{color:"#D97706"}}>Bâtisseur d'avenir</span></h2>
+              <p style={{fontSize:17,color:"rgba(11,17,32,0.5)",lineHeight:1.8,marginBottom:28}}>
                 Mécènes, entreprises, fonds — investissez à grande échelle et bénéficiez d'une visibilité exceptionnelle.
               </p>
               {["Reconnaissance publique sur la plateforme","Dashboard dédié avec impact mesuré","Connexion directe avec les entrepreneurs","Hall of Fame des plus grands Bâtisseurs"].map(item=>(
                 <div key={item} style={{display:"flex",alignItems:"center",gap:12,marginBottom:13}}>
-                  <div style={{width:18,height:18,borderRadius:"50%",background:"rgba(245,158,11,0.15)",border:"1px solid rgba(245,158,11,0.3)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    <div style={{width:6,height:6,borderRadius:"50%",background:"#F59E0B"}}/>
+                  <div style={{width:18,height:18,borderRadius:"50%",background:"rgba(245,158,11,0.12)",border:"1px solid rgba(245,158,11,0.3)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:"#D97706"}}/>
                   </div>
-                  <span style={{fontSize:14,color:"rgba(255,255,255,0.55)"}}>{item}</span>
+                  <span style={{fontSize:14,color:"rgba(11,17,32,0.65)"}}>{item}</span>
                 </div>
               ))}
               <Link href="/auth/register?role=BUILDER" className="btn-section-primary"
-                style={{marginTop:28,background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#050810"}}>
+                style={{marginTop:28,background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#050810",boxShadow:"0 8px 24px rgba(245,158,11,0.3)"}}>
                 🏗️ Devenir Bâtisseur →
               </Link>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               {[
-                {icon:"🏢",title:"Entreprises",desc:"RSE & impact mesurable",color:"#F59E0B"},
+                {icon:"🏢",title:"Entreprises",desc:"RSE & impact mesurable",color:"#D97706"},
                 {icon:"🏛️",title:"Institutions",desc:"Partenariats officiels",color:"#16a34a"},
-                {icon:"🌐",title:"International",desc:"Accès global",color:"#22c55e"},
-                {icon:"💎",title:"Mécènes",desc:"Philanthropie moderne",color:"#8B5CF6"},
+                {icon:"🌐",title:"International",desc:"Accès global",color:"#059669"},
+                {icon:"💎",title:"Mécènes",desc:"Philanthropie moderne",color:"#7C3AED"},
               ].map(b=>(
                 <div key={b.title}
-                  style={{background:`${b.color}08`,border:`1px solid ${b.color}20`,borderRadius:20,padding:"26px 18px",textAlign:"center",transition:"all 0.25s",cursor:"pointer"}}
-                  onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.transform="translateY(-4px)";el.style.borderColor=`${b.color}40`;}}
-                  onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.transform="translateY(0)";el.style.borderColor=`${b.color}20`;}}>
+                  style={{background:"#fff",border:`1px solid ${b.color}18`,borderRadius:20,padding:"26px 18px",textAlign:"center",transition:"all 0.25s",cursor:"pointer",boxShadow:"0 1px 3px rgba(11,17,32,0.04), 0 8px 20px rgba(11,17,32,0.03)"}}
+                  onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.transform="translateY(-4px)";el.style.borderColor=`${b.color}45`;el.style.boxShadow=`0 20px 40px ${b.color}12`;}}
+                  onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.transform="translateY(0)";el.style.borderColor=`${b.color}18`;el.style.boxShadow="0 1px 3px rgba(11,17,32,0.04), 0 8px 20px rgba(11,17,32,0.03)";}}>
                   <div style={{fontSize:36,marginBottom:12}}>{b.icon}</div>
-                  <div style={{fontWeight:700,fontSize:14,color:"#fff",marginBottom:4}}>{b.title}</div>
-                  <div style={{fontSize:12,color:"rgba(255,255,255,0.35)"}}>{b.desc}</div>
+                  <div style={{fontWeight:700,fontSize:14,color:"#0B1120",marginBottom:4}}>{b.title}</div>
+                  <div style={{fontSize:12,color:"rgba(11,17,32,0.4)"}}>{b.desc}</div>
                 </div>
               ))}
             </div>

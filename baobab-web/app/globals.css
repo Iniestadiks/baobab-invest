@@ -339,3 +339,101 @@ textarea::placeholder {
 .text-red-600   { color: #dc2626 !important; }
 .text-orange-700{ color: #c2410c !important; }
 .text-purple-700{ color: #7e22ce !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   DESIGN SYSTEM v2 — Alternance sections claires/sombres (premium SaaS)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Sections claires — contraste avec le hero sombre */
+.section-light {
+  background: #FAFBFC;
+  color: #0B1120;
+  position: relative;
+}
+.section-light .section-eyebrow { color: #16a34a; }
+.section-light .section-title { color: #0B1120; }
+.section-light .section-sub { color: rgba(11,17,32,0.55); }
+
+/* Cards premium sur fond clair */
+.role-card-light {
+  border-radius: 24px; padding: 30px 26px;
+  background: #fff;
+  border: 1px solid rgba(11,17,32,0.06);
+  box-shadow: 0 1px 3px rgba(11,17,32,0.04), 0 12px 32px rgba(11,17,32,0.03);
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer; position: relative; overflow: hidden;
+}
+.role-card-light:hover {
+  transform: translateY(-8px) scale(1.01);
+  box-shadow: 0 4px 12px rgba(11,17,32,0.06), 0 24px 48px rgba(11,17,32,0.08);
+}
+.role-card-light .role-title { color: #0B1120; }
+.role-card-light .role-desc { color: rgba(11,17,32,0.5); }
+
+.step-card-light {
+  background: #fff;
+  border: 1px solid rgba(11,17,32,0.06);
+  border-radius: 24px; padding: 40px 32px; position: relative; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(11,17,32,0.04), 0 8px 24px rgba(11,17,32,0.03);
+  transition: all 0.3s;
+}
+.step-card-light:hover {
+  border-color: rgba(22,163,74,0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(11,17,32,0.05), 0 20px 40px rgba(22,163,74,0.08);
+}
+.step-card-light .step-title { color: #0B1120; }
+.step-card-light .step-desc { color: rgba(11,17,32,0.5); }
+.step-card-light .step-num { color: rgba(11,17,32,0.04) !important; }
+
+.project-card-light {
+  background: #fff;
+  border: 1px solid rgba(11,17,32,0.06);
+  border-radius: 24px; overflow: hidden; transition: all 0.3s; display: block;
+  box-shadow: 0 1px 3px rgba(11,17,32,0.04), 0 8px 24px rgba(11,17,32,0.03);
+}
+.project-card-light:hover {
+  border-color: rgba(22,163,74,0.25);
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(11,17,32,0.06), 0 24px 48px rgba(11,17,32,0.1);
+}
+.project-card-light .project-title { color: #0B1120; }
+.project-card-light .project-desc { color: rgba(11,17,32,0.45); }
+.project-card-light .metric { background: rgba(11,17,32,0.03); }
+.project-card-light .metric-label { color: rgba(11,17,32,0.35); }
+
+.fee-row-light {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; background: #fff; border: 1px solid rgba(11,17,32,0.06);
+  border-radius: 16px; transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(11,17,32,0.03);
+}
+.fee-row-light:hover { border-color: rgba(22,163,74,0.2); box-shadow: 0 4px 12px rgba(11,17,32,0.05); }
+.fee-row-light .fee-label-title { color: #0B1120 !important; }
+.fee-row-light .fee-label-note { color: rgba(11,17,32,0.4) !important; }
+
+/* Badge premium réutilisable clair */
+.badge-light {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(22,163,74,0.08); border: 1px solid rgba(22,163,74,0.18);
+  border-radius: 100px; padding: 6px 16px;
+  font-size: 11.5px; font-weight: 700; color: #15803d;
+}
+
+/* Divider décoratif entre sections */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(11,17,32,0.08), transparent);
+}
+
+/* Glow vert premium pour cartes flottantes sombres sur fond clair */
+.floating-dark-card {
+  background: linear-gradient(160deg, #0C1024 0%, #050810 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 28px;
+  box-shadow: 0 20px 60px rgba(11,17,32,0.15), 0 8px 24px rgba(22,163,74,0.08);
+}
+
+@media (max-width: 768px) {
+  .role-card-light, .step-card-light, .project-card-light { border-radius: 20px; }
+}
