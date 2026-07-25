@@ -303,76 +303,9 @@ router.post('/:id/reject', authenticate, requireAdmin, async (req: AuthRequest, 
   }
 })
 
-// Système de remboursement investisseurs (fin de projet)
-router.post('/project/:projectId/reimburse', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const projectId = req.params.projectId
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: { investments: { include: { user: { include: { wallet: true } } } } }
-    })
-
-    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
-
-    let totalReimbursed = 0
-    const results = []
-
-    for (const inv of project.investments) {
-      if (!inv.user.wallet) continue
-      const totalReturn = inv.amount + inv.expectedReturn
-      const commission = inv.expectedReturn * 0.04
-
-      await prisma.$transaction([
-        // Créditer le wallet de l'investisseur
-        prisma.wallet.update({
-          where: { userId: inv.userId },
-          data: {
-            balance: { increment: totalReturn - commission },
-            escrowBalance: { decrement: inv.amount },
-            totalEarned: { increment: inv.expectedReturn - commission },
-          }
-        }),
-        // Mettre à jour l'investissement
-        prisma.investment.update({
-          where: { id: inv.id },
-          data: { status: 'COMPLETED', returnedAmount: totalReturn - commission }
-        }),
-        // Transaction
-        prisma.transaction.create({
-          data: {
-            userId: inv.userId,
-            type: 'RETURN',
-            amount: totalReturn - commission,
-            status: 'COMPLETED',
-            description: `Remboursement projet "${project.title}"`,
-          }
-        }),
-        // Notification
-        prisma.notification.create({
-          data: {
-            userId: inv.userId,
-            title: '💰 Remboursement reçu !',
-            body: `Tu as reçu ${(totalReturn - commission).toLocaleString()} FCFA du projet "${project.title}"`,
-            type: 'REIMBURSEMENT',
-          }
-        }),
-      ])
-
-      totalReimbursed += totalReturn - commission
-      results.push({ investor: `${inv.user.firstName} ${inv.user.lastName}`, amount: totalReturn - commission })
-    }
-
-    // Clôturer le projet
-    await prisma.project.update({
-      where: { id: projectId },
-      data: { status: 'COMPLETED' }
-    })
-
-    successResponse(res, { totalReimbursed, investors: results }, `✅ ${project.investments.length} investisseurs remboursés — ${totalReimbursed.toLocaleString()} FCFA distribués`)
-  } catch (e) {
-    console.error(e)
-    errorResponse(res)
-  }
-})
-
+// La logique de remboursement se trouve désormais uniquement dans
+// repayment.ts (échéancier mensuel + paliers) et admin.ts (création
+// d'échéancier). Cette ancienne route utilisait un calcul de commission
+// obsolète (4% codé en dur, sans lien avec getProjectFees) et aurait pu
+// créer des doubles paiements si jamais réactivée — supprimée.
 export default router
