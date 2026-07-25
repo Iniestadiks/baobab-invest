@@ -84,7 +84,11 @@ router.get('/users', authenticate, requireAdmin, async (req: AuthRequest, res: R
 
     // Filtre par statut KYC
     if (kycFilter && kycFilter !== 'ALL') {
-      where.kycStatus = kycFilter
+      if (kycFilter === 'NOT_SUBMITTED') {
+        where.kycStatus = null
+      } else {
+        where.kycStatus = kycFilter
+      }
     }
 
     const take = Math.min(Math.max(Number(limit) || 20, 1), 100)
