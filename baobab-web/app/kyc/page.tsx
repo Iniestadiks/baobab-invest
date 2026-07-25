@@ -66,7 +66,7 @@ export default function KYCPage() {
         setMsg("❌ " + data.message);
       }
     } catch {
-      setMsg("❌ Erreur de connexion");
+      setMsg("❌ Fichier invalide, trop volumineux ou format non supporté. Essayez JPG, PNG ou PDF (max 5MB).");
     } finally {
       setUploading(false);
     }
