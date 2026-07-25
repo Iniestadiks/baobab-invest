@@ -13,7 +13,7 @@ export const paydunyaProvider: PaymentProvider = {
     const raw = await paydunya.initPayin(data)
     return {
       success: raw?.response_code === '00',
-      redirectUrl: raw?.response_text ? undefined : raw?.invoice_url || raw?.response_text,
+      redirectUrl: raw?.response_text,  // URL de la page de paiement PayDunya
       token: raw?.token,
       raw,
     }

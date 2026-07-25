@@ -4,7 +4,10 @@ import { PrismaClient } from '@prisma/client'
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth'
 
 import { updateBuilderGamification, updateTopDonor, decrementInactiveBuilders } from '../services/builderGamification'
+import { getProvider } from '../services/payments/registry'
 const router = Router()
+const API_URL = process.env.API_URL || 'http://46.202.132.161:3001'
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://46.202.132.161:3000'
 const prisma = new PrismaClient()
 
 const FUND_ID = '00000000-0000-0000-0000-000000000001'
@@ -43,6 +46,55 @@ async function awardFundBadges(userId: string) {
       where: { userId_badge: { userId, badge } },
       update: {},
       create: { userId, badge }
+    })
+  }
+}
+
+// Logique de confirmation partagée — appelée par le webhook PayDunya
+// et par la confirmation manuelle admin.
+async function finalizeContribution(contributionId: string) {
+  const contribution = await prisma.fundContribution.findUnique({ where: { id: contributionId } })
+  if (!contribution || contribution.status === 'COMPLETED') return
+  await prisma.fundContribution.update({
+    where: { id: contributionId },
+    data: { status: 'COMPLETED', updatedAt: new Date() }
+  })
+  await prisma.solidaryFund.upsert({
+    where: { id: FUND_ID },
+    create: { id: FUND_ID, totalReceived: contribution.amount, totalContributors: 1 },
+    update: { totalReceived: { increment: contribution.amount }, totalContributors: { increment: 1 } }
+  })
+  const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
+  if (admin && contribution.baobabFee > 0) {
+    await prisma.wallet.update({
+      where: { userId: admin.id },
+      data: { commissionBalance: { increment: contribution.baobabFee } }
+    })
+    await prisma.platformRevenue.create({
+      data: {
+        type: 'FUND_COMMISSION',
+        amount: contribution.baobabFee,
+        description: `Commission Fonds Solidaire — contribution ${contribution.id.substring(0,8)}`,
+      }
+    })
+  }
+  if (contribution.campaignId) {
+    await prisma.fundCampaign.update({
+      where: { id: contribution.campaignId },
+      data: { raised: { increment: contribution.netAmount } }
+    })
+  }
+  if (contribution.userId) {
+    await awardFundBadges(contribution.userId)
+    await updateBuilderGamification(contribution.userId, { type: 'DON_FONDS', amount: contribution.amount })
+    await prisma.notification.create({
+      data: {
+        userId: contribution.userId,
+        title: '🌱 Merci pour votre contribution !',
+        body: `Votre don de ${contribution.amount.toLocaleString()} FCFA au Fonds Solidaire BAOBAB a été confirmé.`,
+        type: 'FUND_CONTRIBUTION',
+        data: JSON.stringify({ contributionId: contribution.id, amount: contribution.amount })
+      }
     })
   }
 }
@@ -162,23 +214,21 @@ router.post('/contribute', async (req: any, res: Response): Promise<void> => {
   try {
     const { amount, anonymous = false, message, projectId, campaignId, paymentMethod = 'WAVE', operator, guestName, guestEmail, guestPhone } = req.body
     if (!amount || amount < 500) { errorResponse(res, 'Montant minimum : 500 FCFA', 400); return }
-
     const fundFeeRate = await getFundFeeRate()
     const baobabFee  = Math.round(amount * fundFeeRate)
     const operatorFee = Math.round(amount * DEFAULT_OPERATOR_FEE_RATE)
-    const netAmount  = amount - baobabFee  // net versé au fonds (hors opérateur)
-
-    // Récupérer userId si connecté
+    const netAmount  = amount - baobabFee
     let userId: string | null = null
+    let userInfo: any = null
     const authHeader = req.headers.authorization
     if (authHeader?.startsWith('Bearer ')) {
       try {
         const jwt = require('jsonwebtoken')
         const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET!) as any
         userId = decoded.userId
+        userInfo = await prisma.user.findUnique({ where: { id: userId! }, select: { firstName: true, lastName: true, email: true, phone: true } })
       } catch {}
     }
-
     const contribution = await prisma.fundContribution.create({
       data: {
         amount, netAmount, baobabFee, operatorFee,
@@ -190,82 +240,61 @@ router.post('/contribute', async (req: any, res: Response): Promise<void> => {
         status: 'PENDING'
       }
     })
-
-    // En mode test : confirmer immédiatement (en prod = webhook PayDunya)
-    // TODO: initier paiement PayDunya ici
-
+    // Initier le paiement réel via le prestataire actif
+    const provider = await getProvider('paydunya')
+    if (!provider) {
+      errorResponse(res, 'Aucun prestataire de paiement disponible actuellement — contactez le support', 503)
+      return
+    }
+    const payin = await provider.initPayin({
+      amount,
+      description: `Don Fonds Solidaire KORAPACT — ${amount.toLocaleString()} FCFA`,
+      callbackUrl: `${API_URL}/api/fund/webhook/paydunya`,
+      returnUrl: `${FRONTEND_URL}/fund?status=success&contribId=${contribution.id}`,
+      cancelUrl: `${FRONTEND_URL}/fund?status=cancel&contribId=${contribution.id}`,
+      customerName: guestName || (userInfo ? `${userInfo.firstName} ${userInfo.lastName}` : 'Donateur anonyme'),
+      customerEmail: guestEmail || userInfo?.email || 'don@korapact.com',
+      customerPhone: guestPhone || userInfo?.phone || '',
+      customData: { contributionId: contribution.id, type: 'FUND_CONTRIBUTION' }
+    })
+    if (!payin.success) {
+      await prisma.fundContribution.update({ where: { id: contribution.id }, data: { status: 'REJECTED' } })
+      errorResponse(res, "Erreur lors de l'initiation du paiement — réessayez", 400)
+      return
+    }
+    await prisma.fundContribution.update({ where: { id: contribution.id }, data: { txRef: payin.token || null } })
     successResponse(res, {
       contributionId: contribution.id,
       amount, netAmount, baobabFee,
-      message: 'Contribution enregistrée. Paiement en attente.'
-    }, 'Contribution créée')
+      paymentUrl: payin.redirectUrl,
+      token: payin.token,
+    }, 'Paiement initié — redirection en cours')
   } catch (e) { console.error(e); errorResponse(res) }
 })
-
-// ─── CONFIRMER CONTRIBUTION (webhook PayDunya) ───────────────────────────────
+// ─── WEBHOOK PAYDUNYA — appelé automatiquement après paiement du don ────────
+router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> => {
+  try {
+    const body = req.body || {}
+    const data = body.data || body
+    if (!data?.invoice?.token) { res.status(400).json({ success: false }); return }
+    const provider = await getProvider('paydunya')
+    if (!provider) { res.status(400).json({ success: false }); return }
+    const confirmation = await provider.checkPayin(data.invoice.token)
+    if (!confirmation.success) { res.json({ success: false, message: 'Paiement non complété' }); return }
+    const customData = (confirmation.raw as any)?.custom_data || {}
+    const contributionId = customData.contributionId
+    if (!contributionId) { res.status(400).json({ success: false }); return }
+    await finalizeContribution(contributionId)
+    res.json({ success: true })
+  } catch (e) { console.error(e); res.status(500).json({ success: false }) }
+})
+// ─── CONFIRMER CONTRIBUTION (legacy / appel direct par id) ──────────────────
 router.post('/confirm/:id', async (req: any, res: Response): Promise<void> => {
   try {
-    const contribution = await prisma.fundContribution.findUnique({ where: { id: req.params.id } })
-    if (!contribution || contribution.status === 'COMPLETED') { res.json({ success: true }); return }
-
-    await prisma.fundContribution.update({
-      where: { id: req.params.id },
-      data: { status: 'COMPLETED', updatedAt: new Date() }
-    })
-
-    // Mettre à jour fonds solidaire
-    await prisma.solidaryFund.upsert({
-      where: { id: FUND_ID },
-      create: { id: FUND_ID, totalReceived: contribution.amount, totalContributors: 1 },
-      update: { totalReceived: { increment: contribution.amount }, totalContributors: { increment: 1 } }
-    })
-
-    // Créditer BAOBAB commission + enregistrer revenu
-    const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    if (admin && contribution.baobabFee > 0) {
-      await prisma.wallet.update({
-        where: { userId: admin.id },
-        data: { commissionBalance: { increment: contribution.baobabFee } }
-      })
-      await prisma.platformRevenue.create({
-        data: {
-          type: 'FUND_COMMISSION',
-          amount: contribution.baobabFee,
-          description: `Commission Fonds Solidaire 16% — contribution ${contribution.id.substring(0,8)}`,
-        }
-      })
-    }
-
-    // Si campagne → mettre à jour raised
-    if (contribution.campaignId) {
-      await prisma.fundCampaign.update({
-        where: { id: contribution.campaignId },
-        data: { raised: { increment: contribution.netAmount } }
-      })
-    }
-
-    // Attribution badges + gamification si user connecté
-    if (contribution.userId) {
-      await awardFundBadges(contribution.userId)
-      await updateBuilderGamification(contribution.userId, {
-        type: 'DON_FONDS',
-        amount: contribution.amount
-      })
-    }
-
-    // Notification si user connecté
-    if (contribution.userId) {
-      await prisma.notification.create({
-        data: {
-          userId: contribution.userId,
-          title: '🌱 Merci pour votre contribution !',
-          body: `Votre don de ${contribution.amount.toLocaleString()} FCFA au Fonds Solidaire BAOBAB a été confirmé.`,
-          type: 'FUND_CONTRIBUTION',
-          data: JSON.stringify({ contributionId: contribution.id, amount: contribution.amount })
-        }
-      })
-    }
-
+    await finalizeContribution(req.params.id)
+    successResponse(res, { confirmed: true }, 'Contribution confirmée')
+  } catch (e) { console.error(e); errorResponse(res) }
+})
     successResponse(res, { confirmed: true }, 'Contribution confirmée')
   } catch (e) { console.error(e); errorResponse(res) }
 })
