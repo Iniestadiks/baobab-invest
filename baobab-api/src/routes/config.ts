@@ -3,6 +3,7 @@ import { Router, Response } from 'express'
 import prisma from '../config/database'
 import { authenticate, AuthRequest, requireAdmin } from '../middleware/auth'
 import { successResponse, errorResponse } from '../utils/helpers'
+import { getAllProviderConfigs, ensurePaymentProviderConfigs } from '../services/payments/registry'
 const router = Router()
 
 // Route publique
@@ -104,6 +105,31 @@ router.post('/reset', authenticate, requireAdmin, async (req: AuthRequest, res: 
       })
     }
     successResponse(res, {}, 'Taux réinitialisés aux valeurs par défaut')
+  } catch (e) { errorResponse(res) }
+})
+
+// ═══════════════════════════════════════════════════════
+// PRESTATAIRES DE PAIEMENT — activation/désactivation admin
+// ═══════════════════════════════════════════════════════
+router.get('/payment-providers', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await ensurePaymentProviderConfigs()
+    const configs = await getAllProviderConfigs()
+    successResponse(res, configs)
+  } catch (e) { errorResponse(res) }
+})
+
+router.patch('/payment-providers/:key', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { enabled } = req.body
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ success: false, message: 'enabled doit être true ou false' }); return
+    }
+    const config = await prisma.paymentProviderConfig.update({
+      where: { key: req.params.key },
+      data: { enabled },
+    })
+    successResponse(res, config, `${config.label} ${enabled ? 'activé' : 'désactivé'}`)
   } catch (e) { errorResponse(res) }
 })
 

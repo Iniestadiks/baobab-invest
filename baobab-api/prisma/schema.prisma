@@ -234,6 +234,18 @@ model Wallet {
   @@map("wallets")
 }
 
+model PaymentProviderConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique  // "paydunya" | "kiakiapay" | "stripe"
+  label     String             // "PayDunya" | "KiaKiaPay" | "Stripe"
+  methods   String             // "mobile_money" | "card" | "mobile_money,card"
+  enabled   Boolean  @default(false)
+  sortOrder Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_provider_configs")
+}
+
 model Project {
   id                  String        @id @default(uuid())
   entrepreneurId      String
