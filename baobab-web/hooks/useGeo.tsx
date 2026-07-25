@@ -19,6 +19,18 @@ export function useStates(countryCode: string) {
   }, [countryCode])
   return states
 }
+export function useStatesLoaded(countryCode: string, stateCode: string, onLoaded: (states: any[]) => void) {
+  useEffect(() => {
+    if (!countryCode) return
+    fetch(`${API}/api/geo/states/${countryCode}`)
+      .then(r => r.json()).then(d => {
+        const states = d.data || []
+        if (stateCode && states.find((s: any) => s.code === stateCode)) {
+          onLoaded(states)
+        }
+      })
+  }, [countryCode, stateCode])
+}
 
 export function useCities(countryCode: string, stateCode: string) {
   const [cities, setCities] = useState<string[]>([])
@@ -39,6 +51,13 @@ export function GeoSelector({ value, onChange, className = '' }: {
   const countries = useCountries()
   const states = useStates(value.countryCode)
   const cities = useCities(value.countryCode, value.stateCode)
+  // Auto-sélection région + ville quand les données se chargent
+  useEffect(() => {
+    if (states.length > 0 && value.stateCode && !value.state) {
+      const found = states.find((s: any) => s.code === value.stateCode)
+      if (found) onChange({ ...value, state: found.name })
+    }
+  }, [states.length])
 
   const selectClass = `w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-green-400 bg-white ${className}`
 
