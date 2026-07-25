@@ -21,7 +21,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState("");
-  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", city: "", country: "", bio: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", city: "", country: "", region: "", bio: "" });
   const [geo, setGeo] = useState({ country: "", countryCode: "", indicatif: "", state: "", stateCode: "", city: "" });
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +37,7 @@ export default function ProfilePage() {
           phone: res.data.phone || "",
           city: res.data.city || "",
           country: res.data.country || "",
+          region: res.data.region || "",
           bio: res.data.bio || "",
         });
         setGeo({
@@ -165,7 +166,7 @@ export default function ProfilePage() {
           </div>
           <GeoSelector value={geo} onChange={v => {
             setGeo(v);
-            setForm(f => ({ ...f, country: v.countryCode, city: v.city }));
+            setForm(f => ({ ...f, country: v.countryCode, city: v.city, region: v.state }));
           }} />
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Bio / Présentation</label>
