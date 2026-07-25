@@ -320,3 +320,22 @@ input::placeholder,
 textarea::placeholder {
   color: #9ca3af !important;
 }
+
+/* ── Pages admin/dashboard — forcer couleur texte light ────────── */
+.min-h-screen.bg-gray-50 *:not(nav):not(nav *):not(.logo-mark):not(.logo-text) {
+  color: inherit;
+}
+.min-h-screen.bg-gray-50 {
+  color: #111827;
+}
+.text-gray-900 { color: #111827 !important; }
+.text-gray-700 { color: #374151 !important; }
+.text-gray-600 { color: #4B5563 !important; }
+.text-gray-500 { color: #6B7280 !important; }
+.text-gray-400 { color: #9CA3AF !important; }
+.text-green-700 { color: #15803d !important; }
+.text-green-600 { color: #16a34a !important; }
+.text-blue-700  { color: #1d4ed8 !important; }
+.text-red-600   { color: #dc2626 !important; }
+.text-orange-700{ color: #c2410c !important; }
+.text-purple-700{ color: #7e22ce !important; }
