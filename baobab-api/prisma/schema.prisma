@@ -127,6 +127,7 @@ model User {
   city              String?
   region          String?
   countryCode     String?  @default("SN")
+  stateCode       String?
   indicatif       String?  @default("+221")
   country           String     @default("SN")
   level             Int        @default(1)

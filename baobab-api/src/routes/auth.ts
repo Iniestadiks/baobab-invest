@@ -673,11 +673,11 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
 
 router.patch('/profile', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, phone, city, country, bio, region, countryCode, indicatif } = req.body as Record<string, string | undefined>
+    const { firstName, lastName, phone, city, country, bio, region, countryCode, stateCode, indicatif } = req.body as Record<string, string | undefined>
 
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data: { firstName, lastName, phone, city, country, bio, region, countryCode, indicatif },
+      data: { firstName, lastName, phone, city, country, bio, region, countryCode, stateCode, indicatif },
     })
 
     successResponse(res, user, 'Profil mis à jour')
@@ -717,7 +717,7 @@ router.get('/profile/:userId', async (req: Request, res: Response): Promise<void
       where: { id: String(req.params.userId) },
       select: {
         id: true, firstName: true, lastName: true, role: true,
-        city: true, country: true, bio: true, profileImageUrl: true,
+        city: true, country: true, bio: true, profileImageUrl: true, stateCode: true,
         reputationScore: true, reputationPoints: true, level: true,
         kycStatus: true, createdAt: true,
       },
