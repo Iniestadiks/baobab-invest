@@ -1,7 +1,7 @@
 "use client";
 import { GeoSelector } from "@/hooks/useGeo";
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authGet, authPatch } from "@/lib/api";
 
@@ -16,6 +16,8 @@ const ROLE_DASHBOARD: Record<string, string> = {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const needsCompletion = searchParams.get("complete") === "1";
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,7 +36,7 @@ export default function ProfilePage() {
         setForm({
           firstName: res.data.firstName || "",
           lastName: res.data.lastName || "",
-          phone: res.data.phone || "",
+          phone: res.data.phone?.startsWith("google_") ? "" : (res.data.phone || ""),
           city: res.data.city || "",
           country: res.data.countryCode || res.data.country || "",
           countryCode: res.data.countryCode || res.data.country || "",
@@ -112,6 +114,15 @@ export default function ProfilePage() {
       </nav>
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-5">
+        {needsCompletion && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-2xl">👋</span>
+            <div>
+              <div className="font-bold text-blue-900 text-sm">Bienvenue sur KORAPACT !</div>
+              <div className="text-xs text-blue-700 mt-1">Complète ton téléphone, ton pays et ta région pour profiter de toutes les fonctionnalités (investir, KYC, retraits...).</div>
+            </div>
+          </div>
+        )}
 
         {msg && <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl p-3 text-center">{msg}</div>}
 

@@ -25,6 +25,11 @@ export default function AuthCallback() {
       if (d.success) {
         localStorage.setItem("user", JSON.stringify(d.data));
         const role = d.data.role;
+        const needsCompletion = d.data.phone?.startsWith("google_");
+        if (needsCompletion) {
+          router.push("/profile?complete=1");
+          return;
+        }
         if (role === "ENTREPRENEUR") router.push("/entrepreneur");
         else if (role === "MENTOR") router.push("/mentor");
         else if (role === "BUILDER") router.push("/builder");
