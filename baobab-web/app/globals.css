@@ -6,8 +6,8 @@
   --teal: #22c55e;
   --gold: #F59E0B;
   --purple: #8B5CF6;
-  --dark: #050810;
-  --card: #0C1024;
+  --dark: #071410;
+  --card: #0F221C;
   --border: rgba(255,255,255,0.07);
 }
 
@@ -281,43 +281,37 @@ a { text-decoration: none; color: inherit; }
 }
 .input-field:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.1); }
 
-/* ── Fix inputs dans pages light (KYC, register, etc.) ─────────── */
-.input-field,
-input[type="date"],
-input[type="text"],
-input[type="email"],
-input[type="tel"],
-input[type="number"],
-input[type="password"],
-select,
-textarea {
+/* ── Fix inputs dans pages light UNIQUEMENT (KYC, admin, dashboard) ──
+   Scopé à .bg-gray-50 (pages light) — ne touche jamais les pages dark
+   (landing, register, login, cgu, privacy, 404) qui gèrent leurs propres
+   styles inline. ─────────────────────────────────────────────────── */
+.input-field {
   color: #111827 !important;
   background: #fff !important;
 }
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0);
-}
-
-/* ── Fix inputs admin (fond blanc, texte noir) ─────────────────── */
-.bg-gray-50 input,
+.bg-gray-50 input[type="date"],
+.bg-gray-50 input[type="text"],
+.bg-gray-50 input[type="email"],
+.bg-gray-50 input[type="tel"],
+.bg-gray-50 input[type="number"],
+.bg-gray-50 input[type="password"],
+.bg-gray-50 input[type="datetime-local"],
+.bg-gray-50 select,
+.bg-gray-50 textarea,
 .bg-white input,
 .bg-white textarea,
 .bg-orange-50 input,
-.bg-red-50 input,
-input[type="text"],
-input[type="number"],
-input[type="date"],
-input[type="email"],
-input[type="tel"],
-input[type="password"],
-input[type="datetime-local"],
-textarea,
-select {
+.bg-red-50 input {
   color: #111827 !important;
   background-color: #ffffff !important;
 }
-input::placeholder,
-textarea::placeholder {
+.bg-gray-50 input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+}
+.bg-gray-50 input::placeholder,
+.bg-gray-50 textarea::placeholder,
+.bg-white input::placeholder,
+.bg-white textarea::placeholder {
   color: #9ca3af !important;
 }
 
