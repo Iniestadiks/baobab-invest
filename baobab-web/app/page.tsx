@@ -13,6 +13,57 @@ function Skeleton({ w = "100%", h = 24 }: { w?: string; h?: number }) {
     }} />
   );
 }
+const PROCESS_FLOWS: Record<string, { color: string; icon: string; label: string; steps: { icon: string; title: string; desc: string }[] }> = {
+  ENTREPRENEUR: {
+    color: "#16A34A", icon: "🚀", label: "Entrepreneur",
+    steps: [
+      { icon: "👤", title: "Créez votre compte", desc: "Inscription en 2 minutes, choisissez le rôle Entrepreneur." },
+      { icon: "🪪", title: "Vérification KYC", desc: "Pièce d'identité + selfie. Validation sous 24h par l'équipe." },
+      { icon: "📝", title: "Soumettez votre projet", desc: "Titre, secteur, montant à lever, durée et taux de retour proposé." },
+      { icon: "🎬", title: "Ajoutez un pitch vidéo", desc: "Présentez votre projet en vidéo pour rassurer les investisseurs." },
+      { icon: "✅", title: "Validation par l'équipe", desc: "Analyse du dossier et du score de crédibilité sous 48h ouvrées." },
+      { icon: "🌱", title: "Cagnotte lancée", desc: "Votre projet est visible publiquement, les investisseurs contribuent." },
+      { icon: "💰", title: "Fonds débloqués par paliers", desc: "40% au démarrage, 35% puis 25% selon l'avancement validé." },
+      { icon: "🔁", title: "Remboursements mensuels", desc: "Vous remboursez selon l'échéancier — le projet se clôture, tout le monde est réglé." },
+    ],
+  },
+  INVESTOR: {
+    color: "#0F7A3D", icon: "💼", label: "Investisseur",
+    steps: [
+      { icon: "👤", title: "Créez votre compte", desc: "Inscription en 2 minutes, choisissez le rôle Investisseur." },
+      { icon: "🪪", title: "Vérification KYC", desc: "Pièce d'identité + selfie. Validation sous 24h par l'équipe." },
+      { icon: "💳", title: "Déposez des fonds", desc: "Dépôt sécurisé via mobile money (Orange Money, Wave...)." },
+      { icon: "🔍", title: "Choisissez un projet", desc: "Parcourez des projets vérifiés avec score de crédibilité et mentor garant." },
+      { icon: "📈", title: "Investissez dès 5 000 F", desc: "Votre contribution rejoint la cagnotte du projet choisi." },
+      { icon: "👀", title: "Suivez la collecte", desc: "Progression en temps réel jusqu'à l'objectif atteint." },
+      { icon: "💸", title: "Percevez vos retours", desc: "Remboursements mensuels automatiques dès le démarrage du projet." },
+      { icon: "🏦", title: "Retirez vos gains", desc: "Retrait libre vers votre mobile money, à tout moment." },
+    ],
+  },
+  MENTOR: {
+    color: "#7C3AED", icon: "🎓", label: "Mentor",
+    steps: [
+      { icon: "👤", title: "Créez votre compte", desc: "Inscription en 2 minutes, choisissez le rôle Mentor." },
+      { icon: "🪪", title: "Vérification KYC", desc: "Pièce d'identité + selfie. Validation sous 24h par l'équipe." },
+      { icon: "🤝", title: "Parrainez un projet", desc: "Accompagnez un entrepreneur dans la préparation de son dossier." },
+      { icon: "✅", title: "Co-validation du projet", desc: "Votre garantie renforce la crédibilité auprès des investisseurs." },
+      { icon: "🌱", title: "Suivi de la collecte", desc: "Le projet parrainé est visible avec votre badge de mentor garant." },
+      { icon: "💰", title: "Commission à la clôture", desc: "Vous percevez votre commission une fois le projet remboursé." },
+    ],
+  },
+  BUILDER: {
+    color: "#C8860D", icon: "🏗️", label: "Bâtisseur",
+    steps: [
+      { icon: "👤", title: "Créez votre compte", desc: "Inscription en 2 minutes — aucun KYC requis pour ce rôle." },
+      { icon: "🌱", title: "Contribuez au Fonds Solidaire", desc: "Don libre, dès 5 000 F, avec ou sans création de compte." },
+      { icon: "🎯", title: "Choisissez votre impact", desc: "Fonds général ou allocation ciblée vers un projet précis." },
+      { icon: "📊", title: "Suivez l'impact en temps réel", desc: "Visualisez où va votre contribution et son effet concret." },
+      { icon: "🏅", title: "Recevez votre badge", desc: "Reconnaissance publique selon votre niveau de contribution." },
+      { icon: "👑", title: "Rejoignez le Hall of Fame", desc: "Classement des plus grands Bâtisseurs de la communauté." },
+    ],
+  },
+};
+
 export default function LandingPage() {
   const [stats, setStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
@@ -22,6 +73,7 @@ export default function LandingPage() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [processRole, setProcessRole] = useState("ENTREPRENEUR");
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     const onMouse = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
@@ -165,26 +217,32 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* STEPS */}
+      {/* PROCESS PAR RÔLE */}
       <section id="comment" className="section">
         <div className="section-inner">
           <div className="section-header" style={{textAlign:"center"}}>
             <div className="section-eyebrow">Processus</div>
-            <h2 className="section-title">3 étapes, zéro complexité</h2>
-            <p className="section-sub">De l'inscription au premier remboursement, tout est guidé.</p>
+            <h2 className="section-title">Un parcours guidé, pour chaque rôle</h2>
+            <p className="section-sub">De l'inscription à la clôture du projet, chaque étape est claire.</p>
           </div>
-          <div className="steps-grid">
-            {[
-              {num:"01",title:"Créez votre compte",desc:"Inscription en 2 minutes. Vérification KYC rapide. Choisissez votre rôle.",icon:"👤",color:"#0F7A3D"},
-              {num:"02",title:"Sélectionnez un projet",desc:"Parcourez des projets vérifiés avec scores de crédibilité et mentors garants.",icon:"🔍",color:"#16A34A"},
-              {num:"03",title:"Percevez vos retours",desc:"Remboursements mensuels automatiques. Retrait vers votre compte à tout moment.",icon:"💸",color:"#C8860D"},
-            ].map((s, i) => (
-              <div key={s.num} className="step-card">
-                <div className="step-num">{s.num}</div>
-                <div className="step-icon-wrap" style={{background:`${s.color}12`,border:`1px solid ${s.color}25`}}>{s.icon}</div>
-                <div className="step-label" style={{color:s.color}}>Étape {i+1}</div>
-                <h3 className="step-title">{s.title}</h3>
-                <p className="step-desc">{s.desc}</p>
+          <div className="process-tabs">
+            {Object.entries(PROCESS_FLOWS).map(([key, flow]) => (
+              <button key={key} className={`process-tab ${processRole===key?"active":""}`}
+                onClick={() => setProcessRole(key)}
+                style={processRole===key?{background:`linear-gradient(135deg,${flow.color},${flow.color}cc)`}:{}}>
+                <span>{flow.icon}</span>{flow.label}
+              </button>
+            ))}
+          </div>
+          <div className="timeline">
+            {PROCESS_FLOWS[processRole].steps.map((s, i) => (
+              <div key={i} className="timeline-item">
+                <div className="timeline-dot" style={{background:`${PROCESS_FLOWS[processRole].color}12`,color:PROCESS_FLOWS[processRole].color}}>{s.icon}</div>
+                <div className="timeline-content">
+                  <div className="timeline-tag" style={{background:`${PROCESS_FLOWS[processRole].color}12`,color:PROCESS_FLOWS[processRole].color}}>Étape {i+1}</div>
+                  <div className="timeline-title">{s.title}</div>
+                  <div className="timeline-desc">{s.desc}</div>
+                </div>
               </div>
             ))}
           </div>
