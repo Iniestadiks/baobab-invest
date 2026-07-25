@@ -3,6 +3,7 @@ import prisma from '../config/database'
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth'
 import { successResponse, errorResponse } from '../utils/helpers'
 import { logAdminAction } from './auth'
+import { getProjectFees } from '../config/fees'
 
 const router = Router()
 
@@ -1090,14 +1091,12 @@ router.post('/projects/:projectId/reimburse', authenticate, requireAdmin, async 
     const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } })
     if (existing) { res.status(400).json({ success: false, message: 'Échéancier déjà créé' }); return }
 
-    const fees = await prisma.platformConfig.findMany()
-    const feeMap: Record<string, number> = {}
-    fees.forEach(f => { feeMap[f.key] = f.value })
-
-    const payinRepayPct = feeMap.payin_repayment || 4
+    // Taux FIGÉS à la création du projet — jamais recalculés en direct
+    const fees = await getProjectFees(project)
+    const payinRepayPct = fees.payin_repayment || 4
     const gracePeriod = project.gracePeriodMonths || 0
     const netAmount = project.netAmount || Math.round((project.goalAmount || 0) * 0.90)
-    const returnRate = project.expectedReturn || 24
+    const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
     const totalGross = Math.round(netAmount * (1 + returnRate / 100))
     const totalNet = Math.round(totalGross * (1 - payinRepayPct / 100))
     const durationMonths = project.durationMonths || 12

@@ -2,7 +2,7 @@
 import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authenticate, requireRole } from '../middleware/auth'
-import { getFees } from '../config/fees'
+import { getFees, getProjectFees } from '../config/fees'
 import { checkAndUnlockPalier } from '../services/paliers'
 import { updateBuilderGamification } from '../services/builderGamification'
 
@@ -97,7 +97,7 @@ router.post('/create/:projectId', authenticate, async (req: AuthRequest, res: Re
     const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } })
     if (existing) { res.status(400).json({ success: false, message: 'Echeancier deja cree' }); return }
 
-    const fees = await getFees()
+    const fees = await getProjectFees(project)
     
     // NOUVELLE STRATÉGIE : remboursement = 22% sur besoin net du projet
     // Pas de commission BAOBAB au retour (0%)
@@ -198,7 +198,7 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
       res.status(400).json({ success: false, message: 'Solde insuffisant. Disponible: ' + (wallet?.balance?.toLocaleString() || 0) + ' FCFA' }); return
     }
 
-    const fees = await getFees()
+    const fees = await getProjectFees(schedule.project)
     const payinRate = fees.payin_repayment || 4   // Payin mensualités 4%
     const baobabRate = 0                           // 0% commission retour BAOBAB (modèle validé)
     const payinFee = Math.round(nextPayment.amount * payinRate / 100)
@@ -427,7 +427,7 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
       res.status(400).json({ success: false, message: 'Solde insuffisant. Disponible: ' + (wallet?.balance||0).toLocaleString() + ' FCFA — Requis: ' + totalAmount.toLocaleString() + ' FCFA' }); return
     }
 
-    const fees = await getFees()
+    const fees = await getProjectFees(schedule.project)
     const baobabRate = fees.payin_repayment || 4  // Payin mensualités — 0% commission retour
     const totalInvested = schedule.project.investments.reduce((s, i) => s + i.amount, 0)
     const isEarlyFull = months === 0 || paymentsToProcess.length === schedule.payments.length
