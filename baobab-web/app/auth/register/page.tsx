@@ -188,6 +188,13 @@ export default function RegisterPage() {
             <button onClick={() => setStep("info")} style={{width:"100%",padding:"14px",borderRadius:14,fontWeight:700,fontSize:15,color:"#fff",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#0F7A3D,#16A34A)",boxShadow:"0 8px 24px rgba(15,122,61,0.28)"}}>
               Continuer — {selectedRole.icon} {selectedRole.label}
             </button>
+            <div style={{textAlign:"center",marginTop:16}}>
+              <a href={`/devenir/${({INVESTOR:"investisseur",ENTREPRENEUR:"entrepreneur",MENTOR:"mentor",BUILDER:"batisseur"} as any)[form.role]}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{fontSize:12.5,color:"var(--ink-faint)",fontWeight:600,textDecoration:"underline"}}>
+                Comment ça marche pour {selectedRole.label} ? →
+              </a>
+            </div>
           </>}
 
           {step === "info" && (

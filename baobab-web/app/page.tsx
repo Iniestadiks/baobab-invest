@@ -246,6 +246,12 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          <div style={{textAlign:"center",marginTop:48}}>
+            <Link href={`/devenir/${{ENTREPRENEUR:"entrepreneur",INVESTOR:"investisseur",MENTOR:"mentor",BUILDER:"batisseur"}[processRole]}`}
+              className="btn-section-ghost" style={{borderColor:`${PROCESS_FLOWS[processRole].color}30`,color:PROCESS_FLOWS[processRole].color}}>
+              En savoir plus sur le parcours {PROCESS_FLOWS[processRole].label} →
+            </Link>
+          </div>
         </div>
       </section>
 
