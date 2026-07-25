@@ -434,3 +434,17 @@ a { text-decoration: none; color: inherit; }
   .hv-sprout { font-size: 42px; }
   .hv-badge { font-size: 11px; padding: 8px 12px; }
 }
+
+/* ── Fix mobile — espacement navbar (logo / bouton Connexion) ──── */
+@media (max-width: 480px) {
+  .nav { padding: 0 16px; }
+  .nav-inner { height: 62px; }
+  .logo-text { font-size: 15px; }
+  .logo-mark, .logo img { width: 30px !important; height: 30px !important; }
+  .nav-actions { gap: 6px; }
+  .btn-ghost { display: none; }
+  .btn-cta { font-size: 12px; padding: 8px 14px; }
+}
+@media (max-width: 360px) {
+  .logo-text { display: none; }
+}
