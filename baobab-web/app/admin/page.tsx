@@ -450,7 +450,7 @@ function KycTab({ flash, authPost, authPatch, authGet }: any) {
 
   const load = () => {
     setLoading(true);
-    authGet(`/api/admin/users${filter !== "ALL" ? `?status=${filter}` : ""}${roleFilter !== "ALL" ? `${filter !== "ALL" ? "&" : "?"}role=${roleFilter}` : ""}`)
+    authGet(`/api/admin/users${filter !== "ALL" ? `?kycStatus=${filter}` : ""}${roleFilter !== "ALL" ? `${filter !== "ALL" ? "&" : "?"}role=${roleFilter}` : ""}`)
       .then((res: any) => { if (res.success) setUsers(res.data?.users || res.data || []); })
       .finally(() => setLoading(false));
   };
