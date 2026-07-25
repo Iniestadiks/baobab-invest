@@ -272,6 +272,13 @@ model Project {
   disbursedP2         Float         @default(0)
   disbursedP3         Float         @default(0)
   currentPalier       Int           @default(0)
+  // Taux figés à la création du projet — jamais recalculés en direct après
+  feeCollectionRate     Float?
+  feePayinRecoveryRate  Float?
+  feeMentorRate         Float?
+  feeGuaranteeRate      Float?
+  feePayinRepaymentRate Float?
+  feeReturnMin          Float?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 

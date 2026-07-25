@@ -74,3 +74,30 @@ export async function getFees(): Promise<Fees> {
     return DEFAULT_FEES
   }
 }
+
+// Renvoie les taux FIGÉS d'un projet (snapshot à la création).
+// Si le projet a été créé avant ce correctif (champs null), on retombe
+// sur getFees() en direct — mais ça ne devrait plus arriver pour les
+// nouveaux projets.
+export async function getProjectFees(project: {
+  feeCollectionRate?: number | null
+  feePayinRecoveryRate?: number | null
+  feeMentorRate?: number | null
+  feeGuaranteeRate?: number | null
+  feePayinRepaymentRate?: number | null
+  feeReturnMin?: number | null
+}): Promise<Fees> {
+  const live = await getFees()
+  return {
+    commission_baobab_collection: project.feeCollectionRate ?? live.commission_baobab_collection,
+    payin_recovery:               project.feePayinRecoveryRate ?? live.payin_recovery,
+    commission_mentor:            project.feeMentorRate ?? live.commission_mentor,
+    commission_guarantee:         project.feeGuaranteeRate ?? live.commission_guarantee,
+    payin_repayment:              project.feePayinRepaymentRate ?? live.payin_repayment,
+    return_min:                   project.feeReturnMin ?? live.return_min,
+    withdrawal_fee_standard:      live.withdrawal_fee_standard,
+    withdrawal_fee_no_invest:     live.withdrawal_fee_no_invest,
+    grace_period_agriculture:     live.grace_period_agriculture,
+    grace_period_other:           live.grace_period_other,
+  }
+}

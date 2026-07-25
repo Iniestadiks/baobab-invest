@@ -2,7 +2,7 @@
 import { Router, Response } from 'express'
 import prisma from '../config/database'
 import { authenticate, AuthRequest } from '../middleware/auth'
-import { getFees } from '../config/fees'
+import { getFees, getProjectFees } from '../config/fees'
 import { triggerFundedActions } from '../services/paliers'
 import { addReputationPoints, awardBadge, checkAndAwardBadges, REPUTATION_POINTS } from '../services/reputationService'
 import { successResponse, errorResponse } from '../utils/helpers'
@@ -76,8 +76,8 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       res.status(400).json({ success: false, message: "Ce projet n'accepte plus d'investissements" }); return
     }
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
-    // CALCUL DES COMMISSIONS — MODÈLE FINANCIER VALIDÉ
-    const fees = await getFees()
+    // CALCUL DES COMMISSIONS — taux FIGÉS à la création du projet (jamais recalculés)
+    const fees = await getProjectFees(project)
     const withInsurance = req.body.withInsurance === true  // false par défaut — choix explicite
     const platformFee  = Math.round(amount * fees.commission_baobab_collection / 100)
     const payinFee     = Math.round(amount * fees.payin_recovery / 100)
@@ -230,7 +230,7 @@ router.post('/reimburse-project/:projectId', authenticate, async (req: AuthReque
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
     if (!['FUNDED', 'IN_PROGRESS'].includes(project.status)) { res.status(400).json({ success: false, message: 'Projet non eligible' }); return }
     await prisma.project.update({ where: { id: project.id }, data: { status: 'IN_PROGRESS' } })
-    const fees = await getFees()
+    const fees = await getProjectFees(project)
     const netAmount = (project as any).netAmount || project.goalAmount
     const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
     const totalGross = Math.round(netAmount * (1 + returnRate / 100))

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import prisma from '../config/database'
 import { authenticate, requireRole, requireAdmin, AuthRequest } from '../middleware/auth'
 import { successResponse, errorResponse } from '../utils/helpers'
-import { getFees } from '../config/fees'
+import { getFees, getProjectFees } from '../config/fees'
 
 const router = Router()
 
@@ -147,7 +147,7 @@ router.post('/:id/simulate', async (req: Request, res: Response): Promise<void> 
     }
     const sharePercent = amount / project.goalAmount
     const hasMentor = !!project.mentorId
-    const fees = await getFees()
+    const fees = await getProjectFees(project)
     const withInsurance = req.body.withInsurance !== false
     const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
     const platformFee    = Math.round(amount * fees.commission_baobab_collection / 100)
@@ -261,7 +261,14 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         const data = projectSchema.parse(req.body)
         const score = calculateBankabilityScore({ ...data, description: data.description })
         const waitlistedProject = await prisma.project.create({
-          data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED', useOfFunds: data.useOfFunds || null }
+          data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED', useOfFunds: data.useOfFunds || null,
+            feeCollectionRate: feesCalc.commission_baobab_collection,
+            feePayinRecoveryRate: feesCalc.payin_recovery,
+            feeMentorRate: feesCalc.commission_mentor,
+            feeGuaranteeRate: feesCalc.commission_guarantee,
+            feePayinRepaymentRate: feesCalc.payin_repayment,
+            feeReturnMin: feesCalc.return_min,
+          }
         })
         await prisma.notification.create({
           data: { userId: req.userId!, title: 'Projet en liste d attente', body: `Votre projet "${waitlistedProject.title}" est en position ${waitlistCount + 1} dans la liste d attente.`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id, position: waitlistCount + 1 }) }
@@ -292,6 +299,14 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         bankabilityScore: score,
         status: 'PENDING_REVIEW',
         useOfFunds: data.useOfFunds || null,
+        // Taux figés à la création — ne changeront jamais même si l'admin
+        // modifie les taux globaux ensuite (ça n'affecte que les NOUVEAUX projets)
+        feeCollectionRate: feesCalc.commission_baobab_collection,
+        feePayinRecoveryRate: feesCalc.payin_recovery,
+        feeMentorRate: feesCalc.commission_mentor,
+        feeGuaranteeRate: feesCalc.commission_guarantee,
+        feePayinRepaymentRate: feesCalc.payin_repayment,
+        feeReturnMin: feesCalc.return_min,
       }
     })
 
