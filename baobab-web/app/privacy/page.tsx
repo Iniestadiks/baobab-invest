@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       <nav style={{position:"fixed",top:0,width:"100%",zIndex:100,background:"rgba(251,250,247,0.9)",backdropFilter:"blur(20px)",borderBottom:"1px solid var(--line)",padding:"0 32px"}}>
         <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:72}}>
           <Link href="/" style={{display:"flex",alignItems:"center",gap:10}}>
-            <div className="logo-mark">K</div>
+            <img src="/logo.png" alt="KORAPACT" style={{width:38,height:38,objectFit:"contain"}} />
             <span className="logo-text">KORAPACT</span>
           </Link>
           <Link href="/" style={{fontSize:13,color:"var(--ink-soft)",fontWeight:600}}>← Retour</Link>

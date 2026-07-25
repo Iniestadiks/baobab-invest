@@ -127,7 +127,7 @@ export default function RegisterPage() {
 
         <div style={{textAlign:"center",marginBottom:32}}>
           <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:10,textDecoration:"none",marginBottom:24}}>
-            <div className="logo-mark">K</div>
+            <img src="/logo.png" alt="KORAPACT" style={{width:38,height:38,objectFit:"contain"}} />
             <span className="logo-text">KORAPACT</span>
           </Link>
           {step !== "verify" && <>

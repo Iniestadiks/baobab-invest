@@ -69,7 +69,7 @@ export default function LandingPage() {
       <nav className={`nav ${scrolled ? "scrolled" : ""}`}>
         <div className="nav-inner">
           <Link href="/" className="logo">
-            <div className="logo-mark">K</div>
+            <img src="/logo.png" alt="KORAPACT" style={{width:38,height:38,objectFit:"contain"}} />
             <span className="logo-text">KORAPACT</span>
           </Link>
           <div className="nav-links">
@@ -419,7 +419,7 @@ export default function LandingPage() {
           <div className="footer-grid">
             <div>
               <Link href="/" className="logo" style={{marginBottom:20,display:"inline-flex"}}>
-                <div className="logo-mark">K</div>
+                <img src="/logo.png" alt="KORAPACT" style={{width:38,height:38,objectFit:"contain"}} />
                 <span className="logo-text" style={{marginLeft:10,color:"#fff"}}>KORAPACT</span>
               </Link>
               <p style={{fontSize:13.5,color:"rgba(255,255,255,0.4)",lineHeight:1.7,marginTop:16,maxWidth:260}}>

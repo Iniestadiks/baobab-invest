@@ -48,7 +48,7 @@ export default function LoginPage() {
 
         <div style={{textAlign:"center",marginBottom:32}}>
           <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:10,textDecoration:"none",marginBottom:24}}>
-            <div className="logo-mark">K</div>
+            <img src="/logo.png" alt="KORAPACT" style={{width:38,height:38,objectFit:"contain"}} />
             <span className="logo-text">KORAPACT</span>
           </Link>
           <h1 style={{fontSize:28,fontWeight:900,color:"var(--ink)",margin:"0 0 8px",letterSpacing:"-0.5px"}}>Bon retour !</h1>
