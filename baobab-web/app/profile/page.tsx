@@ -74,7 +74,7 @@ export default function ProfilePage() {
   const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setMsg("❌ Photo trop lourde (max 5MB)"); return; }
+    if (file.size > 8 * 1024 * 1024) { setMsg("❌ Photo trop lourde (max 8MB)"); return; }
     const allowed = ["image/jpeg","image/jpg","image/png","image/webp"];
     if (!allowed.includes(file.type)) { setMsg("❌ Format non supporté (JPG, PNG, WEBP)"); return; }
     setUploading(true);
