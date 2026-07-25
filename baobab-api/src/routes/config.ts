@@ -33,14 +33,18 @@ router.patch('/:key', authenticate, requireAdmin, async (req: AuthRequest, res: 
     const pctKeys = [
       'commission_baobab_collection', 'commission_mentor', 'commission_guarantee',
       'payin_recovery', 'payin_repayment', 'withdrawal_fee_standard', 'withdrawal_fee_no_invest',
-      'return_min'
+      'return_min', 'fund_baobab_fee', 'payin_operator_real', 'payout_operator_real'
     ]
     const monthKeys = ['grace_period_agriculture', 'grace_period_other']
+    const amountKeys = ['investment_min', 'withdrawal_min']
     if (pctKeys.includes(key) && (Number(value) < 0 || Number(value) > 50)) {
       res.status(400).json({ success: false, message: 'Taux doit être entre 0 et 50%' }); return
     }
     if (monthKeys.includes(key) && (Number(value) < 0 || Number(value) > 12)) {
       res.status(400).json({ success: false, message: 'Délai doit être entre 0 et 12 mois' }); return
+    }
+    if (amountKeys.includes(key) && (Number(value) < 0 || Number(value) > 1000000)) {
+      res.status(400).json({ success: false, message: 'Montant doit être entre 0 et 1 000 000 FCFA' }); return
     }
     // Sauver en brouillon uniquement
     const config = await prisma.platformConfig.update({
@@ -96,6 +100,14 @@ router.post('/reset', authenticate, requireAdmin, async (req: AuthRequest, res: 
       return_min: 22,
       grace_period_agriculture: 2,
       grace_period_other: 1,
+      // Clés utilisées ailleurs dans le code (wallet.ts, fund.ts) mais
+      // absentes jusqu'ici — sans elles, ces réglages étaient invisibles
+      // et impossibles à modifier depuis l'admin.
+      fund_baobab_fee: 16,
+      investment_min: 5000,
+      withdrawal_min: 5000,
+      payin_operator_real: 3.5,
+      payout_operator_real: 2,
     }
     for (const [key, value] of Object.entries(defaults)) {
       await prisma.platformConfig.upsert({
