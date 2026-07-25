@@ -612,19 +612,19 @@ function KycTab({ flash, authPost, authPatch, authGet }: any) {
               {/* Documents — liens directs */}
               <div className="flex gap-3 mb-4 flex-wrap">
                 {u.kycDocumentUrl && (
-                  <a href={`${API}${u.kycDocumentUrl}`} target="_blank" rel="noopener noreferrer"
+                  <a href={u.kycDocumentUrl?.startsWith("http") ? u.kycDocumentUrl : `${API}${u.kycDocumentUrl}`} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors">
                     🪪 Voir CNI/Passeport ↗
                   </a>
                 )}
                 {u.kycSelfieUrl && (
-                  <a href={`${API}${u.kycSelfieUrl}`} target="_blank" rel="noopener noreferrer"
+                  <a href={u.kycSelfieUrl?.startsWith("http") ? u.kycSelfieUrl : `${API}${u.kycSelfieUrl}`} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-700 text-sm font-medium hover:bg-purple-100 transition-colors">
                     🤳 Voir Selfie ↗
                   </a>
                 )}
                 {u.kycRccmUrl && (
-                  <a href={`${API}${u.kycRccmUrl}`} target="_blank" rel="noopener noreferrer"
+                  <a href={u.kycRccmUrl?.startsWith("http") ? u.kycRccmUrl : `${API}${u.kycRccmUrl}`} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-xl text-orange-700 text-sm font-medium hover:bg-orange-100 transition-colors">
                     📋 Voir RCCM ↗
                   </a>
@@ -2720,9 +2720,9 @@ export default function AdminPage() {
                         )}
                         {u.kycDocumentUrl && (
                           <div className="flex gap-1 mt-1">
-                            <a href={`${process.env.NEXT_PUBLIC_API_URL}${u.kycDocumentUrl}`} target="_blank" rel="noopener noreferrer"
+                            <a href={u.kycDocumentUrl?.startsWith("http") ? u.kycDocumentUrl : `${process.env.NEXT_PUBLIC_API_URL}${u.kycDocumentUrl}`} target="_blank" rel="noopener noreferrer"
                               className="text-xs text-blue-600 hover:underline">🪪 CNI</a>
-                            {u.kycSelfieUrl && <a href={`${process.env.NEXT_PUBLIC_API_URL}${u.kycSelfieUrl}`} target="_blank" rel="noopener noreferrer"
+                            {u.kycSelfieUrl && <a href={u.kycSelfieUrl?.startsWith("http") ? u.kycSelfieUrl : `${process.env.NEXT_PUBLIC_API_URL}${u.kycSelfieUrl}`} target="_blank" rel="noopener noreferrer"
                               className="text-xs text-purple-600 hover:underline ml-1">🤳 Selfie</a>}
                           </div>
                         )}
