@@ -47,7 +47,7 @@ export default function ProfilePage() {
           countryCode: res.data.countryCode || res.data.country || "",
           indicatif: res.data.indicatif || "",
           state: res.data.region || "",
-          stateCode: "",
+          stateCode: res.data.stateCode || "",
           city: res.data.city || "",
         });
       }
