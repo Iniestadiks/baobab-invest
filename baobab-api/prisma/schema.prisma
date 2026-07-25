@@ -511,7 +511,9 @@ model WalletTransaction {
   amount      Float
   status      String   @default("PENDING") // PENDING, COMPLETED, REJECTED
   phoneNumber String?
-  operator    String?
+  operator    String?  // Orange Money, Wave, etc. (réseau mobile money)
+  providerKey String?  // "paydunya" | "kiakiapay" | "stripe" — quel prestataire a traité ce paiement
+  providerRef String?  // token/référence chez ce prestataire (pour vérification webhook)
   description String?
   processedAt DateTime?
   createdAt   DateTime @default(now())
