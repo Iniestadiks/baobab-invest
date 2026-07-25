@@ -24,7 +24,7 @@ function getPasswordStrength(pwd: string): { score: number; label: string; color
   if (score === 2) return { score, label: "Faible",      color: "#f97316" };
   if (score === 3) return { score, label: "Moyen",       color: "#eab308" };
   if (score === 4) return { score, label: "Fort",        color: "#22c55e" };
-  return { score, label: "Très fort", color: "#06B6D4" };
+  return { score, label: "Très fort", color: "#22c55e" };
 }
 
 type Step = "role" | "info" | "verify";
@@ -121,12 +121,12 @@ export default function RegisterPage() {
 
   return (
     <div style={{minHeight:"100vh",background:"#050810",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px",position:"relative",overflow:"hidden"}}>
-      <div style={{position:"fixed",top:"10%",left:"5%",width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(37,99,235,0.1) 0%,transparent 70%)",filter:"blur(80px)",pointerEvents:"none"}}/>
-      <div style={{position:"fixed",bottom:"5%",right:"5%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(6,182,212,0.08) 0%,transparent 70%)",filter:"blur(80px)",pointerEvents:"none"}}/>
+      <div style={{position:"fixed",top:"10%",left:"5%",width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(22,163,74,0.1) 0%,transparent 70%)",filter:"blur(80px)",pointerEvents:"none"}}/>
+      <div style={{position:"fixed",bottom:"5%",right:"5%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(34,197,94,0.08) 0%,transparent 70%)",filter:"blur(80px)",pointerEvents:"none"}}/>
       <div style={{width:"100%",maxWidth:540,position:"relative",zIndex:1}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:10,textDecoration:"none",marginBottom:24}}>
-            <div style={{width:44,height:44,borderRadius:13,background:"linear-gradient(135deg,#2563EB,#06B6D4)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:20,color:"#fff",boxShadow:"0 0 24px rgba(37,99,235,0.4)"}}>K</div>
+            <div style={{width:44,height:44,borderRadius:13,background:"linear-gradient(135deg,#16a34a,#22c55e)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:20,color:"#fff",boxShadow:"0 0 24px rgba(22,163,74,0.4)"}}>K</div>
             <span style={{fontWeight:900,fontSize:20,color:"#fff",letterSpacing:"-0.5px"}}>KORAPACT</span>
           </Link>
           {step !== "verify" && <>
@@ -150,8 +150,8 @@ export default function RegisterPage() {
                     <div style={{
                       width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
                       fontSize:12,fontWeight:800,color:"#fff",
-                      background: isDone ? "linear-gradient(135deg,#22c55e,#16a34a)" : isActive ? "linear-gradient(135deg,#2563EB,#06B6D4)" : "rgba(255,255,255,0.08)",
-                      border: isActive ? "2px solid rgba(37,99,235,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                      background: isDone ? "linear-gradient(135deg,#22c55e,#16a34a)" : isActive ? "linear-gradient(135deg,#16a34a,#22c55e)" : "rgba(255,255,255,0.08)",
+                      border: isActive ? "2px solid rgba(22,163,74,0.4)" : "1px solid rgba(255,255,255,0.1)",
                       transition:"all 0.3s",
                     }}>
                       {isDone ? "✓" : i+1}
@@ -184,14 +184,14 @@ export default function RegisterPage() {
             <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.4)",letterSpacing:3,textTransform:"uppercase",marginBottom:16}}>Je suis un...</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
               {ROLES.map(r => (
-                <button key={r.value} type="button" onClick={() => set("role", r.value)} style={{padding:"16px 14px",borderRadius:16,textAlign:"left",cursor:"pointer",background:form.role===r.value?"rgba(37,99,235,0.15)":"rgba(255,255,255,0.03)",border:form.role===r.value?"1.5px solid rgba(37,99,235,0.5)":"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s"}}>
+                <button key={r.value} type="button" onClick={() => set("role", r.value)} style={{padding:"16px 14px",borderRadius:16,textAlign:"left",cursor:"pointer",background:form.role===r.value?"rgba(22,163,74,0.15)":"rgba(255,255,255,0.03)",border:form.role===r.value?"1.5px solid rgba(22,163,74,0.5)":"1px solid rgba(255,255,255,0.08)",transition:"all 0.2s"}}>
                   <div style={{fontSize:24,marginBottom:8}}>{r.icon}</div>
                   <div style={{fontWeight:700,fontSize:13,color:"#fff",marginBottom:4}}>{r.label}</div>
                   <div style={{fontSize:11.5,color:"rgba(255,255,255,0.4)",lineHeight:1.5}}>{r.desc}</div>
                 </button>
               ))}
             </div>
-            <button onClick={() => setStep("info")} style={{width:"100%",padding:"14px",borderRadius:14,fontWeight:700,fontSize:15,color:"#fff",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#2563EB,#06B6D4)",boxShadow:"0 8px 24px rgba(37,99,235,0.35)"}}>
+            <button onClick={() => setStep("info")} style={{width:"100%",padding:"14px",borderRadius:14,fontWeight:700,fontSize:15,color:"#fff",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#16a34a,#22c55e)",boxShadow:"0 8px 24px rgba(22,163,74,0.35)"}}>
               Continuer — {selectedRole.icon} {selectedRole.label}
             </button>
           </>}
@@ -200,7 +200,7 @@ export default function RegisterPage() {
           {step === "info" && (
             <form onSubmit={handleRegister}>
               <button type="button" onClick={() => setStep("role")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.45)",fontSize:13,cursor:"pointer",marginBottom:20,padding:0,display:"flex",alignItems:"center",gap:6}}>← Changer de rôle</button>
-              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(37,99,235,0.1)",border:"1px solid rgba(37,99,235,0.25)",borderRadius:100,padding:"5px 14px",fontSize:12,fontWeight:700,color:"#93C5FD",marginBottom:24}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(22,163,74,0.1)",border:"1px solid rgba(22,163,74,0.25)",borderRadius:100,padding:"5px 14px",fontSize:12,fontWeight:700,color:"#86efac",marginBottom:24}}>
                 {selectedRole.icon} {selectedRole.label}
               </div>
               {error && <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:12,padding:"12px 16px",fontSize:13,color:"#FCA5A5",marginBottom:20}}>⚠️ {error}</div>}
@@ -220,9 +220,9 @@ export default function RegisterPage() {
               </div>
 
               {/* GeoSelector dark — premium */}
-              <div style={{marginBottom:14,background:"linear-gradient(135deg,rgba(37,99,235,0.05),rgba(6,182,212,0.03))",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,padding:18}}>
+              <div style={{marginBottom:14,background:"linear-gradient(135deg,rgba(22,163,74,0.05),rgba(34,197,94,0.03))",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,padding:18}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
-                  <div style={{width:26,height:26,borderRadius:8,background:"rgba(37,99,235,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>📍</div>
+                  <div style={{width:26,height:26,borderRadius:8,background:"rgba(22,163,74,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>📍</div>
                   <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.55)",letterSpacing:2,textTransform:"uppercase"}}>Localisation</div>
                 </div>
                 <style>{`
@@ -236,7 +236,7 @@ export default function RegisterPage() {
                     transition:border-color 0.2s, background 0.2s;
                   }
                   .geo-dark select:hover,.geo-dark input:hover{border-color:rgba(255,255,255,0.22)!important}
-                  .geo-dark select:focus,.geo-dark input:focus{border-color:rgba(37,99,235,0.5)!important;background:rgba(37,99,235,0.06)!important}
+                  .geo-dark select:focus,.geo-dark input:focus{border-color:rgba(22,163,74,0.5)!important;background:rgba(22,163,74,0.06)!important}
                   .geo-dark select option{background:#0C1024;color:#fff;padding:8px}
                   .geo-dark label{color:rgba(255,255,255,0.45)!important;font-size:11px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:0.5px!important;margin-bottom:6px!important}
                   .geo-dark > div{margin-bottom:12px}
@@ -251,7 +251,7 @@ export default function RegisterPage() {
                 {geo.countryCode && (
                   <div style={{marginTop:12,display:"flex",alignItems:"center",gap:6,fontSize:12,color:"rgba(255,255,255,0.4)"}}>
                     <span style={{color:"#22c55e"}}>✓</span>
-                    <span>Indicatif détecté : <strong style={{color:"#93C5FD"}}>{geo.indicatif}</strong></span>
+                    <span>Indicatif détecté : <strong style={{color:"#86efac"}}>{geo.indicatif}</strong></span>
                   </div>
                 )}
               </div>
@@ -300,12 +300,12 @@ export default function RegisterPage() {
               </div>
 
               <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:24}}>
-                <input type="checkbox" required id="cgu" style={{marginTop:3,accentColor:"#2563EB"}}/>
+                <input type="checkbox" required id="cgu" style={{marginTop:3,accentColor:"#16a34a"}}/>
                 <label htmlFor="cgu" style={{fontSize:12.5,color:"rgba(255,255,255,0.4)",lineHeight:1.6}}>
-                  J&apos;accepte les <Link href="/cgu" style={{color:"#06B6D4"}}>CGU</Link> et la <Link href="/privacy" style={{color:"#06B6D4"}}>Politique de Confidentialité</Link>
+                  J&apos;accepte les <Link href="/cgu" style={{color:"#22c55e"}}>CGU</Link> et la <Link href="/privacy" style={{color:"#22c55e"}}>Politique de Confidentialité</Link>
                 </label>
               </div>
-              <button type="submit" disabled={loading} style={{width:"100%",padding:"14px",borderRadius:14,fontWeight:700,fontSize:15,color:"#fff",cursor:loading?"not-allowed":"pointer",border:"none",background:"linear-gradient(135deg,#2563EB,#06B6D4)",boxShadow:"0 8px 24px rgba(37,99,235,0.35)",opacity:loading?0.7:1,transition:"all 0.2s"}}>
+              <button type="submit" disabled={loading} style={{width:"100%",padding:"14px",borderRadius:14,fontWeight:700,fontSize:15,color:"#fff",cursor:loading?"not-allowed":"pointer",border:"none",background:"linear-gradient(135deg,#16a34a,#22c55e)",boxShadow:"0 8px 24px rgba(22,163,74,0.35)",opacity:loading?0.7:1,transition:"all 0.2s"}}>
                 {loading?"Création du compte...":`Créer mon compte ${selectedRole.icon}`}
               </button>
             </form>
@@ -316,22 +316,22 @@ export default function RegisterPage() {
             <form onSubmit={handleVerify} style={{textAlign:"center"}}>
               <div style={{fontSize:48,marginBottom:16}}>📬</div>
               <h2 style={{fontWeight:900,fontSize:22,color:"#fff",margin:"0 0 8px"}}>Vérifiez votre email</h2>
-              <p style={{color:"rgba(255,255,255,0.45)",fontSize:14,lineHeight:1.7,marginBottom:32}}>Code à 6 chiffres envoyé à<br/><strong style={{color:"#06B6D4"}}>{userEmail}</strong></p>
+              <p style={{color:"rgba(255,255,255,0.45)",fontSize:14,lineHeight:1.7,marginBottom:32}}>Code à 6 chiffres envoyé à<br/><strong style={{color:"#22c55e"}}>{userEmail}</strong></p>
               {error && <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:12,padding:"12px 16px",fontSize:13,color:"#FCA5A5",marginBottom:20}}>⚠️ {error}</div>}
               <input value={verifyCode} onChange={e=>{setVerifyCode(e.target.value.replace(/\D/g,"").slice(0,6));setError("");}} placeholder="000000" maxLength={6}
-                style={{width:"100%",textAlign:"center",letterSpacing:12,fontSize:32,fontWeight:900,background:"rgba(37,99,235,0.08)",border:"2px solid rgba(37,99,235,0.3)",borderRadius:16,padding:"20px",color:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"monospace",marginBottom:24}}/>
-              <button type="submit" disabled={loading||verifyCode.length!==6} style={{width:"100%",padding:"14px",borderRadius:14,fontWeight:700,fontSize:15,color:"#fff",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#2563EB,#06B6D4)",opacity:(loading||verifyCode.length!==6)?0.5:1,marginBottom:16}}>
+                style={{width:"100%",textAlign:"center",letterSpacing:12,fontSize:32,fontWeight:900,background:"rgba(22,163,74,0.08)",border:"2px solid rgba(22,163,74,0.3)",borderRadius:16,padding:"20px",color:"#fff",outline:"none",boxSizing:"border-box",fontFamily:"monospace",marginBottom:24}}/>
+              <button type="submit" disabled={loading||verifyCode.length!==6} style={{width:"100%",padding:"14px",borderRadius:14,fontWeight:700,fontSize:15,color:"#fff",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#16a34a,#22c55e)",opacity:(loading||verifyCode.length!==6)?0.5:1,marginBottom:16}}>
                 {loading?"Vérification...":"Confirmer mon compte ✅"}
               </button>
               <button type="button" onClick={resendCode} disabled={resendLoading} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:13,cursor:"pointer",textDecoration:"underline"}}>
                 {resendLoading?"Envoi...":"Renvoyer le code"}
               </button>
-              {resendMsg && <div style={{color:"#06B6D4",fontSize:13,marginTop:8}}>{resendMsg}</div>}
+              {resendMsg && <div style={{color:"#22c55e",fontSize:13,marginTop:8}}>{resendMsg}</div>}
             </form>
           )}
         </div>
         <p style={{textAlign:"center",color:"rgba(255,255,255,0.35)",fontSize:13,marginTop:24}}>
-          Déjà un compte ?{" "}<Link href="/auth/login" style={{color:"#06B6D4",fontWeight:600}}>Se connecter</Link>
+          Déjà un compte ?{" "}<Link href="/auth/login" style={{color:"#22c55e",fontWeight:600}}>Se connecter</Link>
         </p>
       </div>
     </div>

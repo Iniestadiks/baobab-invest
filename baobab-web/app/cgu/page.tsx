@@ -27,10 +27,10 @@ export default function CGUPage() {
         </div>
       </nav>
       <div style={{minHeight:"100vh",background:"var(--dark)",paddingTop:68}}>
-        <div style={{background:"linear-gradient(180deg,rgba(37,99,235,0.08) 0%,transparent 100%)",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"64px 32px 48px"}}>
+        <div style={{background:"linear-gradient(180deg,rgba(22,163,74,0.08) 0%,transparent 100%)",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"64px 32px 48px"}}>
           <div style={{maxWidth:1280,margin:"0 auto"}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(37,99,235,0.1)",border:"1px solid rgba(37,99,235,0.25)",borderRadius:100,padding:"5px 14px",fontSize:11.5,fontWeight:700,color:"#93C5FD",marginBottom:24}}>📄 Document légal</div>
-            <h1 style={{fontSize:"clamp(32px,5vw,56px)",fontWeight:900,letterSpacing:"-2px",marginBottom:16}}>Conditions Générales<br/><span style={{background:"linear-gradient(135deg,#2563EB,#06B6D4)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>d&apos;Utilisation</span></h1>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(22,163,74,0.1)",border:"1px solid rgba(22,163,74,0.25)",borderRadius:100,padding:"5px 14px",fontSize:11.5,fontWeight:700,color:"#86efac",marginBottom:24}}>📄 Document légal</div>
+            <h1 style={{fontSize:"clamp(32px,5vw,56px)",fontWeight:900,letterSpacing:"-2px",marginBottom:16}}>Conditions Générales<br/><span style={{background:"linear-gradient(135deg,#16a34a,#22c55e)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>d&apos;Utilisation</span></h1>
             <p style={{fontSize:15,color:"rgba(255,255,255,0.4)"}}>Dernière mise à jour : juillet 2026</p>
           </div>
         </div>
@@ -39,7 +39,7 @@ export default function CGUPage() {
             <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.3)",letterSpacing:3,textTransform:"uppercase",marginBottom:16}}>Sommaire</div>
             {SECTIONS.map(s => (
               <a key={s.id} href={"#"+s.id} onClick={() => setActive(s.id)}
-                style={{display:"block",padding:"10px 14px",borderRadius:12,marginBottom:4,fontSize:13,fontWeight:active===s.id?700:500,color:active===s.id?"#93C5FD":"rgba(255,255,255,0.42)",background:active===s.id?"rgba(37,99,235,0.1)":"transparent",transition:"all 0.2s",borderLeft:active===s.id?"2px solid #2563EB":"2px solid transparent"}}>
+                style={{display:"block",padding:"10px 14px",borderRadius:12,marginBottom:4,fontSize:13,fontWeight:active===s.id?700:500,color:active===s.id?"#86efac":"rgba(255,255,255,0.42)",background:active===s.id?"rgba(22,163,74,0.1)":"transparent",transition:"all 0.2s",borderLeft:active===s.id?"2px solid #16a34a":"2px solid transparent"}}>
                 {s.title}
               </a>
             ))}
@@ -51,11 +51,11 @@ export default function CGUPage() {
                 <div style={{fontSize:14.5,color:"rgba(255,255,255,0.52)",lineHeight:1.85,whiteSpace:"pre-line"}}>{s.content}</div>
               </div>
             ))}
-            <div style={{background:"linear-gradient(135deg,rgba(37,99,235,0.12),rgba(6,182,212,0.08))",border:"1px solid rgba(37,99,235,0.2)",borderRadius:24,padding:40,textAlign:"center"}}>
+            <div style={{background:"linear-gradient(135deg,rgba(22,163,74,0.12),rgba(34,197,94,0.08))",border:"1px solid rgba(22,163,74,0.2)",borderRadius:24,padding:40,textAlign:"center"}}>
               <div style={{fontSize:32,marginBottom:16}}>💬</div>
               <h3 style={{fontSize:20,fontWeight:800,marginBottom:10}}>Une question ?</h3>
               <p style={{fontSize:14,color:"rgba(255,255,255,0.45)",marginBottom:24}}>Notre équipe répond sous 48h ouvrées.</p>
-              <a href="mailto:support@korapact.com" style={{display:"inline-block",background:"linear-gradient(135deg,#2563EB,#06B6D4)",color:"#fff",fontWeight:700,fontSize:14,padding:"13px 28px",borderRadius:14}}>Contacter le support →</a>
+              <a href="mailto:support@korapact.com" style={{display:"inline-block",background:"linear-gradient(135deg,#16a34a,#22c55e)",color:"#fff",fontWeight:700,fontSize:14,padding:"13px 28px",borderRadius:14}}>Contacter le support →</a>
             </div>
           </div>
         </div>

@@ -67,12 +67,12 @@ export default function LandingPage() {
     {
       label: "Capital levé",
       value: loading ? null : `${fmt(stats?.totalRaised || 0)} F`,
-      color: "#2563EB"
+      color: "#16a34a"
     },
     {
       label: "Projets actifs",
       value: loading ? null : String(stats?.activeProjects || 0),
-      color: "#06B6D4"
+      color: "#22c55e"
     },
     {
       label: "Investisseurs",
@@ -164,14 +164,14 @@ export default function LandingPage() {
       <section className="section" style={{background:"#0C1024"}}>
         <div className="section-inner">
           <div className="section-header" style={{textAlign:"center"}}>
-            <div className="section-eyebrow" style={{color:"#06B6D4"}}>Votre profil</div>
+            <div className="section-eyebrow" style={{color:"#22c55e"}}>Votre profil</div>
             <h2 className="section-title">Une plateforme pour chaque ambition</h2>
             <p className="section-sub" style={{maxWidth:440,margin:"0 auto"}}>Investisseur, entrepreneur, mentor ou mécène — choisissez votre rôle.</p>
           </div>
           <div className="roles-grid">
             {[
-              {role:"Investisseur",icon:"💼",href:"/auth/register?role=INVESTOR",color:"#2563EB",grad:"rgba(37,99,235,0.12)",desc:"Financez des projets vérifiés et percevez des retours mensuels.",gain:`+${fees.return_min||23}% min`},
-              {role:"Entrepreneur",icon:"🚀",href:"/auth/register?role=ENTREPRENEUR",color:"#06B6D4",grad:"rgba(6,182,212,0.12)",desc:"Obtenez un financement communautaire sans banque, en moins de 30 jours.",gain:"Financé en 30j"},
+              {role:"Investisseur",icon:"💼",href:"/auth/register?role=INVESTOR",color:"#16a34a",grad:"rgba(22,163,74,0.12)",desc:"Financez des projets vérifiés et percevez des retours mensuels.",gain:`+${fees.return_min||23}% min`},
+              {role:"Entrepreneur",icon:"🚀",href:"/auth/register?role=ENTREPRENEUR",color:"#22c55e",grad:"rgba(34,197,94,0.12)",desc:"Obtenez un financement communautaire sans banque, en moins de 30 jours.",gain:"Financé en 30j"},
               {role:"Mentor",icon:"🎓",href:"/auth/register?role=MENTOR",color:"#8B5CF6",grad:"rgba(139,92,246,0.12)",desc:"Parrainez des projets et percevez une commission à la clôture.",gain:`${fees.commission_mentor||2}% commission`},
               {role:"Bâtisseur",icon:"🏗️",href:"/auth/register?role=BUILDER",color:"#F59E0B",grad:"rgba(245,158,11,0.12)",desc:"Mécènes et entreprises — soutenez à grande échelle.",gain:"Impact & prestige"},
             ].map(p => (
@@ -205,17 +205,17 @@ export default function LandingPage() {
 
       {/* STEPS */}
       <section id="comment" className="section" style={{background:"#050810"}}>
-        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(37,99,235,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,0.025) 1px,transparent 1px)",backgroundSize:"72px 72px",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(22,163,74,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(22,163,74,0.025) 1px,transparent 1px)",backgroundSize:"72px 72px",pointerEvents:"none"}}/>
         <div className="section-inner" style={{position:"relative"}}>
           <div className="section-header" style={{textAlign:"center"}}>
-            <div className="section-eyebrow" style={{color:"#2563EB"}}>Processus</div>
+            <div className="section-eyebrow" style={{color:"#16a34a"}}>Processus</div>
             <h2 className="section-title">3 étapes, zéro complexité</h2>
             <p className="section-sub">De l'inscription au premier remboursement, tout est guidé.</p>
           </div>
           <div className="steps-grid">
             {[
-              {num:"01",title:"Créez votre compte",desc:"Inscription en 2 minutes. Vérification KYC rapide. Choisissez votre rôle.",icon:"👤",color:"#2563EB"},
-              {num:"02",title:"Sélectionnez un projet",desc:"Parcourez des projets vérifiés avec scores de crédibilité et mentors garants.",icon:"🔍",color:"#06B6D4"},
+              {num:"01",title:"Créez votre compte",desc:"Inscription en 2 minutes. Vérification KYC rapide. Choisissez votre rôle.",icon:"👤",color:"#16a34a"},
+              {num:"02",title:"Sélectionnez un projet",desc:"Parcourez des projets vérifiés avec scores de crédibilité et mentors garants.",icon:"🔍",color:"#22c55e"},
               {num:"03",title:"Percevez vos retours",desc:"Remboursements mensuels automatiques. Retrait vers votre compte à tout moment.",icon:"💸",color:"#F59E0B"},
             ].map((s, i) => (
               <div key={s.num} className="step-card">
@@ -236,7 +236,7 @@ export default function LandingPage() {
           <div className="section-inner">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:56,flexWrap:"wrap",gap:16}}>
               <div>
-                <div className="section-eyebrow" style={{color:"#06B6D4"}}>Live</div>
+                <div className="section-eyebrow" style={{color:"#22c55e"}}>Live</div>
                 <h2 className="section-title" style={{marginBottom:0}}>Projets en cours</h2>
               </div>
               <Link href="/projects" className="btn-section-ghost">Voir tous →</Link>
@@ -252,7 +252,7 @@ export default function LandingPage() {
                       <h3 className="project-title">{p.title}</h3>
                       <p className="project-desc">{p.description}</p>
                       <div className="project-metrics">
-                        {[{l:"Retour",v:`${p.expectedReturn}%`,c:"#06B6D4"},{l:"Durée",v:`${p.durationMonths}m`,c:"#93C5FD"},{l:"Levé",v:`${pct}%`,c:"#F59E0B"}].map(m=>(
+                        {[{l:"Retour",v:`${p.expectedReturn}%`,c:"#22c55e"},{l:"Durée",v:`${p.durationMonths}m`,c:"#86efac"},{l:"Levé",v:`${pct}%`,c:"#F59E0B"}].map(m=>(
                           <div key={m.l} className="metric">
                             <div className="metric-val" style={{color:m.c}}>{m.v}</div>
                             <div className="metric-label">{m.l}</div>
@@ -264,7 +264,7 @@ export default function LandingPage() {
                           <div style={{fontWeight:900,fontSize:14}}>{fmt(p.raisedAmount||0)} F</div>
                           <div style={{fontSize:11.5,color:"rgba(255,255,255,0.32)"}}>sur {fmt(p.goalAmount||0)} F</div>
                         </div>
-                        <div style={{fontWeight:700,fontSize:13,color:"#fff",padding:"9px 18px",borderRadius:12,background:"linear-gradient(135deg,#2563EB,#06B6D4)"}}>
+                        <div style={{fontWeight:700,fontSize:13,color:"#fff",padding:"9px 18px",borderRadius:12,background:"linear-gradient(135deg,#16a34a,#22c55e)"}}>
                           Investir →
                         </div>
                       </div>
@@ -285,7 +285,7 @@ export default function LandingPage() {
             <div>
               <div className="section-eyebrow" style={{color:"#8B5CF6"}}>Solidarité</div>
               <h2 className="section-title">Fonds Solidaire<br/>
-                <span style={{background:"linear-gradient(135deg,#8B5CF6,#06B6D4)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>KORAPACT</span>
+                <span style={{background:"linear-gradient(135deg,#8B5CF6,#22c55e)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>KORAPACT</span>
               </h2>
               <p style={{fontSize:17,color:"rgba(255,255,255,0.45)",lineHeight:1.8,marginBottom:36}}>
                 Une cagnotte communautaire. Contribuez dès <strong style={{color:"#8B5CF6"}}>5 000 F</strong>, avec ou sans compte, pour soutenir des projets ambitieux.
@@ -300,8 +300,8 @@ export default function LandingPage() {
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
                 {[
                   {label:"Total collecté",value:loading?null:`${fmt(fund?.totalReceived||0)} F`,color:"#8B5CF6"},
-                  {label:"Contributeurs",value:loading?null:String(fund?.totalContributors||0),color:"#06B6D4"},
-                  {label:"Projets aidés",value:loading?null:String(fund?.totalProjects||0),color:"#2563EB"},
+                  {label:"Contributeurs",value:loading?null:String(fund?.totalContributors||0),color:"#22c55e"},
+                  {label:"Projets aidés",value:loading?null:String(fund?.totalProjects||0),color:"#16a34a"},
                   {label:"Net aux projets",value:loading?null:`${fmt((fund?.totalReceived||0)*0.9)} F`,color:"#F59E0B"},
                 ].map(s=>(
                   <div key={s.label} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${s.color}20`,borderRadius:16,padding:"18px 14px",textAlign:"center"}}>
@@ -348,8 +348,8 @@ export default function LandingPage() {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               {[
                 {icon:"🏢",title:"Entreprises",desc:"RSE & impact mesurable",color:"#F59E0B"},
-                {icon:"🏛️",title:"Institutions",desc:"Partenariats officiels",color:"#2563EB"},
-                {icon:"🌐",title:"International",desc:"Accès global",color:"#06B6D4"},
+                {icon:"🏛️",title:"Institutions",desc:"Partenariats officiels",color:"#16a34a"},
+                {icon:"🌐",title:"International",desc:"Accès global",color:"#22c55e"},
                 {icon:"💎",title:"Mécènes",desc:"Philanthropie moderne",color:"#8B5CF6"},
               ].map(b=>(
                 <div key={b.title}
@@ -371,8 +371,8 @@ export default function LandingPage() {
         <div className="section-inner">
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"start"}}>
             <div>
-              <div className="section-eyebrow" style={{color:"#06B6D4"}}>Transparence</div>
-              <h2 className="section-title">Zéro surprise.<br/><span style={{color:"#06B6D4"}}>Tous les frais publics.</span></h2>
+              <div className="section-eyebrow" style={{color:"#22c55e"}}>Transparence</div>
+              <h2 className="section-title">Zéro surprise.<br/><span style={{color:"#22c55e"}}>Tous les frais publics.</span></h2>
               <p style={{fontSize:17,color:"rgba(255,255,255,0.42)",lineHeight:1.8,marginBottom:36}}>
                 Tous nos taux sont mis à jour en temps réel. Aucun frais caché.
               </p>
@@ -381,8 +381,8 @@ export default function LandingPage() {
                   {label:"Commission collecte",value:`${fees.commission_baobab_collection||6}%`,note:"Prélevé à la clôture",color:"#EF4444"},
                   {label:"Commission mentor",value:`${fees.commission_mentor||2}%`,note:"Versé au mentor garant",color:"#8B5CF6"},
                   {label:"Fonds de garantie",value:`${fees.commission_guarantee||2}%`,note:"Réserve communautaire",color:"#F59E0B"},
-                  {label:"Payin mensualités",value:`${fees.payin_repayment||4}%`,note:"Frais opérateur absorbés",color:"#2563EB"},
-                  {label:"Retrait gains",value:`${fees.withdrawal_fee_standard||0}%`,note:"Nous absorbons les frais",color:"#06B6D4"},
+                  {label:"Payin mensualités",value:`${fees.payin_repayment||4}%`,note:"Frais opérateur absorbés",color:"#16a34a"},
+                  {label:"Retrait gains",value:`${fees.withdrawal_fee_standard||0}%`,note:"Nous absorbons les frais",color:"#22c55e"},
                 ].map(f=>(
                   <div key={f.label} className="fee-row">
                     <div>
@@ -393,12 +393,12 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <Link href="/transparence" style={{display:"inline-block",marginTop:22,color:"#06B6D4",fontWeight:600,fontSize:13.5}}>
+              <Link href="/transparence" style={{display:"inline-block",marginTop:22,color:"#22c55e",fontWeight:600,fontSize:13.5}}>
                 Page transparence complète →
               </Link>
             </div>
             <div className="sim-card">
-              <div style={{fontSize:11,fontWeight:800,color:"#2563EB",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Calculateur</div>
+              <div style={{fontSize:11,fontWeight:800,color:"#16a34a",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Calculateur</div>
               <h3 style={{fontWeight:900,fontSize:22,marginBottom:4}}>🧮 Simulation</h3>
               <p style={{fontSize:12,color:"rgba(255,255,255,0.3)",marginBottom:28}}>Basé sur les taux actuels</p>
               {[
@@ -406,8 +406,8 @@ export default function LandingPage() {
                 {l:`Frais clôture (${totalFeesPct}%)`,v:`-${fmt(simFees)} F`,c:"#EF4444"},
                 {l:"Net dans le projet",v:`${fmt(simNet)} F`,c:"rgba(255,255,255,0.55)"},
                 {l:`Retour brut (min ${fees.return_min||23}%)`,v:`+${fmt(simRetour)} F`,c:"#F59E0B"},
-                {l:`Payin (${fees.payin_repayment||4}%)`,v:`-${fmt(simPayin)} F`,c:"#93C5FD"},
-                {l:"Retrait gains",v:"Gratuit ✅",c:"#06B6D4"},
+                {l:`Payin (${fees.payin_repayment||4}%)`,v:`-${fmt(simPayin)} F`,c:"#86efac"},
+                {l:"Retrait gains",v:"Gratuit ✅",c:"#22c55e"},
               ].map((row,i)=>(
                 <div key={i}>
                   <div className="sim-row">
@@ -421,7 +421,7 @@ export default function LandingPage() {
                 <span style={{fontWeight:700,fontSize:16}}>Vous recevez</span>
                 <span style={{fontWeight:900,fontSize:22}}>{fmt(simGain)} F</span>
               </div>
-              <div style={{textAlign:"center",marginTop:14,color:"#06B6D4",fontWeight:700,fontSize:15}}>
+              <div style={{textAlign:"center",marginTop:14,color:"#22c55e",fontWeight:700,fontSize:15}}>
                 Gain net : +{fmt(simGainNet)} F (+{simGainPct}%) 🎉
               </div>
             </div>
@@ -433,13 +433,13 @@ export default function LandingPage() {
       <section className="cta-section" style={{background:"#0C1024"}}>
         <div className="cta-glow"/>
         <div style={{maxWidth:860,margin:"0 auto",textAlign:"center",position:"relative"}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(37,99,235,0.1)",border:"1px solid rgba(37,99,235,0.22)",borderRadius:100,padding:"5px 16px",fontSize:11.5,fontWeight:700,color:"#93C5FD",marginBottom:32}}>
-            <span style={{width:6,height:6,borderRadius:"50%",background:"#06B6D4",display:"inline-block"}}/>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(22,163,74,0.1)",border:"1px solid rgba(22,163,74,0.22)",borderRadius:100,padding:"5px 16px",fontSize:11.5,fontWeight:700,color:"#86efac",marginBottom:32}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#22c55e",display:"inline-block"}}/>
             Rejoignez la communauté KORAPACT
           </div>
           <h2 style={{fontSize:"clamp(40px,6vw,76px)",fontWeight:900,letterSpacing:"-3px",lineHeight:1.02,marginBottom:24}}>
             Prêt à faire<br/>
-            <span style={{background:"linear-gradient(135deg,#2563EB,#06B6D4,#F59E0B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
+            <span style={{background:"linear-gradient(135deg,#16a34a,#22c55e,#F59E0B)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
               fructifier votre argent ?
             </span>
           </h2>

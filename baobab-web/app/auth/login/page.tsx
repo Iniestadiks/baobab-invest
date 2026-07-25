@@ -97,8 +97,8 @@ function LoginForm() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden" style={{ background: '#050810' }}>
       {/* Ambient glows */}
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #2563EB, transparent)', filter: 'blur(80px)' }} />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #06B6D4, transparent)', filter: 'blur(80px)' }} />
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #16a34a, transparent)', filter: 'blur(80px)' }} />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #22c55e, transparent)', filter: 'blur(80px)' }} />
       </div>
 
       <div className="relative z-10 w-full max-w-sm">
@@ -107,7 +107,7 @@ function LoginForm() {
           <Link href="/" className="inline-flex items-center gap-3 no-underline group mb-6">
             <div
               className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-xl text-white transition-transform group-hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #2563EB, #06B6D4)', boxShadow: '0 0 24px rgba(37,99,235,0.4)' }}
+              style={{ background: 'linear-gradient(135deg, #16a34a, #22c55e)', boxShadow: '0 0 24px rgba(22,163,74,0.4)' }}
             >
               K
             </div>
@@ -120,7 +120,7 @@ function LoginForm() {
           </p>
 
           {redirect && (
-            <div className="mt-3 text-xs px-3 py-2 rounded-xl" style={{ background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)', color: '#93C5FD' }}>
+            <div className="mt-3 text-xs px-3 py-2 rounded-xl" style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.25)', color: '#86efac' }}>
               🔒 Connectez-vous pour accéder à cette page
             </div>
           )}
@@ -183,7 +183,7 @@ function LoginForm() {
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.1)',
                 }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,99,235,0.6)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(22,163,74,0.6)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(22,163,74,0.1)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
               />
             </div>
@@ -194,7 +194,7 @@ function LoginForm() {
                 <label htmlFor="password" className="block text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.5)' }}>
                   Mot de passe
                 </label>
-                <Link href="/auth/forgot-password" className="text-xs no-underline transition-colors" style={{ color: '#06B6D4' }}>
+                <Link href="/auth/forgot-password" className="text-xs no-underline transition-colors" style={{ color: '#22c55e' }}>
                   Oublié ?
                 </Link>
               </div>
@@ -213,7 +213,7 @@ function LoginForm() {
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid rgba(255,255,255,0.1)',
                   }}
-                  onFocus={e => { e.currentTarget.style.borderColor = 'rgba(37,99,235,0.6)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'rgba(22,163,74,0.6)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(22,163,74,0.1)' }}
                   onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
                 />
                 <button
@@ -234,8 +234,8 @@ function LoginForm() {
                 disabled={loading}
                 className="w-full py-3 rounded-xl font-bold text-base text-white transition-all"
                 style={{
-                  background: loading ? 'rgba(37,99,235,0.5)' : 'linear-gradient(135deg, #2563EB, #06B6D4)',
-                  boxShadow: loading ? 'none' : '0 6px 24px rgba(37,99,235,0.35)',
+                  background: loading ? 'rgba(22,163,74,0.5)' : 'linear-gradient(135deg, #16a34a, #22c55e)',
+                  boxShadow: loading ? 'none' : '0 6px 24px rgba(22,163,74,0.35)',
                   cursor: loading ? 'not-allowed' : 'pointer',
                   border: 'none',
                   minHeight: '48px',
@@ -257,7 +257,7 @@ function LoginForm() {
 
         <p className="text-center text-sm mt-6" style={{ color: 'rgba(255,255,255,0.4)' }}>
           Pas encore de compte ?{' '}
-          <Link href="/auth/register" className="font-semibold no-underline" style={{ color: '#06B6D4' }}>
+          <Link href="/auth/register" className="font-semibold no-underline" style={{ color: '#22c55e' }}>
             Créer un compte
           </Link>
         </p>
