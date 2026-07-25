@@ -655,6 +655,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
       country: user.country,
       region: user.region,
       countryCode: user.countryCode,
+      stateCode: user.stateCode,
+      bio: user.bio,
       indicatif: user.indicatif,
       isEmailVerified: user.isEmailVerified,
       totalInvested: user.totalInvested,
