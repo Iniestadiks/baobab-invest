@@ -70,7 +70,6 @@ router.post('/read-all', authenticate, async (req: AuthRequest, res: Response): 
   } catch (e) { errorResponse(res) }
 })
 
-export default router
 
 // Marquer une notification spécifique comme lue
 router.patch('/:id/read', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -84,3 +83,5 @@ router.patch('/:id/read', authenticate, async (req: AuthRequest, res: Response):
     errorResponse(res)
   }
 })
+
+export default router
