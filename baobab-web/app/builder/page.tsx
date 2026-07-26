@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authGet, authPost, authPatch } from "@/lib/api";
 import { useRoleRedirect } from "@/hooks/useRoleRedirect";
+import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 
 const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
 
@@ -22,6 +23,7 @@ const SECTORS = [
 export default function BuilderDashboard() {
   const router = useRouter();
   useRoleRedirect(["BUILDER"]);
+  const { config: fees } = usePlatformConfig();
 
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -649,7 +651,7 @@ export default function BuilderDashboard() {
                 <div className="space-y-3">
                   {[
                     { label: "Total donné au fonds", value: fmt(totalDonated) + " FCFA", icon: "💝" },
-                    { label: "Net reversé aux projets (84%)", value: fmt(Math.round(totalDonated * 0.84)) + " FCFA", icon: "🚀" },
+                    { label: `Net reversé aux projets (${100 - (fees?.fund_baobab_fee ?? 16)}%)`, value: fmt(Math.round(totalDonated * (1 - (fees?.fund_baobab_fee ?? 16) / 100))) + " FCFA", icon: "🚀" },
                     { label: "Projets soutenus", value: String(projectsSupported), icon: "🏗️" },
                     { label: "Contributions totales", value: String(contributions.length), icon: "📋" },
                     { label: "Points réputation", value: String(impactData?.reputationPoints || 0) + " pts", icon: "⭐" },
@@ -736,7 +738,7 @@ export default function BuilderDashboard() {
                   placeholder="Montant personnalisé..."
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
                 {contribForm.amount && Number(contribForm.amount) >= 500 && (
-                  <div className="text-xs text-gray-500 mt-1">Net au fonds (84%) : <strong className="text-green-600">{fmt(Math.round(Number(contribForm.amount) * 0.84))} FCFA</strong> · Commission BAOBAB 16% : {fmt(Math.round(Number(contribForm.amount) * 0.16))} FCFA</div>
+                  <div className="text-xs text-gray-500 mt-1">Net au fonds ({100 - (fees?.fund_baobab_fee ?? 16)}%) : <strong className="text-green-600">{fmt(Math.round(Number(contribForm.amount) * (1 - (fees?.fund_baobab_fee ?? 16) / 100)))} FCFA</strong> · Commission BAOBAB {fees?.fund_baobab_fee ?? 16}% : {fmt(Math.round(Number(contribForm.amount) * ((fees?.fund_baobab_fee ?? 16) / 100)))} FCFA</div>
                 )}
               </div>
               <div>
