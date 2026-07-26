@@ -136,6 +136,7 @@ model User {
   reputationPoints   Int              @default(0)
   reputationEvents   ReputationEvent[]
   userBadges         UserBadge[]
+  courseCompletions  CourseCompletion[]
   monthlyRankings    MonthlyRanking[]
   sentMessages        Message[] @relation("SentMessages")
   walletTransactions  WalletTransaction[]
@@ -233,6 +234,18 @@ model Wallet {
   user User @relation(fields: [userId], references: [id])
 
   @@map("wallets")
+}
+
+model CourseCompletion {
+  id           String   @id @default(uuid())
+  userId       String
+  courseId     String   // slug du catalogue (défini côté backend, pas en base)
+  pointsEarned Int      @default(0)
+  completedAt  DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, courseId])
+  @@map("course_completions")
 }
 
 model PaymentProviderConfig {

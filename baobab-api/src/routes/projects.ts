@@ -28,7 +28,7 @@ const projectSchema = z.object({
 })
 
 // Calculer le score de bankabilité
-function calculateBankabilityScore(data: any): number {
+function calculateBankabilityScore(data: any, certifiedCourseCount: number = 0): number {
   let score = 0
   if (data.description.length > 200) score += 15
   if (data.pitchVideoUrl) score += 20
@@ -37,6 +37,9 @@ function calculateBankabilityScore(data: any): number {
   if (data.goalAmount <= 2000000) score += 10
   if (data.expectedReturn <= 30) score += 10
   if (data.durationMonths >= 6) score += 10
+  // Certifications Académie — +5 pts par cours certifiant terminé, plafonné à +15
+  // (cohérent avec ce qui est annoncé sur la page Académie)
+  score += Math.min(certifiedCourseCount * 5, 15)
   return Math.min(score, 100)
 }
 
@@ -259,7 +262,8 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
           where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: 'WAITLISTED' }
         })
         const data = projectSchema.parse(req.body)
-        const score = calculateBankabilityScore({ ...data, description: data.description })
+        const certifiedCount = await prisma.courseCompletion.count({ where: { userId: req.userId!, pointsEarned: { gt: 0 } } })
+        const score = calculateBankabilityScore({ ...data, description: data.description }, certifiedCount)
         const waitlistedProject = await prisma.project.create({
           data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED', useOfFunds: data.useOfFunds || null,
             feeCollectionRate: feesCalc.commission_baobab_collection,
@@ -287,7 +291,13 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
     }
 
     const data = projectSchema.parse(req.body)
-    const score = calculateBankabilityScore({ ...data, description: data.description })
+    const certifiedCountMain = await prisma.courseCompletion.count({ where: { userId: req.userId!, pointsEarned: { gt: 0 } } })
+    // Règle réelle annoncée sur l'Académie : projets > 1M FCFA exigent au moins 2 certifications
+    if (data.goalAmount > 1000000 && certifiedCountMain < 2) {
+      res.status(403).json({ success: false, message: "Les projets demandant plus de 1 000 000 FCFA nécessitent au moins 2 certifications de l'Académie KORAPACT. Rendez-vous sur /academy.", code: "CERTIFICATION_REQUIRED" })
+      return
+    }
+    const score = calculateBankabilityScore({ ...data, description: data.description }, certifiedCountMain)
     const project = await prisma.project.create({
       data: {
         ...data,
