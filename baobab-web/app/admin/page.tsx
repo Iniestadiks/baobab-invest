@@ -20,6 +20,7 @@ const TABS = [
   { id: "fund", label: "🌱 Fonds Solidaire" },
   { id: "builders", label: "🏗️ Bâtisseurs" },
   { id: "config", label: "⚙️ Configuration" },
+  { id: "payment_providers", label: "💳 Prestataires paiement" },
   { id: "active_projects", label: "🚀 Projets actifs" },
   { id: "stats", label: "📈 Statistiques" },
 ];
@@ -161,6 +162,76 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
   );
 }
 
+function PaymentProvidersTab({ flash }: { flash: (m: string) => void }) {
+  const [providers, setProviders] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [toggling, setToggling] = React.useState<string | null>(null);
+  const load = () => {
+    setLoading(true);
+    authGet("/api/config/payment-providers").then((res: any) => {
+      if (res.success) setProviders(res.data || []);
+    }).finally(() => setLoading(false));
+  };
+  React.useEffect(() => { load(); }, []);
+  const toggle = async (key: string, current: boolean) => {
+    setToggling(key);
+    const res = await authPatch(`/api/config/payment-providers/${key}`, { enabled: !current });
+    if (res.success) { flash(`✅ ${res.message}`); load(); }
+    else flash("❌ " + res.message);
+    setToggling(null);
+  };
+  const METHOD_LABELS: Record<string, string> = {
+    mobile_money: "📱 Mobile Money",
+    card: "💳 Carte bancaire",
+  };
+  if (loading) return <div className="text-center py-10 text-gray-400">Chargement...</div>;
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">💳 Prestataires de paiement</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Active ou désactive les prestataires disponibles pour les dépôts, retraits et dons.
+          Plusieurs prestataires peuvent être actifs en même temps — l'utilisateur choisit à chaque paiement.
+        </p>
+      </div>
+      <div className="space-y-3">
+        {providers.map((p: any) => (
+          <div key={p.key} className={`bg-white rounded-2xl border p-5 flex items-center justify-between ${p.enabled ? "border-green-200" : "border-gray-100"}`}>
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${p.enabled ? "bg-green-50" : "bg-gray-50"}`}>
+                {p.key === "paydunya" ? "🟠" : p.key === "kiakiapay" ? "🟡" : p.key === "stripe" ? "🟣" : "💳"}
+              </div>
+              <div>
+                <div className="font-bold text-gray-900">{p.label}</div>
+                <div className="text-xs text-gray-500">{METHOD_LABELS[p.methods] || p.methods}</div>
+                {p.key !== "paydunya" && !p.enabled && (
+                  <div className="text-xs text-orange-500 mt-1">⚠️ Clé API à configurer dans .env avant activation</div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${p.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                {p.enabled ? "✅ Activé" : "⭕ Désactivé"}
+              </span>
+              <button
+                onClick={() => toggle(p.key, p.enabled)}
+                disabled={toggling === p.key}
+                className={`relative w-14 h-7 rounded-full transition-colors ${p.enabled ? "bg-green-500" : "bg-gray-300"} disabled:opacity-50`}
+              >
+                <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${p.enabled ? "translate-x-7" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        <strong>💡 Pour ajouter un nouveau prestataire</strong> (ta propre API Orange Money/Wave, un autre agrégateur...) :
+        ajoute un adaptateur dans <code className="bg-blue-100 px-1 rounded">services/payments/</code>, enregistre-le
+        dans le registre, puis il apparaîtra automatiquement ici pour être activé.
+      </div>
+    </div>
+  );
+}
 function ConfigTab({ flash }: { flash: (m: string) => void }) {
   const [configs, setConfigs] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -3268,6 +3339,7 @@ export default function AdminPage() {
         )}
         {tab === "stats" && <StatsTab authGet={authGet} />}
         {tab === "config" && <ConfigTab flash={flash} />}
+        {tab === "payment_providers" && <PaymentProvidersTab flash={flash} />}
         {tab === "transactions" && <TransactionsTab flash={flash} />}
         {tab === "fund" && <FundTab flash={flash} />}
         {tab === "builders" && <BuildersAdminTab flash={flash} />}
