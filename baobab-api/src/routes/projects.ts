@@ -263,6 +263,11 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
         })
         const data = projectSchema.parse(req.body)
         const certifiedCount = await prisma.courseCompletion.count({ where: { userId: req.userId!, pointsEarned: { gt: 0 } } })
+        // Même règle que la création normale — cohérence entre les deux chemins
+        if (data.goalAmount > 1000000 && certifiedCount < 2) {
+          res.status(403).json({ success: false, message: "Les projets demandant plus de 1 000 000 FCFA nécessitent au moins 2 certifications de l'Académie KORAPACT. Rendez-vous sur /academy.", code: "CERTIFICATION_REQUIRED" })
+          return
+        }
         const score = calculateBankabilityScore({ ...data, description: data.description }, certifiedCount)
         const waitlistedProject = await prisma.project.create({
           data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId!, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED', useOfFunds: data.useOfFunds || null,
