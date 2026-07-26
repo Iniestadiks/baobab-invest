@@ -6,6 +6,17 @@ import { successResponse, errorResponse } from '../utils/helpers'
 import { getAllProviderConfigs, ensurePaymentProviderConfigs } from '../services/payments/registry'
 const router = Router()
 
+// Route publique — prestataires de paiement ACTIVÉS (pour l'écran de dépôt utilisateur)
+router.get('/payment-providers/public', async (req, res): Promise<void> => {
+  try {
+    const configs = await prisma.paymentProviderConfig.findMany({
+      where: { enabled: true },
+      orderBy: { sortOrder: 'asc' },
+      select: { key: true, label: true, methods: true },
+    })
+    res.json({ success: true, data: configs })
+  } catch (e) { res.status(500).json({ success: false }) }
+})
 // Route publique
 router.get('/public', async (req, res): Promise<void> => {
   try {

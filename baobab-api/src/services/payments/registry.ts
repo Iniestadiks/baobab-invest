@@ -17,9 +17,11 @@ const ALL_PROVIDERS: Record<string, PaymentProvider> = {
 }
 
 const DEFAULT_CONFIGS = [
-  { key: 'paydunya', label: 'PayDunya', methods: 'mobile_money', enabled: true, sortOrder: 1 },
-  { key: 'kiakiapay', label: 'KiaKiaPay', methods: 'mobile_money', enabled: false, sortOrder: 2 },
-  { key: 'stripe', label: 'Stripe', methods: 'card', enabled: false, sortOrder: 3 },
+  // "methods" = libellé affiché à l'utilisateur (pas le nom du prestataire) —
+  // chaque agrégateur affiche ensuite ses propres options précises sur sa page de paiement.
+  { key: 'paydunya', label: 'Mobile Money', methods: 'Wave, Orange Money, Free Money, Expresso', enabled: true, sortOrder: 1 },
+  { key: 'kiakiapay', label: 'Mobile Money (KiaKiaPay)', methods: 'Wave, Orange Money, MTN Money', enabled: false, sortOrder: 2 },
+  { key: 'stripe', label: 'Carte bancaire', methods: 'Carte bancaire, Apple Pay, Google Pay', enabled: false, sortOrder: 3 },
 ]
 
 // S'assure que les 3 lignes de config existent en base (appelé une fois au démarrage)
