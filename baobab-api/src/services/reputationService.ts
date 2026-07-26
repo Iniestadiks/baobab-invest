@@ -118,16 +118,16 @@ export async function addReputationPoints(
       data: { userId, type, points, description, projectId }
     })
 
-    // Score sur 100 : proportionnel au niveau et aux points
-    const scoreByLevel: Record<number, number> = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 }
-    const baseScore = scoreByLevel[newLevel.level] || 20
-    const reputationScore = Math.min(100, baseScore)
+    // IMPORTANT : reputationScore (score métier 0-100 qui bloque/débloque
+    // la création de projet, géré par des increment/decrement directs dans
+    // admin.ts et repayment.ts) est un champ SÉPARÉ de reputationPoints/level
+    // (système de gamification/badges ci-dessous). On ne le touche jamais ici
+    // pour éviter d'écraser silencieusement les pénalités ou bonus métier.
     await prisma.user.update({
       where: { id: userId },
       data: {
         reputationPoints: newPoints,
         level: newLevel.level,
-        reputationScore
       }
     })
 
