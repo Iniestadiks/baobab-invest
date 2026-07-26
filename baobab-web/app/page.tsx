@@ -192,15 +192,12 @@ export default function LandingPage() {
               </video>
               <div className="hv-ring"/>
               <div className="hv-ring hv-ring-2"/>
-              <div className="hv-center"><span className="hv-sprout">🌱</span></div>
               <div className="hv-hand hv-hand-1">🤝</div>
               <div className="hv-hand hv-hand-2">💼</div>
               <div className="hv-hand hv-hand-3">🚀</div>
               <div className="hv-hand hv-hand-4">🎓</div>
               <div className="hv-hand hv-hand-5">🏗️</div>
               <div className="hv-hand hv-hand-6">💰</div>
-              <div className="hv-badge hv-badge-1">🟢 +23% retour moyen</div>
-              <div className="hv-badge hv-badge-2">🔒 100% transparent</div>
             </div>
           </div>
         </div>
