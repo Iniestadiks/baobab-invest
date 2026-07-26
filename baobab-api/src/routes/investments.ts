@@ -16,6 +16,7 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response): Promise
       include: { project: { select: {
         title: true, sector: true, status: true, expectedReturn: true, id: true,
         goalAmount: true, raisedAmount: true, netAmount: true, durationMonths: true,
+        feePayinRepaymentRate: true,
         entrepreneurId: true,
         entrepreneur: { select: { id: true, firstName: true, lastName: true, profileImageUrl: true } },
         mentor: { select: { id: true, firstName: true, lastName: true } }
