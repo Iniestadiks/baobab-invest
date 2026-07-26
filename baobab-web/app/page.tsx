@@ -185,7 +185,11 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            <div className="hero-visual">
+            <div className="hero-visual" style={{position:"relative", overflow:"hidden"}}>
+              <video autoPlay loop muted playsInline
+                style={{position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", borderRadius:24, zIndex:0}}>
+                <source src="/hero-video.mp4" type="video/mp4" />
+              </video>
               <div className="hv-ring"/>
               <div className="hv-ring hv-ring-2"/>
               <div className="hv-center"><span className="hv-sprout">🌱</span></div>
@@ -214,7 +218,7 @@ export default function LandingPage() {
             {[
               {role:"Investisseur",icon:"💼",href:"/auth/register?role=INVESTOR",color:"#0F7A3D",grad:"rgba(15,122,61,0.05)",desc:"Financez des projets vérifiés et percevez des retours mensuels.",gain:`+${fees.return_min||23}% min`},
               {role:"Entrepreneur",icon:"🚀",href:"/auth/register?role=ENTREPRENEUR",color:"#16A34A",grad:"rgba(22,163,74,0.05)",desc:"Obtenez un financement communautaire sans banque, en moins de 30 jours.",gain:"Financé en 30j"},
-              {role:"Mentor",icon:"🎓",href:"/auth/register?role=MENTOR",color:"#7C3AED",grad:"rgba(124,58,237,0.05)",desc:"Parrainez des projets et percevez une commission à la clôture.",gain:`${fees.commission_mentor||2}% commission`},
+              {role:"Mentor",icon:"🎓",href:"/auth/register?role=MENTOR",color:"#7C3AED",grad:"rgba(124,58,237,0.05)",desc:"Parrainez des projets et percevez une commission à la collecte.",gain:`${fees.commission_mentor||2}% commission`},
               {role:"Bâtisseur",icon:"🏗️",href:"/auth/register?role=BUILDER",color:"#C8860D",grad:"rgba(200,134,13,0.05)",desc:"Mécènes et entreprises — soutenez à grande échelle.",gain:"Impact & prestige"},
             ].map(p => (
               <div key={p.role} className="role-card"
