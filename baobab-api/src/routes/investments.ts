@@ -5,6 +5,7 @@ import { authenticate, AuthRequest } from '../middleware/auth'
 import { getFees, getProjectFees } from '../config/fees'
 import { triggerFundedActions } from '../services/paliers'
 import { addReputationPoints, awardBadge, checkAndAwardBadges, REPUTATION_POINTS } from '../services/reputationService'
+import { checkAndPayReferralBonus } from '../services/referralService'
 import { successResponse, errorResponse } from '../utils/helpers'
 const router = Router()
 
@@ -200,6 +201,9 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       if (newStatus === 'FUNDED' && project.currentPalier === 0) {
         await triggerFundedActions(projectId, tx)
       }
+      // 8. Vérifier si ce nouvel investissement déclenche un bonus de
+      // parrainage (KYC + investissement des deux côtés — voir service)
+      await checkAndPayReferralBonus(req.userId!, tx)
     })
 
     // Points de réputation investisseur

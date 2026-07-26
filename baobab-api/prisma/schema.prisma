@@ -151,6 +151,7 @@ model User {
   referralCount     Int       @default(0)
   referralEarned    Float     @default(0)
   referredBy        String?
+  referralBonusPaid Boolean   @default(false) // bonus déjà versé pour CE parrainage (filleul → parrain)
   refreshToken      String?
   otpCode           String?
   otpExpiresAt      DateTime?

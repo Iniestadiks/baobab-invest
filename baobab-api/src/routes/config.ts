@@ -41,13 +41,21 @@ router.patch('/:key', authenticate, requireAdmin, async (req: AuthRequest, res: 
     if (value === undefined || isNaN(Number(value))) {
       res.status(400).json({ success: false, message: 'Valeur invalide' }); return
     }
+    // Champs système — jamais modifiables à la main, uniquement par le code
+    // (compteur de dépense parrainage, mis à jour automatiquement à chaque
+    // bonus versé). Passer par /referral/reopen pour le remettre à zéro.
+    const readOnlyKeys = ['referral_budget_spent']
+    if (readOnlyKeys.includes(key)) {
+      res.status(403).json({ success: false, message: 'Ce champ est géré automatiquement par le système, non modifiable manuellement' }); return
+    }
     const pctKeys = [
       'commission_baobab_collection', 'commission_mentor', 'commission_guarantee',
       'payin_recovery', 'payin_repayment', 'withdrawal_fee_standard', 'withdrawal_fee_no_invest',
       'return_min', 'fund_baobab_fee', 'payin_operator_real', 'payout_operator_real'
     ]
     const monthKeys = ['grace_period_agriculture', 'grace_period_other']
-    const amountKeys = ['investment_min', 'withdrawal_min']
+    const amountKeys = ['investment_min', 'withdrawal_min', 'referral_bonus_amount', 'referral_budget_total']
+    const boolKeys = ['referral_program_active']
     if (pctKeys.includes(key) && (Number(value) < 0 || Number(value) > 50)) {
       res.status(400).json({ success: false, message: 'Taux doit être entre 0 et 50%' }); return
     }
@@ -56,6 +64,9 @@ router.patch('/:key', authenticate, requireAdmin, async (req: AuthRequest, res: 
     }
     if (amountKeys.includes(key) && (Number(value) < 0 || Number(value) > 1000000)) {
       res.status(400).json({ success: false, message: 'Montant doit être entre 0 et 1 000 000 FCFA' }); return
+    }
+    if (boolKeys.includes(key) && ![0, 1].includes(Number(value))) {
+      res.status(400).json({ success: false, message: 'Valeur doit être 0 (désactivé) ou 1 (activé)' }); return
     }
     // Sauver en brouillon uniquement
     const config = await prisma.platformConfig.update({
@@ -119,6 +130,13 @@ router.post('/reset', authenticate, requireAdmin, async (req: AuthRequest, res: 
       withdrawal_min: 5000,
       payin_operator_real: 3.5,
       payout_operator_real: 2,
+      // Parrainage — bonus versé UNIQUEMENT après KYC + 1er investissement du
+      // filleul, ET que le parrain a lui-même déjà investi. Budget partagé
+      // entre tous les parrainages, coupure auto quand épuisé.
+      referral_bonus_amount: 2000,
+      referral_budget_total: 200000,
+      referral_budget_spent: 0,
+      referral_program_active: 1,
     }
     for (const [key, value] of Object.entries(defaults)) {
       await prisma.platformConfig.upsert({
@@ -153,6 +171,25 @@ router.patch('/payment-providers/:key', authenticate, requireAdmin, async (req: 
       data: { enabled },
     })
     successResponse(res, config, `${config.label} ${enabled ? 'activé' : 'désactivé'}`)
+  } catch (e) { errorResponse(res) }
+})
+
+// Réouvrir le programme de parrainage — remet le budget dépensé à zéro
+// et réactive le programme (à utiliser après une coupure automatique
+// pour épuisement de budget, ou pour relancer une campagne).
+router.post('/referral/reopen', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await prisma.platformConfig.upsert({
+      where: { key: 'referral_budget_spent' },
+      update: { value: 0, draftValue: null },
+      create: { key: 'referral_budget_spent', value: 0, label: 'Budget parrainage dépensé (FCFA)', description: 'Compteur système — géré automatiquement' },
+    })
+    await prisma.platformConfig.upsert({
+      where: { key: 'referral_program_active' },
+      update: { value: 1, draftValue: null },
+      create: { key: 'referral_program_active', value: 1, label: 'Programme de parrainage actif', description: '1 = actif, 0 = désactivé' },
+    })
+    successResponse(res, {}, 'Programme de parrainage réouvert — budget remis à zéro')
   } catch (e) { errorResponse(res) }
 })
 
