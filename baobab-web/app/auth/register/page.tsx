@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { GeoSelector } from "@/hooks/useGeo";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://api.korapact.com";
@@ -31,6 +31,21 @@ type Step = "role" | "info" | "verify";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Applique automatiquement le code de parrainage présent dans l'URL
+  // (?ref=CODE), sans que le filleul n'ait rien à faire manuellement.
+  // Échoue silencieusement — ne doit JAMAIS bloquer une inscription.
+  const applyReferralIfPresent = async (token: string) => {
+    const ref = searchParams?.get("ref");
+    if (!ref || !token) return;
+    try {
+      await fetch(`${API}/api/referral/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: ref }),
+      });
+    } catch {}
+  };
   const [step, setStep] = useState<Step>("role");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -73,6 +88,7 @@ export default function RegisterPage() {
       localStorage.setItem("user", JSON.stringify(data.data.user));
       if (data.data.requiresVerification) { setUserEmail(form.email); setStep("verify"); }
       else {
+        await applyReferralIfPresent(data.data.accessToken);
         const role = form.role;
         if (role === "ENTREPRENEUR") router.push("/entrepreneur");
         else if (role === "MENTOR") router.push("/mentor");
@@ -94,6 +110,7 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message); return; }
+      await applyReferralIfPresent(localStorage.getItem("accessToken") || "");
       const role = form.role;
       if (role === "ENTREPRENEUR") router.push("/entrepreneur");
       else if (role === "MENTOR") router.push("/mentor");
