@@ -599,10 +599,12 @@ router.get('/builder/impact', authenticate, async (req: AuthRequest, res: Respon
     const projectsSupported = projectIds.length
     const badges = await prisma.fundBadge.findMany({ where: { userId: req.userId! } })
 
-    // Niveau bâtisseur
-    let level = 'BATISSEUR'
-    let nextLevel = 'ARGENT'
-    let nextThreshold = 500000
+    // Niveau bâtisseur — 5 paliers, cohérent avec BuildersAdminTab (admin) et
+    // le Hall of Fame public (LEVEL_CONFIG). Le défaut sous 100 000 FCFA doit
+    // être CONTRIBUTEUR, pas BATISSEUR (bug précédent).
+    let level = 'CONTRIBUTEUR'
+    let nextLevel = 'BATISSEUR'
+    let nextThreshold = 100000
     if (totalDonated >= 10000000) { level = 'GRAND_MECENE'; nextLevel = ''; nextThreshold = 0 }
     else if (totalDonated >= 2000000) { level = 'OR'; nextLevel = 'GRAND_MECENE'; nextThreshold = 10000000 }
     else if (totalDonated >= 500000) { level = 'ARGENT'; nextLevel = 'OR'; nextThreshold = 2000000 }
@@ -661,10 +663,13 @@ router.get('/builders/public', async (req: any, res: Response): Promise<void> =>
         prisma.fundContribution.count({ where: { userId: b.userId, status: 'COMPLETED' } })
       ])
       const total = b._sum.amount || 0
-      let level = 'BATISSEUR'
+      // 5 paliers, cohérent avec BuildersAdminTab et /builder/impact —
+      // il manquait le seuil BATISSEUR (100k) et le défaut CONTRIBUTEUR.
+      let level = 'CONTRIBUTEUR'
       if (total >= 10000000) level = 'GRAND_MECENE'
       else if (total >= 2000000) level = 'OR'
       else if (total >= 500000) level = 'ARGENT'
+      else if (total >= 100000) level = 'BATISSEUR'
       // Projets soutenus via le fonds (allocations liées aux contributions)
       const projectsSupported = await prisma.fundContribution.count({
         where: { userId: b.userId, status: 'COMPLETED', projectId: { not: null } }
