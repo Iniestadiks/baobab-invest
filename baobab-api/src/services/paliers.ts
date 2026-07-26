@@ -3,10 +3,16 @@ import { PrismaClient } from '@prisma/client'
 import { getProjectFees } from '../config/fees'
 const prisma = new PrismaClient()
 
-// Seuils de déblocage documentés dans l'admin (ReimburseTab) :
-// P1 (40%) immédiat à FUNDED · P2 (35%) après 2 mensualités payées · P3 (25%) après 4 mensualités payées
-const MOIS_PALIER_2 = 2
-const MOIS_PALIER_3 = 4
+// Seuils de déblocage PROPORTIONNELS à la durée totale du projet —
+// identiques à la formule utilisée côté frontend (entrepreneur/page.tsx)
+// pour que l'annonce affichée corresponde exactement à ce qui se passe.
+// Ex: projet de 12 mois → Palier 2 après 4 mensualités, Palier 3 après 8.
+// Ex: projet de 6 mois  → Palier 2 après 2 mensualités (minimum), Palier 3 après 4 (minimum).
+function getPalierThresholds(totalMonths: number) {
+  const moisP2 = Math.max(2, Math.round(totalMonths / 3))
+  const moisP3 = Math.max(4, Math.round(totalMonths * 2 / 3))
+  return { moisP2, moisP3 }
+}
 
 export async function triggerFundedActions(projectId: string, tx: any) {
   const project = await tx.project.findUnique({
@@ -85,11 +91,12 @@ export async function triggerFundedActions(projectId: string, tx: any) {
   }
 
   // ── NOTIFICATIONS ──
+  const { moisP2 } = getPalierThresholds(durationMonths)
   await tx.notification.create({
     data: {
       userId: project.entrepreneurId,
       title: '🎉 Projet financé ! Palier 1 débloqué',
-      body: `Félicitations ! ${p1Amount.toLocaleString()} FCFA (40%) ont été crédités sur votre wallet. Remboursez ${MOIS_PALIER_2} mensualités pour débloquer le Palier 2 (35%).`,
+      body: `Félicitations ! ${p1Amount.toLocaleString()} FCFA (40%) ont été crédités sur votre wallet. Remboursez ${moisP2} mensualités pour débloquer le Palier 2 (35%).`,
       type: 'PALIER_UNLOCKED',
       data: JSON.stringify({ projectId, palier: 1, amount: p1Amount })
     }
@@ -119,9 +126,11 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
   const project = schedule.project
   const netAmount = project.netAmount || Math.round((project.goalAmount || 0) * 0.90)
   const currentPalier = project.currentPalier || 1
+  const totalMonths = schedule.totalMonths || project.durationMonths || 12
+  const { moisP2, moisP3 } = getPalierThresholds(totalMonths)
 
-  // ── PALIER 2 : 35% après MOIS_PALIER_2 mensualités payées ──
-  if (currentPalier === 1 && schedule.paidMonths >= MOIS_PALIER_2) {
+  // ── PALIER 2 : 35% après moisP2 mensualités payées ──
+  if (currentPalier === 1 && schedule.paidMonths >= moisP2) {
     const p2Amount = Math.round(netAmount * 0.35)
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
@@ -136,14 +145,14 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         type: 'DISBURSEMENT_P2',
         amount: p2Amount,
         projectId: project.id,
-        description: `Palier 2 (35%) débloqué après ${schedule.paidMonths}/${schedule.totalMonths} mensualités — ${p2Amount.toLocaleString()} FCFA`
+        description: `Palier 2 (35%) débloqué après ${schedule.paidMonths}/${totalMonths} mensualités (seuil: ${moisP2}) — ${p2Amount.toLocaleString()} FCFA`
       }
     })
     await tx.notification.create({
       data: {
         userId: project.entrepreneurId,
         title: '🎉 Palier 2 débloqué !',
-        body: `${p2Amount.toLocaleString()} FCFA (35%) supplémentaires crédités. Continuez vos remboursements pour débloquer le Palier 3 !`,
+        body: `${p2Amount.toLocaleString()} FCFA (35%) supplémentaires crédités. Remboursez ${moisP3} mensualités au total pour débloquer le Palier 3 !`,
         type: 'PALIER_UNLOCKED',
         data: JSON.stringify({ projectId: project.id, palier: 2, amount: p2Amount })
       }
@@ -151,8 +160,8 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
     return
   }
 
-  // ── PALIER 3 : 25% après MOIS_PALIER_3 mensualités payées ──
-  if (currentPalier === 2 && schedule.paidMonths >= MOIS_PALIER_3) {
+  // ── PALIER 3 : 25% après moisP3 mensualités payées ──
+  if (currentPalier === 2 && schedule.paidMonths >= moisP3) {
     const p3Amount = Math.round(netAmount * 0.25)
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
@@ -167,7 +176,7 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         type: 'DISBURSEMENT_P3',
         amount: p3Amount,
         projectId: project.id,
-        description: `Palier 3 (25%) débloqué après ${schedule.paidMonths}/${schedule.totalMonths} mensualités — ${p3Amount.toLocaleString()} FCFA`
+        description: `Palier 3 (25%) débloqué après ${schedule.paidMonths}/${totalMonths} mensualités (seuil: ${moisP3}) — ${p3Amount.toLocaleString()} FCFA`
       }
     })
     await tx.notification.create({
