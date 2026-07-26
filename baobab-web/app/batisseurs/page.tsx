@@ -9,7 +9,6 @@ const BADGE_CONFIG: Record<string, { label: string; icon: string; color: string;
   JARDINIER:       { label: "Jardinier",       icon: "🌿", color: "text-emerald-700",bg: "bg-emerald-100",pts: 50,   desc: "Vous cultivez l'espoir. 50 pts franchis !" },
   BAOBAB:          { label: "Baobab",          icon: "🌳", color: "text-teal-700",   bg: "bg-teal-100",   pts: 200,  desc: "Solide comme un baobab. Votre impact est réel." },
   GRAND_BATISSEUR: { label: "Grand Bâtisseur", icon: "🏆", color: "text-yellow-700", bg: "bg-yellow-100", pts: 500,  desc: "Vous bâtissez l'Afrique de demain." },
-  GRAND_MECENE:    { label: "Grand Mécène",    icon: "💎", color: "text-purple-700", bg: "bg-purple-100", pts: 1500, desc: "Légende vivante. Votre nom restera gravé." },
 };
 
 const SPECIAL_BADGES = [
