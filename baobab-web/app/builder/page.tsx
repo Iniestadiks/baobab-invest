@@ -97,15 +97,14 @@ export default function BuilderDashboard() {
       })
     });
     const data = await res.json();
-    if (data.success) {
-      // Confirmer immédiatement (mode test)
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/fund/confirm/${data.data.contributionId}`, { method: "POST" });
-      flash(`✅ Contribution de ${fmt(Number(contribForm.amount))} FCFA confirmée !`);
-      setShowContribForm(false);
-      setContribForm({ amount: "", projectId: "", message: "", anonymous: false, operator: "WAVE", phone: "" });
-      load();
-    } else flash("❌ " + data.message);
-    setSubmitting(false);
+    if (data.success && data.data?.paymentUrl) {
+      // Redirection vers la vraie page de paiement — la contribution ne sera
+      // marquée COMPLETED qu'après confirmation réelle via le webhook
+      window.location.href = data.data.paymentUrl;
+    } else {
+      flash("❌ " + (data.message || "Erreur lors de l'initiation du paiement"));
+      setSubmitting(false);
+    }
   };
 
   const downloadPDF = async () => {

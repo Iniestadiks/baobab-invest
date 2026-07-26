@@ -288,13 +288,6 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
     res.json({ success: true })
   } catch (e) { console.error(e); res.status(500).json({ success: false }) }
 })
-// ─── CONFIRMER CONTRIBUTION (legacy / appel direct par id) ──────────────────
-router.post('/confirm/:id', async (req: any, res: Response): Promise<void> => {
-  try {
-    await finalizeContribution(req.params.id)
-    successResponse(res, { confirmed: true }, 'Contribution confirmée')
-  } catch (e) { console.error(e); errorResponse(res) }
-})
 
 // ─── ADMIN — CONFIRMER MANUELLEMENT ─────────────────────────────────────────
 router.post('/admin/confirm/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
