@@ -224,7 +224,7 @@ export default function MentorDashboard() {
           {[
             { icon: "⚡", label: "Decisions en attente", value: pendingProjects.length + " projet(s)", color: pendingProjects.length > 0 ? "text-orange-700 bg-orange-50" : "text-gray-600 bg-gray-50" },
             { icon: "🟢", label: "Projets actifs", value: activeProjects.length + "/5", color: "text-green-700 bg-green-50" },
-            { icon: "💰", label: "Ma commission", value: commissionRate + "% à la clôture (" + fmt(totalCommission) + " FCFA)", color: "text-green-700 bg-green-50" },
+            { icon: "💰", label: "Ma commission", value: commissionRate + "% à la collecte (" + fmt(totalCommission) + " FCFA)", color: "text-green-700 bg-green-50" },
             { icon: "🏆", label: "Taux succes", value: projects.length > 0 ? Math.round((completedProjects.length/projects.length)*100) + "%" : "N/A", color: "text-blue-700 bg-blue-50" },
           ].map(s => (
             <div key={s.label} className={`rounded-2xl p-4 ${s.color}`}>
@@ -299,7 +299,7 @@ export default function MentorDashboard() {
                 <h3 className="font-bold text-green-900 mb-4">Votre role de Mentor / Garant</h3>
                 <div className="space-y-2 text-xs text-green-700">
                   <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Votre identite est publiquement engagee sur chaque projet parraine</span></div>
-                  <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Vous percevez {fees?.commission_mentor || 2}% du montant leve a la cloture</span></div>
+                  <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Vous percevez {fees?.commission_mentor || 2}% investi, credite immediatement a chaque investissement</span></div>
                   <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Maximum 5 projets simultanes autorise</span></div>
                   <div className="flex items-center gap-2 bg-white rounded-xl p-3"><span>Encouragez les rapports mensuels des entrepreneurs</span></div>
                 </div>
