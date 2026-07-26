@@ -421,9 +421,18 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
           const payinMensualites = Math.round(retourBrut * payinRepayment / 100);
           const investNetReturn = retourBrut - payinMensualites;
           const rendement = ((investNetReturn - besoin) / besoin * 100).toFixed(1);
-          // Bilan BAOBAB = BAOBAB% + payin collecte + payin mensualités
+          // Taux RÉELS payés à l'opérateur (PayDunya) — configurables dans l'admin.
+          // Le payin/payout collecté n'est PAS 100% du profit BAOBAB : une grande
+          // partie sert à payer le coût réel de l'opérateur. Seule la MARGE
+          // (taux sécurisé - taux réel) est un vrai gain net, comme dans l'onglet
+          // Finances BAOBAB (section "Bilan opérateur").
+          const payinOperatorReal = parseFloat(v.payin_operator_real || "3.5");
+          const payoutOperatorReal = parseFloat(v.payout_operator_real || "2");
+          const margePayinCollecte = Math.round(goalAmount * Math.max(0, payinRecovery - payinOperatorReal) / 100);
+          const margePayoutMensualites = Math.round(retourBrut * Math.max(0, payinRepayment - payoutOperatorReal) / 100);
+          // Bilan BAOBAB = BAOBAB% (profit pur) + MARGE réelle payin collecte + MARGE réelle payin mensualités
           const payinPerInvestor = payinRecovered;
-          const baobabNet = baobabGainClot + payinRecovered + payinMensualites;
+          const baobabNet = baobabGainClot + margePayinCollecte + margePayoutMensualites;
           const rentable = baobabNet > 0 && investNetReturn > besoin;
 
           return (
@@ -487,8 +496,9 @@ function ConfigTab({ flash }: { flash: (m: string) => void }) {
                 <div className="font-bold text-gray-900 mb-2 text-sm">🏦 Bilan net BAOBAB</div>
                 <div className="grid grid-cols-3 gap-3 text-xs">
                   <div className="text-center">
-                    <div className="text-gray-500">Revenus</div>
-                    <div className="font-bold text-green-700">+{(baobabGainClot + payinPerInvestor + payinMensualites).toLocaleString()} FCFA</div>
+                    <div className="text-gray-500">Revenus réels (hors coût opérateur)</div>
+                    <div className="font-bold text-green-700">+{(baobabGainClot + margePayinCollecte + margePayoutMensualites).toLocaleString()} FCFA</div>
+                    <div className="text-xs text-gray-400 mt-0.5">Collecte brute: {(payinPerInvestor + payinMensualites).toLocaleString()} F — dont {payinOperatorReal}%/{payoutOperatorReal}% reversés à l&apos;opérateur</div>
                   </div>
                   <div className="text-center">
                     <div className="text-gray-500">Dont fonds garantie</div>
