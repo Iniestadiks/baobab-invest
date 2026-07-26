@@ -238,7 +238,6 @@ router.post('/broadcast/:projectId', authenticate, requireRole(['ENTREPRENEUR'])
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
-export default router
 
 // Upload pièce jointe dans un message
 router.post('/upload-attachment', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -249,7 +248,7 @@ router.post('/upload-attachment', authenticate, async (req: AuthRequest, res: Re
 
     const storage = multer.diskStorage({
       destination: (r: any, f: any, cb: any) => {
-        const dir = '/home/korapact/baobab-api/uploads/messages'
+        const dir = '/home/baobab-invest/baobab-api/uploads/messages'
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
         cb(null, dir)
       },
@@ -289,3 +288,5 @@ router.post('/upload-attachment', authenticate, async (req: AuthRequest, res: Re
     errorResponse(res)
   }
 })
+
+export default router
