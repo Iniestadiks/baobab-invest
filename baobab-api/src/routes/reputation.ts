@@ -35,58 +35,81 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response): Promise
 router.get("/leaderboard", async (req: any, res: Response): Promise<void> => {
   try {
     const role = String(req.query.role || "INVESTOR")
+    const period = String(req.query.period || "all")
+    if (!["INVESTOR", "ENTREPRENEUR", "MENTOR"].includes(role)) {
+      res.json({ success: true, data: [] }); return
+    }
     const baseWhere: any = { kycStatus: "VERIFIED", role: role }
-    
-    if (role === "INVESTOR") {
+
+    const includeExtra = (r: string) => {
+      if (r === "INVESTOR") return { investments: { select: { amount: true } } }
+      if (r === "ENTREPRENEUR") return { projectsOwned: { select: { status: true, raisedAmount: true } } }
+      return {}
+    }
+    const mapResult = (u: any) => ({
+      ...u,
+      totalInvested: u.investments ? u.investments.reduce((s: number, i: any) => s + i.amount, 0) : undefined,
+      investments: undefined,
+    })
+
+    // ── "Tout temps" — classement sur les points cumulés à vie ──
+    if (period === "all") {
       const users = await prisma.user.findMany({
         where: baseWhere,
         select: {
           id: true, firstName: true, lastName: true, city: true, country: true,
           reputationPoints: true, reputationScore: true, level: true, profileImageUrl: true,
           userBadges: { select: { badge: true, label: true, icon: true }, take: 3 },
-          investments: { select: { amount: true } }
+          ...includeExtra(role),
         },
         orderBy: { reputationPoints: "desc" },
-        take: 10
+        take: 10,
       })
-      const result = users.map(u => ({ ...u, totalInvested: u.investments.reduce((s, i) => s + i.amount, 0), investments: undefined }))
-      res.json({ success: true, data: result }); return
+      res.json({ success: true, data: users.map(mapResult) }); return
     }
 
-    if (role === "ENTREPRENEUR") {
-      const users = await prisma.user.findMany({
-        where: baseWhere,
-        select: {
-          id: true, firstName: true, lastName: true, city: true, country: true,
-          reputationPoints: true, reputationScore: true, level: true, profileImageUrl: true,
-          userBadges: { select: { badge: true, label: true, icon: true }, take: 3 },
-          projectsOwned: { select: { status: true, raisedAmount: true } }
-        },
-        orderBy: { reputationPoints: "desc" },
-        take: 10
-      })
-      res.json({ success: true, data: users }); return
-    }
+    // ── "Ce mois" / "Cette année" — points RÉELLEMENT gagnés dans la période,
+    // calculés à partir des événements de réputation (ReputationEvent), pas
+    // du total à vie. Le niveau affiché reste le niveau global de l'utilisateur.
+    const now = new Date()
+    const periodStart = period === "month"
+      ? new Date(now.getFullYear(), now.getMonth(), 1)
+      : new Date(now.getFullYear(), 0, 1) // "year"
 
-    if (role === "MENTOR") {
-      const users = await prisma.user.findMany({
-        where: baseWhere,
-        select: {
-          id: true, firstName: true, lastName: true, city: true, country: true,
-          reputationPoints: true, reputationScore: true, level: true, profileImageUrl: true,
-          userBadges: { select: { badge: true, label: true, icon: true }, take: 3 }
-        },
-        orderBy: { reputationPoints: "desc" },
-        take: 10
-      })
-      res.json({ success: true, data: users }); return
-    }
+    const roleUsers = await prisma.user.findMany({ where: baseWhere, select: { id: true } })
+    const userIds = roleUsers.map(u => u.id)
+    if (userIds.length === 0) { res.json({ success: true, data: [] }); return }
 
-    res.json({ success: true, data: [] })
+    const grouped = await prisma.reputationEvent.groupBy({
+      by: ['userId'],
+      where: { userId: { in: userIds }, createdAt: { gte: periodStart }, points: { gt: 0 } },
+      _sum: { points: true },
+      orderBy: { _sum: { points: 'desc' } },
+      take: 10,
+    })
+    const topUserIds = grouped.map(g => g.userId)
+    if (topUserIds.length === 0) { res.json({ success: true, data: [] }); return }
+
+    const pointsMap: Record<string, number> = {}
+    grouped.forEach(g => { pointsMap[g.userId] = g._sum.points || 0 })
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: topUserIds } },
+      select: {
+        id: true, firstName: true, lastName: true, city: true, country: true,
+        reputationScore: true, level: true, profileImageUrl: true,
+        userBadges: { select: { badge: true, label: true, icon: true }, take: 3 },
+        ...includeExtra(role),
+      },
+    })
+    const result = topUserIds
+      .map(id => users.find(u => u.id === id))
+      .filter((u): u is NonNullable<typeof u> => !!u)
+      .map(u => mapResult({ ...u, reputationPoints: pointsMap[u.id] || 0 }))
+
+    res.json({ success: true, data: result })
   } catch(e) { console.error(e); res.status(500).json({ success: false }) }
 })
-
-// GET /api/reputation/rankings/month — Classement mensuel actuel
 router.get("/rankings/month", async (req: any, res: Response): Promise<void> => {
   try {
     const now = new Date()
