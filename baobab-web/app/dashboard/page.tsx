@@ -139,8 +139,6 @@ export default function DashboardPage() {
   const unread = notifications.filter(n => !n.isRead).length;
   const projetsActifs = investments.filter(i => i.project?.status !== "COMPLETED").length;
   const projetsTermines = investments.filter(i => i.project?.status === "COMPLETED").length;
-  const baobabRate = fees?.payin_repayment || 4;  // Payin mensualités (0% commission retour)
-  const paydunyaRate = 0;  // supprimé — reversements virtuels 0% frais
   // totalExpected vient du backend qui a deja applique les frais
   const totalNetReturn = totalExpected;
   const gainNet = Math.max(0, totalNetReturn - totalInvested);
@@ -414,8 +412,8 @@ export default function DashboardPage() {
                       <div className="bg-green-500 h-2 rounded-full" style={{width: levelProgress+"%"}} />
                     </div>
                     <div className="flex justify-between text-xs text-gray-400">
-                      <span>{fmt(totalInvested)} FCFA</span>
-                      <span>→ {nextLevel.icon} {fmt(nextLevel.min)} FCFA</span>
+                      <span>{reputationPoints} pts</span>
+                      <span>→ {nextLevel.icon} {nextLevel.min} pts</span>
                     </div>
                   </>
                 )}
