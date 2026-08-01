@@ -1021,10 +1021,11 @@ export default function EntrepreneurDashboard() {
                 </div>
               </div>
               <div className="space-y-1.5 text-xs text-gray-500">
-                <div>✅ Paiement à l'heure : +10 pts</div>
-                <div>🚀 Remboursement anticipé : +20 pts</div>
+                <div>🚀 Remboursement anticipé complet : +20 pts</div>
+                <div>⚠️ Retard 3 jours : -5 pts</div>
                 <div>⚠️ Retard 7 jours : -10 pts</div>
-                <div>❌ Retard 30 jours : -30 pts</div>
+                <div>🔴 Retard 15 jours : -30 pts</div>
+                <div>💀 Retard 15+ jours : -50 pts</div>
                 <div className={`mt-4 p-3 rounded-xl border text-sm font-medium ${getRepLevel(user?.reputationScore||0).bg} ${getRepLevel(user?.reputationScore||0).color}`}>
                   {getRepLevel(user?.reputationScore||0).icon} {getRepLevel(user?.reputationScore||0).label}
                   {(user?.reputationScore||0) < 50 && <div className="text-xs mt-1 opacity-80">⛔ Création de nouveau projet bloquée</div>}
