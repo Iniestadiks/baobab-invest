@@ -163,6 +163,31 @@ router.post('/:projectId/:palier/admin-decide', authenticate, requireAdmin, asyn
 })
 
 // Voir les preuves d'un projet — entrepreneur, investisseurs du projet, ou admin
+// Admin — liste de toutes les vidéos en attente d'examen (tous projets)
+router.get('/admin/pending', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const proofs = await prisma.palierProof.findMany({
+      where: { status: 'IN_REVIEW' },
+      include: {
+        project: { select: { title: true, sector: true, entrepreneur: { select: { firstName: true, lastName: true } } } },
+        votes: true,
+      },
+      orderBy: { createdAt: 'asc' }
+    })
+    const enriched = await Promise.all(proofs.map(async (p: any) => {
+      const totalInvestors = (await prisma.investment.groupBy({ by: ['userId'], where: { projectId: p.projectId } })).length
+      return {
+        ...p,
+        documents: p.documents ? JSON.parse(p.documents) : [],
+        approveCount: p.votes.filter((v: any) => v.vote === 'APPROVE').length,
+        rejectCount: p.votes.filter((v: any) => v.vote === 'REJECT').length,
+        totalInvestors,
+      }
+    }))
+    successResponse(res, enriched)
+  } catch (e) { console.error(e); errorResponse(res) }
+})
+
 router.get('/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { projectId } = req.params

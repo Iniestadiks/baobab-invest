@@ -867,13 +867,29 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
   const inProgressProjects = allProjects.filter((p: any) => p.status === "IN_PROGRESS");
   const [schedules, setSchedules] = React.useState<any[]>([]);
   const [escrowData, setEscrowData] = React.useState<any>(null);
-
+  const [pendingProofs, setPendingProofs] = React.useState<any[]>([]);
+  const [decidingProof, setDecidingProof] = React.useState<string | null>(null);
+  const loadPendingProofs = React.useCallback(() => {
+    authGet("/api/palier-proof/admin/pending").then((res: any) => {
+      if (res.success) setPendingProofs(res.data || []);
+    });
+  }, []);
   React.useEffect(() => {
     // Charger les échéanciers en cours
     authGet("/api/repayment/admin/all").then((res: any) => {
       if (res.success) setSchedules(res.data || []);
     });
+    loadPendingProofs();
   }, []);
+  const decideProof = async (projectId: string, palier: number, decision: "APPROVE" | "REJECT") => {
+    const reason = decision === "REJECT" ? prompt("Motif du rejet (visible par l'entrepreneur) :") : undefined;
+    if (decision === "REJECT" && !reason) return;
+    setDecidingProof(projectId + palier);
+    const res = await authPost(`/api/palier-proof/${projectId}/${palier}/admin-decide`, { decision, reason });
+    if (res.success) { flash("✅ " + res.message); loadPendingProofs(); loadData(); }
+    else flash("❌ " + res.message);
+    setDecidingProof(null);
+  };
 
   const loadDetails = async (projectId: string) => {
     if (details[projectId]) return;
@@ -905,6 +921,45 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
         <div className="text-sm text-gray-500">{fundedProjects.length} projet(s) éligible(s)</div>
       </div>
 
+      {/* Vidéos de palier en attente de décision finale */}
+      {pendingProofs.length > 0 && (
+        <div className="bg-white rounded-2xl border-2 border-orange-200 p-5">
+          <h3 className="font-bold text-gray-900 mb-4">🎬 Vidéos en attente d&apos;examen ({pendingProofs.length})</h3>
+          <div className="space-y-4">
+            {pendingProofs.map((p: any) => (
+              <div key={p.id} className="border border-orange-100 bg-orange-50 rounded-2xl p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="font-bold text-gray-900">{p.project?.title} — Palier {p.palier}</div>
+                    <div className="text-xs text-gray-500">{p.project?.entrepreneur?.firstName} {p.project?.entrepreneur?.lastName} · {p.project?.sector}</div>
+                  </div>
+                  <span className="text-xs bg-white border border-orange-200 text-orange-700 px-2 py-1 rounded-full font-medium">
+                    {p.approveCount} 👍 · {p.rejectCount} 👎 sur {p.totalInvestors} investisseur(s)
+                  </span>
+                </div>
+                <video src={p.videoUrl} controls className="w-full rounded-xl mb-2 max-h-64" />
+                {(p.documents || []).length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {p.documents.map((d: any, i: number) => (
+                      <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-white border border-orange-200 text-orange-700 px-2 py-1 rounded-lg hover:bg-orange-100">📄 {d.name}</a>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => decideProof(p.projectId, p.palier, "APPROVE")} disabled={decidingProof === p.projectId + p.palier}
+                    className="flex-1 bg-green-600 text-white text-sm font-bold py-2 rounded-xl hover:bg-green-700 disabled:opacity-50">
+                    ✅ Approuver (dernier recours)
+                  </button>
+                  <button onClick={() => decideProof(p.projectId, p.palier, "REJECT")} disabled={decidingProof === p.projectId + p.palier}
+                    className="flex-1 bg-red-50 text-red-600 border border-red-200 text-sm font-bold py-2 rounded-xl hover:bg-red-100 disabled:opacity-50">
+                    ❌ Rejeter
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Projets éligibles au remboursement */}
       {fundedProjects.length > 0 && (
         <div className="space-y-4">
