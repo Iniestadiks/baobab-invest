@@ -8,7 +8,8 @@ import Link from "next/link";
 import { authGet, authPost } from "@/lib/api";
 import EntrepreneurCharts from "./charts";
 
-const LEVEL_NAMES = ["", "🌱 Graine", "🌿 Pousse", "🌳 Baobab", "🏅 Grand Baobab"];
+// Aligné sur les 5 niveaux réels du backend (reputationService.ts getLevel)
+const LEVEL_NAMES = ["", "🌱 Graine", "🌿 Pousse", "🌳 Arbre", "🌲 Baobab", "🏆 Grand Baobab"];
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   DRAFT:          { label: "Brouillon",     color: "text-gray-600",   bg: "bg-gray-100",   border: "border-gray-200" },
   PENDING_REVIEW: { label: "En validation", color: "text-orange-700", bg: "bg-orange-100", border: "border-orange-200" },
