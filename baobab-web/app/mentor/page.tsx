@@ -339,6 +339,7 @@ export default function MentorDashboard() {
                     { href: "/referral",      icon: "🌳", label: "Parrainer un ami",color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
                     { href: "/leaderboard",   icon: "🏆", label: "Classement",    color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
                     { href: "/profile",       icon: "👤", label: "Mon profil",      color: "bg-gray-50 text-gray-700 border-gray-200" },
+                    { href: "/devenir/mentor", icon: "❓", label: "Comment ça marche", color: "bg-teal-50 text-teal-700 border-teal-200" },
                   ].map(l => (
                     <Link key={l.href} href={l.href} className={`flex items-center gap-3 p-2.5 rounded-xl border text-xs font-medium hover:opacity-80 ${l.color}`}>
                       <span className="text-base">{l.icon}</span>{l.label}
@@ -436,7 +437,7 @@ export default function MentorDashboard() {
                   { label: "Solde disponible",    value: fmt(wallet?.balance||0) + " FCFA",          color: "text-green-700" },
                   { label: "Total gagne",          value: fmt(wallet?.totalEarned||0) + " FCFA",      color: "text-green-700" },
                   { label: "Total retire",          value: fmt(wallet?.totalWithdrawn||0) + " FCFA",  color: "text-red-600" },
-                  { label: "Commissions reçues (2%)",value: fmt(totalCommission) + " FCFA",            color: "text-yellow-700" },
+                  { label: `Commissions reçues (${commissionRate}%)`,value: fmt(totalCommission) + " FCFA",            color: "text-yellow-700" },
                   { label: "Commission estimée totale", value: fmt(totalCommissionEstimated) + " FCFA",    color: "text-green-700" },
                 ].map(s => (
                   <div key={s.label} className="flex justify-between items-center py-2 border-b border-gray-50">
