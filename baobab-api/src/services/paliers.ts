@@ -96,7 +96,7 @@ export async function triggerFundedActions(projectId: string, tx: any) {
     data: {
       userId: project.entrepreneurId,
       title: '🎉 Projet financé ! Palier 1 débloqué',
-      body: `Félicitations ! ${p1Amount.toLocaleString()} FCFA (40%) ont été crédités sur votre wallet. Remboursez ${moisP2} mensualités pour débloquer le Palier 2 (35%).`,
+      body: `Félicitations ! ${p1Amount.toLocaleString()} FCFA (40%) ont été crédités sur votre wallet. Remboursez ${moisP2} mensualités pour débloquer le Palier 2 (25%).`,
       type: 'PALIER_UNLOCKED',
       data: JSON.stringify({ projectId, palier: 1, amount: p1Amount })
     }
@@ -136,7 +136,7 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
   const isFullyRepaid = schedule.status === 'COMPLETED' || schedule.paidMonths >= totalMonths
   // ── PALIER 2 : 35% après moisP2 mensualités payées (ou remboursement total) ──
   if (currentPalier === 1 && (schedule.paidMonths >= moisP2 || isFullyRepaid)) {
-    const p2Amount = Math.round(netAmount * 0.35)
+    const p2Amount = Math.round(netAmount * 0.25)
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
       data: { balance: { increment: p2Amount }, depositBalance: { increment: p2Amount } }
@@ -150,14 +150,14 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         type: 'DISBURSEMENT_P2',
         amount: p2Amount,
         projectId: project.id,
-        description: `Palier 2 (35%) débloqué après ${schedule.paidMonths}/${totalMonths} mensualités (seuil: ${moisP2}) — ${p2Amount.toLocaleString()} FCFA`
+        description: `Palier 2 (25%) débloqué après ${schedule.paidMonths}/${totalMonths} mensualités (seuil: ${moisP2}) — ${p2Amount.toLocaleString()} FCFA`
       }
     })
     await tx.notification.create({
       data: {
         userId: project.entrepreneurId,
         title: '🎉 Palier 2 débloqué !',
-        body: `${p2Amount.toLocaleString()} FCFA (35%) supplémentaires crédités. Remboursez ${moisP3} mensualités au total pour débloquer le Palier 3 !`,
+        body: `${p2Amount.toLocaleString()} FCFA (25%) supplémentaires crédités. Remboursez ${moisP3} mensualités au total pour débloquer le Palier 3 !`,
         type: 'PALIER_UNLOCKED',
         data: JSON.stringify({ projectId: project.id, palier: 2, amount: p2Amount })
       }
@@ -166,7 +166,7 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
   }
   // ── PALIER 3 : 25% après moisP3 mensualités payées (ou remboursement total) ──
   if (currentPalier === 2 && (schedule.paidMonths >= moisP3 || isFullyRepaid)) {
-    const p3Amount = Math.round(netAmount * 0.25)
+    const p3Amount = Math.round(netAmount * 0.35)
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
       data: { balance: { increment: p3Amount }, depositBalance: { increment: p3Amount } }
@@ -180,14 +180,14 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         type: 'DISBURSEMENT_P3',
         amount: p3Amount,
         projectId: project.id,
-        description: `Palier 3 (25%) débloqué après ${schedule.paidMonths}/${totalMonths} mensualités (seuil: ${moisP3}) — ${p3Amount.toLocaleString()} FCFA`
+        description: `Palier 3 (35%) débloqué après ${schedule.paidMonths}/${totalMonths} mensualités (seuil: ${moisP3}) — ${p3Amount.toLocaleString()} FCFA`
       }
     })
     await tx.notification.create({
       data: {
         userId: project.entrepreneurId,
         title: '🎉 Palier 3 débloqué ! Cagnotte complète',
-        body: `${p3Amount.toLocaleString()} FCFA (25%) finaux crédités. Vous avez reçu l'intégralité de votre cagnotte !`,
+        body: `${p3Amount.toLocaleString()} FCFA (35%) finaux crédités. Vous avez reçu l'intégralité de votre cagnotte !`,
         type: 'PALIER_UNLOCKED',
         data: JSON.stringify({ projectId: project.id, palier: 3, amount: p3Amount })
       }

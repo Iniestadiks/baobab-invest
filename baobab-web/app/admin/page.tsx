@@ -1036,7 +1036,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                       <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800 mb-2">
                         ✅ Échéancier + Palier 1 (40%) créés <strong>automatiquement</strong> dès FUNDED.
                         <div className="text-xs text-green-600 mt-1">
-                          P1 (40%) immédiat · P2 (35%) après M{Math.max(2, Math.round((p.durationMonths || 12) / 3))} · P3 (25%) après M{Math.max(4, Math.round((p.durationMonths || 12) * 2 / 3))} — seuils proportionnels à la durée de {p.durationMonths || 12} mois
+                          P1 (40%) immédiat · P2 (25%) après M{Math.max(2, Math.round((p.durationMonths || 12) / 3))} · P3 (35%) après M{Math.max(4, Math.round((p.durationMonths || 12) * 2 / 3))} — seuils proportionnels à la durée de {p.durationMonths || 12} mois
                         </div>
                       </div>
                       <button onClick={() => reimburse(p.id)} disabled={processing === p.id}
@@ -1473,8 +1473,8 @@ function ProjectsList({ projects, flash, authPost, loadData }: any) {
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {[
                       { n: 1, label: "40%", amount: Math.round(p.netAmount*0.40), done: p.currentPalier >= 1 },
-                      { n: 2, label: "35%", amount: Math.round(p.netAmount*0.35), done: p.currentPalier >= 2 },
-                      { n: 3, label: "25%", amount: Math.round(p.netAmount*0.25), done: p.currentPalier >= 3 },
+                      { n: 2, label: "25%", amount: Math.round(p.netAmount*0.25), done: p.currentPalier >= 2 },
+                      { n: 3, label: "35%", amount: Math.round(p.netAmount*0.35), done: p.currentPalier >= 3 },
                     ].map(pl => (
                       <div key={pl.n} className={`rounded-xl p-2 text-center ${pl.done ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
                         <div className="font-bold">{pl.done ? "✅" : "🔒"} P{pl.n} {pl.label}</div>
