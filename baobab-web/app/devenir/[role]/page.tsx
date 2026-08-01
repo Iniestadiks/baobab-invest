@@ -55,7 +55,7 @@ const ROLE_DATA: Record<string, {
       { icon: "🎬", title: "Ajoutez un pitch vidéo", desc: "Présentez votre projet en vidéo pour rassurer les investisseurs." },
       { icon: "✅", title: "Validation par l'équipe", desc: "Analyse du dossier et du score de crédibilité sous 48h ouvrées." },
       { icon: "🌱", title: "Cagnotte lancée", desc: "Votre projet est visible publiquement, les investisseurs contribuent." },
-      { icon: "💰", title: "Fonds débloqués par paliers", desc: "40% au démarrage, 35% puis 25% selon l'avancement validé." },
+      { icon: "💰", title: "Fonds débloqués par paliers", desc: "40% au démarrage, 25% puis 35% selon l'avancement validé." },
       { icon: "🔁", title: "Remboursements mensuels", desc: "Vous remboursez selon l'échéancier — le projet se clôture, tout le monde est réglé." },
     ],
     faq: [

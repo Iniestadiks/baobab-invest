@@ -68,7 +68,7 @@ export const COURSE_CATALOG: Course[] = [
     content: [
       "Une description détaillée (200+ caractères), une vidéo de pitch et une image de couverture augmentent significativement votre score de bankabilité.",
       "Un mentor qui accepte de parrainer votre projet renforce fortement la confiance des investisseurs — et vous coûte 2% versés à la collecte, pas d'avance.",
-      "Vos fonds sont débloqués en 3 paliers (40%/35%/25%) au fil de vos remboursements — pas en une seule fois à la clôture.",
+      "Vos fonds sont débloqués en 3 paliers (40%/25%/35%) au fil de vos remboursements — pas en une seule fois à la clôture.",
       "Publiez un rapport d'avancement au moins tous les 21 jours : le silence prolongé pénalise votre score de réputation.",
     ],
   },
@@ -157,7 +157,7 @@ export const COURSE_CATALOG: Course[] = [
     desc: "Comment l'argent circule concrètement entre collecte et remboursement.",
     content: [
       "Dès qu'un projet atteint son objectif, l'entrepreneur reçoit immédiatement 40% de la cagnotte nette (Palier 1).",
-      "Les paliers suivants (35% puis 25%) se débloquent progressivement, au fil des mensualités effectivement remboursées.",
+      "Les paliers suivants (25% puis 35%) se débloquent progressivement, au fil des mensualités effectivement remboursées.",
       "Les investisseurs sont remboursés au prorata de leur mise, à chaque mensualité payée par l'entrepreneur — pas en une seule fois à la fin.",
       "Un délai de grâce (1 à 2 mois selon le secteur) précède la toute première mensualité après le déblocage du Palier 1.",
     ],
