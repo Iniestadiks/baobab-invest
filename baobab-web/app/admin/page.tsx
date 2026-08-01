@@ -3622,7 +3622,7 @@ function FundTab({ flash }: { flash: (m: string) => void }) {
             <h3 className="font-bold text-gray-900 mb-4">🚀 Allouer des fonds à un projet</h3>
             <div className="bg-blue-50 rounded-xl p-3 mb-4 text-sm text-blue-700 flex justify-between items-center">
               <span>💰 Disponible : <strong>{fmt(g.available || 0)} FCFA</strong></span>
-              <span className="text-xs text-blue-500">Fonds nets après commission BAOBAB 16%</span>
+              <span className="text-xs text-blue-500">Fonds nets après commission BAOBAB {g.fundFeeRate ?? 16}%</span>
             </div>
             <div className="space-y-3">
 

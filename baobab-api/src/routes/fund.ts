@@ -462,6 +462,7 @@ router.get('/admin/stats', authenticate, requireAdmin, async (req: AuthRequest, 
       prisma.fundCampaign.findMany({ orderBy: { createdAt: 'desc' } }),
       prisma.fundBadge.groupBy({ by: ['badge'], _count: true, orderBy: { _count: { badge: 'desc' } } })
     ])
+    const fundFeeRate = await getFundFeeRate()
 
     successResponse(res, {
       global: {
@@ -472,6 +473,7 @@ router.get('/admin/stats', authenticate, requireAdmin, async (req: AuthRequest, 
         totalContributions: global._count,
         totalAllocated: allocations.reduce((s, a) => s + a.amount, 0),
         available: (global._sum.netAmount || 0) - allocations.reduce((s, a) => s + a.amount, 0),
+        fundFeeRate,
       },
       byMethod,
       byMonth,
