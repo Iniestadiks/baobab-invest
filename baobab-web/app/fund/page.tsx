@@ -1,18 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-
 const API = process.env.NEXT_PUBLIC_API_URL;
 const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
-
 const BADGE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   SEMEUR:          { label: "Semeur",          icon: "🌱", color: "bg-green-100 text-green-700" },
   JARDINIER:       { label: "Jardinier",       icon: "🌿", color: "bg-emerald-100 text-emerald-700" },
   BAOBAB:          { label: "Baobab",          icon: "🌳", color: "bg-teal-100 text-teal-700" },
   GRAND_BATISSEUR: { label: "Grand Bâtisseur", icon: "🏆", color: "bg-yellow-100 text-yellow-700" },
 };
-
 export default function FundPage() {
+  const params = useSearchParams();
   const [stats, setStats] = useState<any>(null);
   const [contributions, setContributions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,9 +24,11 @@ export default function FundPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [fundFeePct, setFundFeePct] = useState(16); // valeur par défaut de secours, réelle chargée dynamiquement
   const [activeTab, setActiveTab] = useState<"overview"|"contributions"|"projects"|"campaigns">("overview");
 
-  useEffect(() => {
+  const loadStats = () => {
     Promise.all([
       fetch(`${API}/api/fund/stats`).then(r => r.json()),
       fetch(`${API}/api/fund/contributions?limit=10`).then(r => r.json()),
@@ -35,6 +36,37 @@ export default function FundPage() {
       if (s.success) setStats(s.data);
       if (c.success) setContributions(c.data.contributions || []);
     }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadStats();
+    // Taux réel du fonds (config admin) — remplace le 90%/10% codé en dur
+    fetch(`${API}/api/config/public`).then(r => r.json()).then(d => {
+      if (d.success) {
+        const feeConfig = (d.data || []).find((c: any) => c.key === 'fund_baobab_fee');
+        if (feeConfig) setFundFeePct(Number(feeConfig.value));
+      }
+    }).catch(() => {});
+
+    // Retour après paiement réel (PayDunya) — le webhook finalise en arrière-plan,
+    // ici on affiche juste un état de vérification/confirmation à l'utilisateur.
+    const status = params.get("status");
+    if (status === "success") {
+      setVerifying(true);
+      let attempts = 0;
+      const poll = setInterval(() => {
+        attempts++;
+        fetch(`${API}/api/fund/stats`).then(r => r.json()).then(s => { if (s.success) setStats(s.data); });
+        if (attempts >= 6) {
+          clearInterval(poll);
+          setVerifying(false);
+          setSuccess("✅ Merci pour votre don ! Il sera visible sous peu une fois confirmé.");
+          loadStats();
+        }
+      }, 3000);
+    } else if (status === "cancel") {
+      setError("❌ Paiement annulé.");
+    }
   }, []);
 
   const submit = async () => {
@@ -49,17 +81,19 @@ export default function FundPage() {
         body: JSON.stringify({ amount: Number(amount), anonymous, message, paymentMethod: operator, operator, guestPhone: phone })
       });
       const data = await res.json();
-      if (data.success) {
-        // Confirmer immédiatement (mode test)
-        await fetch(`${API}/api/fund/confirm/${data.data.contributionId}`, { method: "POST" });
-        setSuccess(`✅ Merci ! Votre contribution de ${fmt(Number(amount))} FCFA a été enregistrée.`);
-        setShowForm(false); setAmount(""); setMessage(""); setPhone("");
-        // Recharger stats
-        fetch(`${API}/api/fund/stats`).then(r => r.json()).then(s => { if (s.success) setStats(s.data); });
-      } else setError(data.message);
-    } finally { setSubmitting(false); }
+      if (data.success && data.data?.paymentUrl) {
+        // Redirection vers la vraie page de paiement — la contribution ne sera
+        // marquée COMPLETED qu'après confirmation réelle via le webhook PayDunya
+        window.location.href = data.data.paymentUrl;
+      } else {
+        setError(data.message || "Erreur lors de l'initiation du paiement");
+        setSubmitting(false);
+      }
+    } catch {
+      setError("Erreur de connexion");
+      setSubmitting(false);
+    }
   };
-
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
@@ -68,10 +102,9 @@ export default function FundPage() {
       </div>
     </div>
   );
-
   const fund = stats?.fund || {};
   const pct = fund.totalReceived > 0 ? Math.round((fund.totalAllocated / fund.totalReceived) * 100) : 0;
-
+  const netPct = 100 - fundFeePct;
   return (
     <div className="min-h-screen bg-gray-50">
       {/* NAV */}
@@ -92,7 +125,6 @@ export default function FundPage() {
           </div>
         </div>
       </nav>
-
       {/* HERO */}
       <div className="bg-gradient-to-br from-green-700 via-green-800 to-green-900 text-white">
         <div className="max-w-5xl mx-auto px-6 py-16 text-center">
@@ -123,8 +155,16 @@ export default function FundPage() {
           <p className="text-green-300 text-xs mt-3">Dès 500 FCFA · Mobile Money · Anonyme possible</p>
         </div>
       </div>
-
-      {/* SUCCESS MESSAGE */}
+      {/* VÉRIFICATION EN COURS */}
+      {verifying && (
+        <div className="max-w-5xl mx-auto px-6 mt-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+            <div className="text-blue-800 text-sm font-medium">Vérification de votre paiement en cours...</div>
+          </div>
+        </div>
+      )}
+      {/* SUCCESS / ERROR MESSAGE */}
       {success && (
         <div className="max-w-5xl mx-auto px-6 mt-4">
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-green-800 font-medium text-center">
@@ -132,7 +172,13 @@ export default function FundPage() {
           </div>
         </div>
       )}
-
+      {error && (
+        <div className="max-w-5xl mx-auto px-6 mt-4">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-800 font-medium text-center">
+            {error}
+          </div>
+        </div>
+      )}
       {/* TABS */}
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
@@ -148,11 +194,9 @@ export default function FundPage() {
             </button>
           ))}
         </div>
-
         {/* VUE D'ENSEMBLE */}
         {activeTab === "overview" && (
           <div className="space-y-6">
-            {/* Barre progression */}
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="font-bold text-gray-900">Utilisation du fonds</h3>
@@ -176,8 +220,6 @@ export default function FundPage() {
                 </div>
               </div>
             </div>
-
-            {/* Top contributeurs */}
             {stats?.topContributors?.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
                 <h3 className="font-bold text-gray-900 mb-4">🏆 Hall of Fame — Top Contributeurs</h3>
@@ -203,8 +245,6 @@ export default function FundPage() {
                 </div>
               </div>
             )}
-
-            {/* Graphique mensuel */}
             {stats?.monthly?.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
                 <h3 className="font-bold text-gray-900 mb-4">📈 Évolution mensuelle</h3>
@@ -223,14 +263,12 @@ export default function FundPage() {
                 </div>
               </div>
             )}
-
-            {/* Comment ça marche */}
             <div className="bg-green-50 rounded-2xl p-6">
               <h3 className="font-bold text-green-900 mb-4">💡 Comment fonctionne le fonds ?</h3>
               <div className="grid md:grid-cols-3 gap-4">
                 {[
                   { step: "1", title: "Tu contribues", desc: "Dès 500 FCFA via Mobile Money. Anonyme ou public.", icon: "💝" },
-                  { step: "2", title: "Fonds mutualisé", desc: "90% de ton don va directement aux projets. BAOBAB prend 10% pour la gestion.", icon: "🏦" },
+                  { step: "2", title: "Fonds mutualisé", desc: `${netPct}% de ton don va directement aux projets. BAOBAB prend ${fundFeePct}% pour la gestion (dont une partie couvre les frais réels de paiement).`, icon: "🏦" },
                   { step: "3", title: "Impact concret", desc: "L'admin BAOBAB alloue les fonds aux projets les plus méritants.", icon: "🚀" },
                 ].map(s => (
                   <div key={s.step} className="bg-white rounded-xl p-4">
@@ -243,7 +281,6 @@ export default function FundPage() {
             </div>
           </div>
         )}
-
         {/* CONTRIBUTIONS */}
         {activeTab === "contributions" && (
           <div className="space-y-4">
@@ -274,7 +311,6 @@ export default function FundPage() {
             ))}
           </div>
         )}
-
         {/* PROJETS AIDÉS */}
         {activeTab === "projects" && (
           <div className="space-y-4">
@@ -301,7 +337,6 @@ export default function FundPage() {
             ))}
           </div>
         )}
-
         {/* CAMPAGNES */}
         {activeTab === "campaigns" && (
           <div className="space-y-4">
@@ -312,7 +347,7 @@ export default function FundPage() {
                 <p className="text-gray-400">Aucune campagne active</p>
               </div>
             ) : stats.campaigns.map((c: any) => {
-              const pct = Math.round((c.raised / c.goalAmount) * 100);
+              const pctC = Math.round((c.raised / c.goalAmount) * 100);
               const daysLeft = Math.max(0, Math.ceil((new Date(c.endDate).getTime() - Date.now()) / 86400000));
               return (
                 <div key={c.id} className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -326,11 +361,11 @@ export default function FundPage() {
                     </span>
                   </div>
                   <div className="bg-gray-100 rounded-full h-3 mb-2">
-                    <div className="bg-green-500 h-3 rounded-full" style={{ width: `${Math.min(100, pct)}%` }}></div>
+                    <div className="bg-green-500 h-3 rounded-full" style={{ width: `${Math.min(100, pctC)}%` }}></div>
                   </div>
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>{fmt(c.raised)} FCFA collectés</span>
-                    <span>Objectif : {fmt(c.goalAmount)} FCFA ({pct}%)</span>
+                    <span>Objectif : {fmt(c.goalAmount)} FCFA ({pctC}%)</span>
                   </div>
                   <button onClick={() => { setShowForm(true); }}
                     className="mt-3 w-full bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700">
@@ -342,7 +377,6 @@ export default function FundPage() {
           </div>
         )}
       </div>
-
       {/* MODAL CONTRIBUTION */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
@@ -351,9 +385,7 @@ export default function FundPage() {
               <h3 className="text-lg font-bold text-gray-900">🌱 Contribuer au fonds</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
-
             {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm mb-4">{error}</div>}
-
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Montant (FCFA)</label>
@@ -370,11 +402,10 @@ export default function FundPage() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
                 {amount && Number(amount) >= 500 && (
                   <div className="text-xs text-gray-500 mt-1">
-                    Net au fonds : <strong className="text-green-600">{fmt(Math.round(Number(amount) * 0.9))} FCFA</strong> (90%)
+                    Net au fonds : <strong className="text-green-600">{fmt(Math.round(Number(amount) * netPct / 100))} FCFA</strong> ({netPct}%)
                   </div>
                 )}
               </div>
-
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Opérateur Mobile Money</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -385,15 +416,14 @@ export default function FundPage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-gray-400 mt-1">Le choix précis se fera sur la page de paiement sécurisée.</p>
               </div>
-
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Numéro de téléphone</label>
                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                   placeholder="77 XXX XX XX"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400" />
               </div>
-
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Message (optionnel)</label>
                 <textarea value={message} onChange={e => setMessage(e.target.value)}
@@ -401,19 +431,17 @@ export default function FundPage() {
                   rows={2}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-400 resize-none" />
               </div>
-
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={anonymous} onChange={e => setAnonymous(e.target.checked)}
                   className="w-4 h-4 accent-green-600" />
                 <span className="text-sm text-gray-700">Contribution anonyme 🙈</span>
               </label>
-
               <button onClick={submit} disabled={submitting || !amount || Number(amount) < 500 || !phone}
                 className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl hover:bg-green-700 disabled:opacity-50 text-lg">
-                {submitting ? "Traitement..." : `💝 Donner ${amount ? fmt(Number(amount)) : "0"} FCFA`}
+                {submitting ? "Redirection vers le paiement..." : `💝 Donner ${amount ? fmt(Number(amount)) : "0"} FCFA`}
               </button>
               <p className="text-xs text-center text-gray-400">
-                90% de votre don va directement aux projets • BAOBAB : 10%
+                {netPct}% de votre don va directement aux projets • BAOBAB : {fundFeePct}%
               </p>
             </div>
           </div>
