@@ -26,7 +26,11 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response): Promise
     })
     const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
     const totalExpectedBrut = investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
-    const guaranteeContrib = investments.reduce((s, i) => s + (i.guaranteeContribution || i.amount * 0.02), 0)
+    // Taux de secours réel (config actuelle) au lieu d'un 2% codé en dur —
+    // ne sert que pour les très rares investissements sans guaranteeContribution stocké.
+    const guaranteeCfg = await prisma.platformConfig.findUnique({ where: { key: 'commission_guarantee' } })
+    const guaranteeFallbackRate = guaranteeCfg ? parseFloat(String(guaranteeCfg.value)) / 100 : 0.02
+    const guaranteeContrib = investments.reduce((s, i) => s + (i.guaranteeContribution || i.amount * guaranteeFallbackRate), 0)
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
     let totalReturned = 0
     const totalInvestedAllProjects = await prisma.investment.groupBy({
