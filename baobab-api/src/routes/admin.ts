@@ -512,7 +512,7 @@ router.get('/stats', authenticate, requireAdmin, async (req: AuthRequest, res: R
     const revenueMap: Record<string, number> = {}
     revenues.forEach(r => { revenueMap[r.type] = r._sum.amount || 0 })
 
-    const totalRevenuBAOBAB = (revenueMap.COMMISSION_COLLECTION || 0) + (revenueMap.PAYIN_RECOVERY || 0)
+    const totalRevenuBAOBAB = (revenueMap.COMMISSION_COLLECTION || 0) + (revenueMap.FUND_COMMISSION || 0) + (revenueMap.WITHDRAWAL_FEE || 0)
     const totalLeve = investmentsAgg._sum.amount || 0
     const totalAssurance = investmentsAgg._sum.guaranteeContribution || 0
 

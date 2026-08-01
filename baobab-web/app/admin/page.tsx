@@ -1290,8 +1290,8 @@ function StatsTab({ authGet }: any) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: `Commission collecte (${stats.baobabRate||6}%)`, value: stats.commissionBalance||0, color: "text-green-700", bg: "bg-green-50" },
-              { label: "Payin remboursements (4%)", value: stats.totalPayinRepayment||0, color: "text-blue-700", bg: "bg-blue-50" },
-              { label: "Mentor commissions (2%)", value: stats.totalMentorCommission||0, color: "text-purple-700", bg: "bg-purple-50" },
+              { label: `Payin remboursements (${stats.payinRepayRate||4}%)`, value: stats.totalPayinRepayment||0, color: "text-blue-700", bg: "bg-blue-50" },
+              { label: `Mentor commissions (${stats.mentorRate||2}%)`, value: stats.totalMentorCommission||0, color: "text-purple-700", bg: "bg-purple-50" },
               { label: "Fonds garantie collecté", value: stats.totalGuaranteeFund||0, color: "text-orange-700", bg: "bg-orange-50" },
             ].map(k => (
               <div key={k.label} className={`${k.bg} rounded-xl p-3`}>

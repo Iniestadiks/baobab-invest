@@ -64,12 +64,26 @@ router.get('/report/project/:projectId', authenticate, async (req: AuthRequest, 
 // Rapport admin
 router.get('/report/admin', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Filtre de période réel — les boutons "Ce mois/Cette année/..." de l'admin
+    // envoient from/to, il faut vraiment les appliquer, sinon le rapport est
+    // toujours le même peu importe la période choisie.
+    const { from, to } = req.query as { from?: string; to?: string }
+    const dateFilter: any = {}
+    if (from) dateFilter.gte = new Date(String(from))
+    if (to) dateFilter.lte = new Date(String(to))
+    const hasDateFilter = Object.keys(dateFilter).length > 0
     const [revenues, feesConfig, users] = await Promise.all([
-      prisma.platformRevenue.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }),
+      // Pas de take: — un rapport comptable/fiscal ne doit jamais sous-estimer
+      // silencieusement les totaux en ne regardant qu'un échantillon récent.
+      prisma.platformRevenue.findMany({
+        where: hasDateFilter ? { createdAt: dateFilter } : undefined,
+        orderBy: { createdAt: 'desc' },
+      }),
       prisma.platformConfig.findMany(),
       prisma.user.findMany({ select: { role: true, kycStatus: true } })
     ])
     const projects = await prisma.project.findMany({
+      where: hasDateFilter ? { createdAt: dateFilter } : undefined,
       include: {
         investments: { select: { amount: true, expectedReturn: true, status: true, createdAt: true, user: { select: { firstName: true, lastName: true } } } },
         entrepreneur: { select: { firstName: true, lastName: true } },
@@ -83,9 +97,13 @@ router.get('/report/admin', authenticate, requireAdmin, async (req: AuthRequest,
     const totalCagnotteNette = Math.round(totalRaised * (1 - fraisTaux/100))
     const totalGrossReturn = projects.reduce((s: number, p: any) => s + p.investments.reduce((ss: number, i: any) => ss + (i.expectedReturn||0), 0), 0)
     const totalNetInvestors = Math.round(totalGrossReturn * (1 - (feeMap.payin_repayment||4)/100))
+    // Revenu net réel BAOBAB — MÊME formule que /api/admin/platform-revenues
+    // et l'export CSV admin : uniquement les vraies commissions encaissées
+    // (collecte + fonds solidaire + retraits), jamais un mélange avec les
+    // versements aux entrepreneurs ou les coûts opérateur.
     const revByType: any = {}
     revenues.forEach((r: any) => { revByType[r.type] = (revByType[r.type]||0) + r.amount })
-    const revenuNetBAOBAB = (revByType['COMMISSION_COLLECTION']||0) - Math.abs(revByType['PAYDUNYA_FEE']||0)
+    const revenuNetBAOBAB = (revByType['COMMISSION_COLLECTION']||0) + (revByType['FUND_COMMISSION']||0) + (revByType['WITHDRAWAL_FEE']||0)
     const stats = {
       totalUsers: users.length,
       totalRaised, totalCagnotteNette, totalNetInvestors, revenuNetBAOBAB,
@@ -95,7 +113,7 @@ router.get('/report/admin', authenticate, requireAdmin, async (req: AuthRequest,
       kycVerified: users.filter((u: any) => u.kycStatus === 'VERIFIED').length,
       kycRate: Math.round((users.filter((u: any) => u.kycStatus === 'VERIFIED').length / (users.length||1)) * 100)
     }
-    generateAdminReport(res, { stats, projects, revenues, fees: feeMap })
+    generateAdminReport(res, { stats, projects, revenues, fees: feeMap, period: hasDateFilter ? `${from || '...'} au ${to || '...'}` : 'Historique complet' })
   } catch (e) { console.error(e); res.status(500).json({ success: false, message: 'Erreur generation PDF' }) }
 })
 // Relevé investisseur avec période (mensuel/trimestriel/annuel)
