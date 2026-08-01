@@ -153,7 +153,6 @@ function TransactionsTab({ flash }: { flash: (m: string) => void }) {
                   )}
                 </div>
               )}
-              )}
             </div>
           ))}
         </div>
@@ -3208,79 +3207,6 @@ export default function AdminPage() {
                 </div>
               );
             })}
-          </div>
-        )}
-        {tab === "milestones_unused" && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">🏗️ Demandes de déblocage ({milestones.length})</h2>
-              <button onClick={loadData} className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-xl transition-colors">
-                🔄 Actualiser
-              </button>
-            </div>
-            {milestones.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                <div className="text-5xl mb-3">✅</div>
-                <p className="text-gray-500 font-medium">Aucune demande de déblocage en attente</p>
-              </div>
-            ) : milestones.map((m: any) => (
-              <div key={m.id} className="bg-white rounded-2xl border border-orange-200 p-6 shadow-sm">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      {(() => {
-                        const days = Math.floor((Date.now() - new Date(p.createdAt).getTime()) / 86400000);
-                        return days > 7
-                          ? <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-full">🔴 Urgent — {days}j sans réponse</span>
-                          : days >= 4
-                          ? <span className="text-xs bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full">🟡 Attention — {days}j</span>
-                          : <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">🟢 Normal — {days}j</span>
-                      })()}
-                      <span className="text-xs text-gray-400">{m.project?.title}</span>
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-lg">{m.title}</h3>
-                    <div className="text-sm text-gray-500 mt-0.5">
-                      Entrepreneur : {m.project?.entrepreneur?.firstName} {m.project?.entrepreneur?.lastName} · {m.project?.entrepreneur?.email}
-                    </div>
-                    {m.description && <p className="text-sm text-gray-600 mt-2">{m.description}</p>}
-                    {m.invoiceUrl && (
-                      <a href={m.invoiceUrl} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-2 text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-200 hover:bg-blue-100">
-                        📎 Voir la facture / preuve →
-                      </a>
-                    )}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-bold text-green-700 text-2xl">{m.amount?.toLocaleString()} FCFA</div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      Soumis le {new Date(m.updatedAt).toLocaleDateString("fr-FR")}
-                    </div>
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Note admin (obligatoire pour le rejet)</label>
-                  <input value={milestoneNote} onChange={e => setMilestoneNote(e.target.value)}
-                    placeholder="Ex: Facture conforme, paiement autorisé..." className="input-field text-sm" />
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={async () => {
-                    const res = await authPatch(`/api/admin/milestones/${m.id}/approve`, { adminNote: milestoneNote || "Approuvé" });
-                    if (res.success) { flash("✅ Jalon approuvé !"); setMilestoneNote(""); loadData(); }
-                    else flash("❌ " + res.message);
-                  }} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors">
-                    ✅ Approuver et débloquer les fonds
-                  </button>
-                  <button onClick={async () => {
-                    if (!milestoneNote.trim()) { flash("❌ Saisis une raison de rejet"); return; }
-                    const res = await authPatch(`/api/admin/milestones/${m.id}/reject`, { adminNote: milestoneNote });
-                    if (res.success) { flash("Jalon rejeté"); setMilestoneNote(""); loadData(); }
-                    else flash("❌ " + res.message);
-                  }} className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl border border-red-200 transition-colors">
-                    ❌ Rejeter
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         )}
 
