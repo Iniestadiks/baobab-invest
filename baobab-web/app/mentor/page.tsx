@@ -209,7 +209,7 @@ export default function MentorDashboard() {
                 <div className="text-xs text-green-300">{activeProjects.length}/5 actifs</div>
               </div>
               <div>
-                <div className="text-green-200 text-xs mb-1">Commissions estimees</div>
+                <div className="text-green-200 text-xs mb-1">Commissions gagnees</div>
                 <div className="text-2xl font-bold">{fmt(totalCommission)} FCFA</div>
               </div>
               <div>
@@ -313,7 +313,7 @@ export default function MentorDashboard() {
                   <div className="text-2xl font-bold">{fmt(wallet?.balance || 0)} FCFA</div>
                 </div>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center mb-3">
-                  <div className="text-xs text-gray-500">Commissions estimees</div>
+                  <div className="text-xs text-gray-500">Commissions gagnees</div>
                   <div className="font-bold text-yellow-700 text-lg">{fmt(totalCommission)} FCFA</div>
                 </div>
                 <Link href="/wallet/withdraw" className="block text-center bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700 mb-2">Retirer mes gains</Link>
