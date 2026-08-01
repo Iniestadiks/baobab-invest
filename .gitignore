@@ -2,6 +2,9 @@
 baobab-api/node_modules/
 baobab-web/node_modules/
 baobab-web/.next/
+# Build output (généré à chaque déploiement — jamais versionné,
+# source de conflits entre le build du Codespace et celui du VPS)
+baobab-api/dist/
 
 # Environment files (SENSIBLE — ne jamais commiter)
 baobab-api/.env
