@@ -588,8 +588,10 @@ model RepaymentSchedule {
   paidMonths      Int      @default(0)
   remainingAmount Float
   nextDueDate     DateTime?
-  status          String   @default("ACTIVE")
+  status          String   @default("ACTIVE") // ACTIVE | COMPLETED | IN_COLLECTION | FAILED
   adminNote       String?
+  rescheduleCount Int      @default(0)  // max 2 — au-delà, bascule automatique en recouvrement
+  collectionStartedAt DateTime? // date d'entrée en recouvrement — sert au délai de 30 jours
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   project         Project  @relation(fields: [projectId], references: [id])

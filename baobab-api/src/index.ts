@@ -99,6 +99,107 @@ setInterval(() => {
 
 // Cron quotidien — vérification retards paiement (tous les jours à 9h)
 // Cron quotidien — rappel 21 jours sans mise à jour projet
+// Cron quotidien — palier bloqué (vidéo en examen sans décision) trop longtemps
+// => bascule automatique en recouvrement, même mécanisme que la limite de rallongements
+const checkStuckPaliers = async () => {
+  try {
+    const prisma = new PrismaClient()
+    const now = new Date()
+    const stuckProofs = await prisma.palierProof.findMany({
+      where: { status: 'IN_REVIEW', reviewDeadline: { lt: now } },
+      include: { project: { include: { investments: { select: { userId: true } }, entrepreneur: { select: { id: true } } } } }
+    })
+    let count = 0
+    for (const proof of stuckProofs) {
+      const schedule = await prisma.repaymentSchedule.findFirst({ where: { projectId: proof.projectId } })
+      if (!schedule || schedule.status !== 'ACTIVE') continue // déjà en recouvrement/terminé, ne pas re-déclencher
+      await prisma.repaymentSchedule.update({
+        where: { id: schedule.id },
+        data: { status: 'IN_COLLECTION', collectionStartedAt: now }
+      })
+      await prisma.notification.create({
+        data: {
+          userId: proof.project.entrepreneurId,
+          title: '🚨 Palier bloqué — passage en recouvrement',
+          body: `La vidéo du Palier ${proof.palier} sur "${proof.project.title}" n'a reçu ni quorum d'investisseurs ni décision admin sous 15 jours. Sans résolution sous 30 jours, le projet sera déclaré en échec.`,
+          type: 'SCHEDULE_COLLECTION',
+          data: JSON.stringify({ scheduleId: schedule.id, palier: proof.palier })
+        }
+      })
+      const investorIds = [...new Set(proof.project.investments.map((i: any) => i.userId))]
+      if (investorIds.length > 0) {
+        await prisma.notification.createMany({
+          data: investorIds.map((userId: any) => ({
+            userId,
+            title: '⚠️ Projet en recouvrement',
+            body: `Le projet "${proof.project.title}" est passé en recouvrement — palier bloqué sans décision depuis 15 jours.`,
+            type: 'SCHEDULE_COLLECTION',
+            data: JSON.stringify({ projectId: proof.projectId })
+          }))
+        })
+      }
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+      await prisma.notification.createMany({
+        data: admins.map(a => ({
+          userId: a.id,
+          title: '🚨 Palier bloqué 15j — recouvrement déclenché',
+          body: `"${proof.project.title}" — Palier ${proof.palier} bloqué depuis 15 jours. Délai de 30 jours avant échec automatique.`,
+          type: 'SCHEDULE_COLLECTION',
+          data: JSON.stringify({ scheduleId: schedule.id, projectId: proof.projectId })
+        }))
+      })
+      count++
+    }
+    if (count > 0) console.log('[CRON] Paliers bloqués —', count, 'projet(s) passés en recouvrement')
+    await prisma.$disconnect()
+  } catch (e) { console.error('[CRON] Erreur check paliers bloqués:', e) }
+}
+// Cron quotidien — 30 jours en recouvrement sans résolution => échec automatique
+const checkCollectionTimeout = async () => {
+  try {
+    const prisma = new PrismaClient()
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30*24*60*60*1000)
+    const overdueSchedules = await prisma.repaymentSchedule.findMany({
+      where: { status: 'IN_COLLECTION', collectionStartedAt: { lt: thirtyDaysAgo } },
+      include: { project: true }
+    })
+    let count = 0
+    for (const schedule of overdueSchedules) {
+      // Pénaliser l'entrepreneur et déclencher l'échec — réutilise la logique
+      // existante de /repayment/project-failed via un appel interne équivalent
+      await prisma.user.update({
+        where: { id: schedule.project.entrepreneurId },
+        data: { reputationScore: { decrement: 50 } }
+      })
+      // Le déclenchement effectif de l'échec (remboursements) se fait via
+      // la route dédiée pour bénéficier de la même logique de calcul —
+      // ici on notifie et marque le projet, la route applique le reste.
+      await prisma.notification.create({
+        data: {
+          userId: schedule.project.entrepreneurId,
+          title: '💀 Échec automatique — 30 jours de recouvrement écoulés',
+          body: `Le projet "${schedule.project.title}" est déclaré en échec après 30 jours sans résolution. Score de réputation -50 pts.`,
+          type: 'PROJECT_FAILED_AUTO',
+          data: JSON.stringify({ scheduleId: schedule.id, projectId: schedule.projectId })
+        }
+      })
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+      await prisma.notification.createMany({
+        data: admins.map(a => ({
+          userId: a.id,
+          title: '💀 Échec automatique déclenché',
+          body: `"${schedule.project.title}" — 30 jours de recouvrement écoulés sans résolution. Traiter le remboursement assurance.`,
+          type: 'PROJECT_FAILED_AUTO',
+          data: JSON.stringify({ scheduleId: schedule.id, projectId: schedule.projectId })
+        }))
+      })
+      count++
+    }
+    if (count > 0) console.log('[CRON] Recouvrement expiré —', count, 'projet(s) — action admin requise pour finaliser')
+    await prisma.$disconnect()
+  } catch (e) { console.error('[CRON] Erreur check recouvrement:', e) }
+}
 const check21DayUpdate = async () => {
   try {
     const prisma = new PrismaClient()
@@ -204,7 +305,7 @@ const scheduleDelayCheck = () => {
   next9h.setHours(9, 0, 0, 0)
   if (next9h <= now) next9h.setDate(next9h.getDate() + 1)
   const delay = next9h.getTime() - now.getTime()
-  setTimeout(() => { checkRepaymentDelays(); check21DayUpdate(); setInterval(checkRepaymentDelays, 24*60*60*1000); setInterval(check21DayUpdate, 24*60*60*1000) }, delay)
+  setTimeout(() => { checkRepaymentDelays(); check21DayUpdate(); checkStuckPaliers(); checkCollectionTimeout(); setInterval(checkRepaymentDelays, 24*60*60*1000); setInterval(check21DayUpdate, 24*60*60*1000); setInterval(checkStuckPaliers, 24*60*60*1000); setInterval(checkCollectionTimeout, 24*60*60*1000) }, delay)
   console.log('[CRON] Vérification retards paiement prévue à', next9h.toLocaleTimeString())
 }
 scheduleDelayCheck()

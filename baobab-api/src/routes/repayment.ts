@@ -347,6 +347,47 @@ router.patch('/admin/reschedule/:scheduleId', authenticate, requireRole(['ADMIN'
       include: { project: { include: { investments: { select: { userId: true } }, entrepreneur: { select: { id: true } } } } }
     })
     if (!schedule) { res.status(404).json({ success: false, message: 'Échéancier introuvable' }); return }
+    // Limite de 2 rallongements — au-delà, bascule automatique en recouvrement
+    // plutôt que de continuer à repousser indéfiniment.
+    if ((schedule.rescheduleCount || 0) >= 2) {
+      await prisma.repaymentSchedule.update({
+        where: { id: schedule.id },
+        data: { status: 'IN_COLLECTION', collectionStartedAt: new Date() }
+      })
+      const investorIdsCol = [...new Set(schedule.project.investments.map(i => i.userId))]
+      await prisma.notification.create({
+        data: {
+          userId: schedule.project.entrepreneurId,
+          title: '🚨 Passage en recouvrement',
+          body: `Vous avez déjà utilisé vos 2 rallongements pour "${schedule.project.title}". Sans résolution sous 30 jours, le projet sera déclaré en échec.`,
+          type: 'SCHEDULE_COLLECTION',
+          data: JSON.stringify({ scheduleId: schedule.id })
+        }
+      })
+      if (investorIdsCol.length > 0) {
+        await prisma.notification.createMany({
+          data: investorIdsCol.map((userId: any) => ({
+            userId,
+            title: '⚠️ Projet en recouvrement',
+            body: `Le projet "${schedule.project.title}" est passé en recouvrement après épuisement des rallongements disponibles.`,
+            type: 'SCHEDULE_COLLECTION',
+            data: JSON.stringify({ projectId: schedule.projectId })
+          }))
+        })
+      }
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+      await prisma.notification.createMany({
+        data: admins.map(a => ({
+          userId: a.id,
+          title: '🚨 Projet en recouvrement — 2 rallongements épuisés',
+          body: `"${schedule.project.title}" bascule en recouvrement. Délai de 30 jours avant échec automatique.`,
+          type: 'SCHEDULE_COLLECTION',
+          data: JSON.stringify({ scheduleId: schedule.id, projectId: schedule.projectId })
+        }))
+      })
+      res.status(400).json({ success: false, message: 'Limite de 2 rallongements déjà atteinte — le projet passe automatiquement en recouvrement.', code: 'COLLECTION_TRIGGERED' })
+      return
+    }
 
 
     // Trouver tous les mois PENDING et les décaler proportionnellement
@@ -368,7 +409,7 @@ router.patch('/admin/reschedule/:scheduleId', authenticate, requireRole(['ADMIN'
     }
     await prisma.repaymentSchedule.update({
       where: { id: schedule.id },
-      data: { nextDueDate: new Date(newDueDate), adminNote: note || schedule.adminNote }
+      data: { nextDueDate: new Date(newDueDate), adminNote: note || schedule.adminNote, rescheduleCount: { increment: 1 } }
     })
 
     // Notifier entrepreneur

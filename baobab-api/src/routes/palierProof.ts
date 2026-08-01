@@ -73,7 +73,9 @@ router.post('/:projectId/:palier', authenticate, upload.fields([
     if (existing.status === 'REJECTED') {
       await prisma.palierProofVote.deleteMany({ where: { proofId: existing.id } })
     }
-    const reviewDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000)
+    // 15 jours — délai avant bascule automatique en recouvrement si ni le
+    // quorum d'investisseurs ni l'admin n'ont tranché (voir cron checkStuckPaliers)
+    const reviewDeadline = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
     await prisma.palierProof.update({
       where: { id: existing.id },
       data: { videoUrl, documents: JSON.stringify(documents), status: 'IN_REVIEW', reviewDeadline }
