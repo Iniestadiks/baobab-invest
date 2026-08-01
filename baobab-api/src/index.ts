@@ -22,6 +22,7 @@ import walletRoutes from './routes/wallet'
 import configRoutes from './routes/config'
 import referralRoutes from './routes/referral'
 import academyRoutes from './routes/academy'
+import palierProofRoutes from './routes/palierProof'
 import pdfRoutes from './routes/pdf'
 import geoRoutes from './routes/geo'
 import reputationRoutes from './routes/reputation'
@@ -84,6 +85,7 @@ app.use('/api/wallet', walletRoutes)
 app.use('/api/config', configRoutes)
 app.use('/api/referral', referralRoutes)
 app.use('/api/academy', academyRoutes)
+app.use('/api/palier-proof', palierProofRoutes)
 app.use('/api/pdf', pdfRoutes)
 app.use('/api/geo', geoRoutes)
 app.use('/api/stats', statsPublicRoutes)

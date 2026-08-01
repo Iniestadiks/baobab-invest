@@ -127,16 +127,36 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
   let currentPalier = project.currentPalier || 1
   const totalMonths = schedule.totalMonths || project.durationMonths || 12
   const { moisP2, moisP3 } = getPalierThresholds(totalMonths)
-  // Garde-fou : sur un projet très court, moisP3 peut dépasser le nombre
-  // total de mensualités (ex: projet de 3 mois → moisP3=4, impossible à
-  // atteindre normalement). Si le projet est intégralement remboursé
-  // (statut COMPLETED ou toutes les mensualités payées), on débloque tout
-  // palier restant — l'entrepreneur ne doit jamais rester bloqué sous 100%
-  // après avoir tout remboursé.
   const isFullyRepaid = schedule.status === 'COMPLETED' || schedule.paidMonths >= totalMonths
-  // ── PALIER 2 : 35% après moisP2 mensualités payées (ou remboursement total) ──
+
+  // Vérifie si une preuve (vidéo + documents) a été soumise pour ce palier —
+  // sinon crée le "ticket en attente" et notifie l'entrepreneur, sans verser
+  // l'argent. Le versement se fait quand l'entrepreneur uploade sa preuve
+  // (voir routes/palierProof.ts), pas ici directement.
+  async function checkProofAndMaybeUnlock(palierNum: number, amount: number, label: string): Promise<boolean> {
+    let proof = await tx.palierProof.findUnique({ where: { projectId_palier: { projectId: project.id, palier: palierNum } } })
+    if (!proof) {
+      await tx.palierProof.create({ data: { projectId: project.id, palier: palierNum } })
+      await tx.notification.create({
+        data: {
+          userId: project.entrepreneurId,
+          title: `🎬 Palier ${palierNum} atteint — vidéo requise`,
+          body: `Vous avez atteint le seuil de mensualités pour le Palier ${palierNum} (${label}). Postez une courte vidéo (1min45 max) sur l'avancement de votre projet pour débloquer les ${amount.toLocaleString()} FCFA.`,
+          type: 'PALIER_PROOF_REQUIRED',
+          data: JSON.stringify({ projectId: project.id, palier: palierNum, amount })
+        }
+      })
+      return false // pas encore débloqué — en attente de la vidéo
+    }
+    if (!proof.videoUrl) return false // déjà notifié, en attente de l'upload
+    return true // preuve déjà envoyée — on peut débloquer
+  }
+
+  // ── PALIER 2 : 25% après moisP2 mensualités payées (ou remboursement total) ──
   if (currentPalier === 1 && (schedule.paidMonths >= moisP2 || isFullyRepaid)) {
     const p2Amount = Math.round(netAmount * 0.25)
+    const canUnlock = await checkProofAndMaybeUnlock(2, p2Amount, '25%')
+    if (!canUnlock) return
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
       data: { balance: { increment: p2Amount }, depositBalance: { increment: p2Amount } }
@@ -164,9 +184,11 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
     })
     currentPalier = 2
   }
-  // ── PALIER 3 : 25% après moisP3 mensualités payées (ou remboursement total) ──
+  // ── PALIER 3 : 35% après moisP3 mensualités payées (ou remboursement total) ──
   if (currentPalier === 2 && (schedule.paidMonths >= moisP3 || isFullyRepaid)) {
     const p3Amount = Math.round(netAmount * 0.35)
+    const canUnlock = await checkProofAndMaybeUnlock(3, p3Amount, '35%')
+    if (!canUnlock) return
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
       data: { balance: { increment: p3Amount }, depositBalance: { increment: p3Amount } }

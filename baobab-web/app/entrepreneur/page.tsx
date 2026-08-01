@@ -71,6 +71,11 @@ export default function EntrepreneurDashboard() {
   const [publishingReport, setPublishingReport] = useState<string | null>(null);
   const [reportText, setReportText] = useState<Record<string, string>>({});
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [palierProofs, setPalierProofs] = useState<Record<string, any[]>>({});
+  const [proofModal, setProofModal] = useState<{ projectId: string; palier: number } | null>(null);
+  const [proofVideo, setProofVideo] = useState<File | null>(null);
+  const [proofDocs, setProofDocs] = useState<File[]>([]);
+  const [uploadingProof, setUploadingProof] = useState(false);
 
   const flash = (msg: string) => { setFlashMsg(msg); setTimeout(() => setFlashMsg(""), 4000); };
 
@@ -91,6 +96,12 @@ export default function EntrepreneurDashboard() {
         if (s.success && s.data) schedMap[fp.id] = s.data;
       }
       setSchedules(schedMap);
+      const proofMap: any = {};
+      for (const fp of eligible) {
+        const pr = await authGet("/api/palier-proof/" + fp.id);
+        if (pr.success) proofMap[fp.id] = pr.data || [];
+      }
+      setPalierProofs(proofMap);
     }
     if (notif.success) {
       setNotifications(notif.data.notifications?.slice(0, 8) || []);
@@ -125,6 +136,33 @@ export default function EntrepreneurDashboard() {
     } finally { setPublishingReport(null); }
   };
 
+  const uploadProof = async () => {
+    if (!proofModal || !proofVideo) { flash("❌ Vidéo obligatoire"); return; }
+    setUploadingProof(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const formData = new FormData();
+      formData.append("video", proofVideo);
+      proofDocs.forEach(d => formData.append("documents", d));
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/palier-proof/${proofModal.projectId}/${proofModal.palier}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        flash("✅ " + (data.message || "Preuve envoyée — palier débloqué !"));
+        setProofModal(null); setProofVideo(null); setProofDocs([]);
+        loadData();
+      } else {
+        flash("❌ " + (data.message || "Erreur lors de l'envoi"));
+      }
+    } catch {
+      flash("❌ Erreur de connexion");
+    } finally {
+      setUploadingProof(false);
+    }
+  };
   const downloadPDF = async (url: string, filename: string) => {
     const token = localStorage.getItem("accessToken");
     try {
@@ -789,7 +827,45 @@ export default function EntrepreneurDashboard() {
                     <span>Prochain : {sc.nextDueDate ? new Date(sc.nextDueDate).toLocaleDateString('fr-FR') : '—'}</span>
                   </div>
                   {(expandedSchedule === null || expandedSchedule === sc.id) && <div>
-                  {sc.status === "ACTIVE" && project && (() => { const palier = project.currentPalier || 0; const net = project.netAmount || 0; const totalMonths = sc.totalMonths || 6; const moisP2 = Math.max(2, Math.round(totalMonths / 3)); const moisP3 = Math.max(4, Math.round(totalMonths * 2 / 3)); if (palier === 1) return (<div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🎯</div><div><div className="font-bold text-blue-700 text-sm">Payez M{moisP2} pour debloquer le Palier 2</div><div className="text-blue-600 text-xs mt-1">+{fmt(Math.round(net*0.25))} FCFA verses automatiquement sur votre wallet</div></div></div>); if (palier === 2) return (<div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🚀</div><div><div className="font-bold text-purple-700 text-sm">Payez M{moisP3} pour debloquer le Palier 3 !</div><div className="text-purple-600 text-xs mt-1">+{fmt(Math.round(net*0.35))} FCFA - La totalite de votre cagnotte sera liberee</div></div></div>); if (palier >= 3) return (<div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4"><div className="font-bold text-green-700 text-sm">Tous les paliers debloques ! Continuez vos remboursements.</div></div>); return null; })()}
+                  {sc.status === "ACTIVE" && project && (() => {
+                    const palier = project.currentPalier || 0;
+                    const net = project.netAmount || 0;
+                    const totalMonths = sc.totalMonths || 6;
+                    const moisP2 = Math.max(2, Math.round(totalMonths / 3));
+                    const moisP3 = Math.max(4, Math.round(totalMonths * 2 / 3));
+                    const proofs = palierProofs[project.id] || [];
+                    const pending = (n: number) => proofs.find((p: any) => p.palier === n && !p.videoUrl);
+                    if (palier === 1) {
+                      const p = pending(2);
+                      if (p) return (
+                        <div className="bg-orange-50 border border-orange-300 rounded-xl p-3 mb-4 flex items-start gap-3">
+                          <div className="text-2xl">🎬</div>
+                          <div className="flex-1">
+                            <div className="font-bold text-orange-700 text-sm">Palier 2 atteint — vidéo requise !</div>
+                            <div className="text-orange-600 text-xs mt-1">Postez une vidéo (1min45 max) sur l&apos;avancement pour débloquer +{fmt(Math.round(net*0.25))} FCFA</div>
+                            <button onClick={() => setProofModal({ projectId: project.id, palier: 2 })} className="mt-2 bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-orange-700">📹 Envoyer ma vidéo</button>
+                          </div>
+                        </div>
+                      );
+                      return (<div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🎯</div><div><div className="font-bold text-blue-700 text-sm">Payez M{moisP2} pour debloquer le Palier 2</div><div className="text-blue-600 text-xs mt-1">+{fmt(Math.round(net*0.25))} FCFA verses automatiquement sur votre wallet</div></div></div>);
+                    }
+                    if (palier === 2) {
+                      const p = pending(3);
+                      if (p) return (
+                        <div className="bg-orange-50 border border-orange-300 rounded-xl p-3 mb-4 flex items-start gap-3">
+                          <div className="text-2xl">🎬</div>
+                          <div className="flex-1">
+                            <div className="font-bold text-orange-700 text-sm">Palier 3 atteint — vidéo requise !</div>
+                            <div className="text-orange-600 text-xs mt-1">Postez une vidéo (1min45 max) sur l&apos;avancement pour débloquer +{fmt(Math.round(net*0.35))} FCFA</div>
+                            <button onClick={() => setProofModal({ projectId: project.id, palier: 3 })} className="mt-2 bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-orange-700">📹 Envoyer ma vidéo</button>
+                          </div>
+                        </div>
+                      );
+                      return (<div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🚀</div><div><div className="font-bold text-purple-700 text-sm">Payez M{moisP3} pour debloquer le Palier 3 !</div><div className="text-purple-600 text-xs mt-1">+{fmt(Math.round(net*0.35))} FCFA - La totalite de votre cagnotte sera liberee</div></div></div>);
+                    }
+                    if (palier >= 3) return (<div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4"><div className="font-bold text-green-700 text-sm">Tous les paliers debloques ! Continuez vos remboursements.</div></div>);
+                    return null;
+                  })()}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     {[
                       { label: "Total dû", value: fmt(sc.totalAmount) + " FCFA", color: "text-gray-900" },
@@ -975,6 +1051,39 @@ export default function EntrepreneurDashboard() {
         )}
       </div>
 
+      {/* Modal upload preuve de palier */}
+      {proofModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-gray-900">🎬 Preuve Palier {proofModal.palier}</h3>
+              <button onClick={() => { setProofModal(null); setProofVideo(null); setProofDocs([]); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">Une courte vidéo (1min45 max) montrant l&apos;avancement réel de votre projet. Vos investisseurs pourront la voir.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1 block">Vidéo * (mp4, mov, webm)</label>
+                <input type="file" accept="video/mp4,video/quicktime,video/webm"
+                  onChange={e => setProofVideo(e.target.files?.[0] || null)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 mb-1 block">Justificatifs de dépenses (optionnel, 5 max)</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple
+                  onChange={e => setProofDocs(Array.from(e.target.files || []).slice(0, 5))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+                💡 Vos investisseurs pourront voir cette vidéo et ces documents. Un contenu insuffisant peut être signalé.
+              </div>
+              <button onClick={uploadProof} disabled={uploadingProof || !proofVideo}
+                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 disabled:opacity-50">
+                {uploadingProof ? "Envoi en cours..." : "📤 Envoyer et débloquer le palier"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Modal investisseurs */}
       {selectedProjectInvestors && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

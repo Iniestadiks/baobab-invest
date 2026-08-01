@@ -321,8 +321,25 @@ model Project {
   fundAllocations     FundAllocation[]
   fundCampaigns       FundCampaign[]
   repaymentPayments   RepaymentPayment[]
+  palierProofs        PalierProof[]
 
   @@map("projects")
+}
+
+model PalierProof {
+  id         String   @id @default(uuid())
+  projectId  String
+  palier     Int      // 2 ou 3 — quel palier cette preuve débloque
+  videoUrl   String?  // vidéo 1min45 max sur l'avancement (Cloudinary)
+  documents  String?  // JSON: [{url, name}] — justificatifs de dépenses
+  flagged    Boolean  @default(false)
+  flagReason String?
+  flaggedBy  String?  // userId de l'investisseur ayant signalé
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, palier])
+  @@map("palier_proofs")
 }
 
 model Investment {

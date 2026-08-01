@@ -44,6 +44,9 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchInv, setSearchInv] = useState("");
   const [savingsDay, setSavingsDay] = useState("");
+  const [palierProofs, setPalierProofs] = useState<Record<string, any[]>>({});
+  const [flagging, setFlagging] = useState<{ projectId: string; palier: number } | null>(null);
+  const [flagReason, setFlagReason] = useState("");
 
   const flash = (msg: string) => { setFlashMsg(msg); setTimeout(() => setFlashMsg(""), 4000); };
 
@@ -72,11 +75,23 @@ export default function DashboardPage() {
       }
     }
     setSchedules(schedMap);
+    const proofMap: any = {};
+    for (const pid of Object.keys(schedMap)) {
+      const pr = await authGet("/api/palier-proof/" + pid);
+      if (pr.success) proofMap[pid] = pr.data || [];
+    }
+    setPalierProofs(proofMap);
     setLoading(false);
   }, [router]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const flagProof = async (projectId: string, palier: number) => {
+    if (!flagReason || flagReason.trim().length < 10) { flash("❌ Motif trop court (10 caractères min)"); return; }
+    const res = await authPost(`/api/palier-proof/${projectId}/${palier}/flag`, { reason: flagReason });
+    if (res.success) { flash("✅ Signalement envoyé"); setFlagging(null); setFlagReason(""); }
+    else flash("❌ " + res.message);
+  };
   const downloadPDF = async (url: string, filename: string) => {
     const token = localStorage.getItem("accessToken");
     try {
@@ -572,6 +587,34 @@ export default function DashboardPage() {
                            Math.round(((inv.returnedAmount||0)/nr)*100) + "% du retour total reçu"}
                         </div>
                       </div>
+                      {/* Preuves de palier (vidéo + documents) */}
+                      {(palierProofs[inv.projectId] || []).filter((p: any) => p.videoUrl).map((p: any) => (
+                        <div key={p.palier} className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs mt-2">
+                          <div className="font-semibold text-purple-800 mb-2">🎬 Preuve Palier {p.palier}</div>
+                          <video src={p.videoUrl} controls className="w-full rounded-lg mb-2 max-h-48" />
+                          {(p.documents || []).length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {p.documents.map((d: any, i: number) => (
+                                <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-white border border-purple-200 text-purple-700 px-2 py-1 rounded-lg hover:bg-purple-100">📄 {d.name}</a>
+                              ))}
+                            </div>
+                          )}
+                          {p.flagged ? (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-lg">🚩 Déjà signalé — en attente de vérification admin</span>
+                          ) : flagging?.projectId === inv.projectId && flagging?.palier === p.palier ? (
+                            <div className="space-y-2">
+                              <input value={flagReason} onChange={e => setFlagReason(e.target.value)} placeholder="Motif du signalement (10 caractères min)..."
+                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                              <div className="flex gap-2">
+                                <button onClick={() => flagProof(inv.projectId, p.palier)} className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700">Confirmer</button>
+                                <button onClick={() => { setFlagging(null); setFlagReason(""); }} className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg">Annuler</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => setFlagging({ projectId: inv.projectId, palier: p.palier })} className="text-xs text-red-500 hover:underline">🚩 Signaler cette preuve</button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
