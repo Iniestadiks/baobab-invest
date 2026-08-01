@@ -7,29 +7,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
 const database_1 = __importDefault(require("../config/database"));
 const auth_1 = require("../middleware/auth");
 const helpers_1 = require("../utils/helpers");
+const cloudinary_1 = require("cloudinary");
+const stream_1 = require("stream");
 const router = (0, express_1.Router)();
-const storage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
-        const userId = req.userId || 'unknown';
-        const typeMap = { document: 'identity', selfie: 'selfie', rccm: 'rccm' };
-        const folder = `/home/baobab-invest/baobab-api/uploads/kyc/${userId}/${typeMap[file.fieldname] || 'other'}`;
-        fs_1.default.mkdirSync(folder, { recursive: true });
-        cb(null, folder);
-    },
-    filename: (req, file, cb) => {
-        const userId = req.userId || 'unknown';
-        const date = new Date().toISOString().split('T')[0];
-        const ext = path_1.default.extname(file.originalname).toLowerCase();
-        cb(null, `${userId}-${file.fieldname}-${date}${ext}`);
-    }
+cloudinary_1.v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 const upload = (0, multer_1.default)({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    storage: multer_1.default.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
         const allowed = ['.jpg', '.jpeg', '.png', '.pdf', '.webp'];
         if (allowed.includes(path_1.default.extname(file.originalname).toLowerCase()))
@@ -38,6 +29,15 @@ const upload = (0, multer_1.default)({
             cb(new Error('Format non supporte'));
     }
 });
+async function uploadToCloudinary(buffer, folder, publicId) {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary_1.v2.uploader.upload_stream({ folder, public_id: publicId, resource_type: 'auto' }, (error, result) => { if (error)
+            reject(error);
+        else
+            resolve(result.secure_url); });
+        stream_1.Readable.from(buffer).pipe(stream);
+    });
+}
 router.post('/upload', auth_1.authenticate, upload.fields([
     { name: 'document', maxCount: 1 },
     { name: 'selfie', maxCount: 1 },
@@ -47,7 +47,7 @@ router.post('/upload', auth_1.authenticate, upload.fields([
         const files = req.files;
         const existing = await database_1.default.user.findUnique({ where: { id: req.userId } });
         if (existing?.kycStatus === 'PENDING') {
-            res.status(400).json({ success: false, message: 'Une demande est deja en cours. Attendez la reponse de l\'administrateur.' });
+            res.status(400).json({ success: false, message: "Une demande est deja en cours." });
             return;
         }
         if (existing?.kycStatus === 'VERIFIED') {
@@ -59,34 +59,29 @@ router.post('/upload', auth_1.authenticate, upload.fields([
             return;
         }
         const userId = req.userId;
-        const docUrl = `/uploads/kyc/${userId}/identity/${files.document[0].filename}`;
-        const selfieUrl = `/uploads/kyc/${userId}/selfie/${files.selfie[0].filename}`;
-        const rccmUrl = files.rccm ? `/uploads/kyc/${userId}/rccm/${files.rccm[0].filename}` : undefined;
+        const date = new Date().toISOString().split('T')[0];
+        const docUrl = await uploadToCloudinary(files.document[0].buffer, `korapact/kyc/${userId}/identity`, `${userId}-document-${date}`);
+        const selfieUrl = await uploadToCloudinary(files.selfie[0].buffer, `korapact/kyc/${userId}/selfie`, `${userId}-selfie-${date}`);
+        let rccmUrl;
+        if (files.rccm)
+            rccmUrl = await uploadToCloudinary(files.rccm[0].buffer, `korapact/kyc/${userId}/rccm`, `${userId}-rccm-${date}`);
         const expiry = req.body.documentExpiry ? new Date(req.body.documentExpiry) : undefined;
         const user = await database_1.default.user.update({
             where: { id: userId },
             data: {
-                kycDocumentUrl: docUrl,
-                kycSelfieUrl: selfieUrl,
-                kycRccmUrl: rccmUrl,
-                kycStatus: 'PENDING',
-                kycSubmittedAt: new Date(),
-                kycDocumentExpiry: expiry,
-                kycDocumentType: req.body.documentType || 'CNI',
-                kycAttempts: { increment: 1 },
-                rccmNumber: req.body.rccmNumber || undefined,
-                nineaNumber: req.body.nineaNumber || undefined,
+                kycDocumentUrl: docUrl, kycSelfieUrl: selfieUrl, kycRccmUrl: rccmUrl,
+                kycStatus: 'PENDING', kycSubmittedAt: new Date(), kycDocumentExpiry: expiry,
+                kycDocumentType: req.body.documentType || 'CNI', kycAttempts: { increment: 1 },
+                rccmNumber: req.body.rccmNumber || undefined, nineaNumber: req.body.nineaNumber || undefined,
             }
         });
         const admins = await database_1.default.user.findMany({ where: { role: 'ADMIN' } });
         for (const admin of admins) {
             await database_1.default.notification.create({
                 data: {
-                    userId: admin.id,
-                    title: 'Nouveau KYC a valider',
+                    userId: admin.id, title: 'Nouveau KYC a valider',
                     body: `${user.firstName} ${user.lastName} (${user.role}) a soumis ses documents KYC. Tentative #${user.kycAttempts}.`,
-                    type: 'KYC_PENDING',
-                    data: { userId: user.id }
+                    type: 'KYC_PENDING', data: { userId: user.id }
                 }
             });
         }
@@ -102,10 +97,9 @@ router.get('/status', auth_1.authenticate, async (req, res) => {
         const user = await database_1.default.user.findUnique({
             where: { id: req.userId },
             select: {
-                kycStatus: true, kycDocumentUrl: true, kycSelfieUrl: true,
-                kycRccmUrl: true, kycVerifiedAt: true, kycSubmittedAt: true,
-                kycRejectedReason: true, kycDocumentExpiry: true,
-                kycDocumentType: true, kycAttempts: true
+                kycStatus: true, kycDocumentUrl: true, kycSelfieUrl: true, kycRccmUrl: true,
+                kycVerifiedAt: true, kycSubmittedAt: true, kycRejectedReason: true,
+                kycDocumentExpiry: true, kycDocumentType: true, kycAttempts: true
             }
         });
         (0, helpers_1.successResponse)(res, user);
@@ -131,8 +125,7 @@ router.get('/admin/all', auth_1.authenticate, auth_1.requireAdmin, async (req, r
                 kycRccmUrl: true, kycSubmittedAt: true, kycVerifiedAt: true,
                 kycRejectedReason: true, kycDocumentExpiry: true, kycDocumentType: true,
                 kycAttempts: true, kycNotes: true, createdAt: true,
-                reputationScore: true, level: true, referralCode: true,
-                referralCount: true
+                reputationScore: true, level: true, referralCode: true, referralCount: true
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -156,17 +149,14 @@ router.patch('/admin/verify/:userId', auth_1.authenticate, auth_1.requireAdmin, 
             return;
         }
         if (action === 'REJECTED' && !reason) {
-            res.status(400).json({ success: false, message: 'Motif de rejet obligatoire' });
+            res.status(400).json({ success: false, message: 'Motif obligatoire' });
             return;
         }
         const user = await database_1.default.user.update({
             where: { id: req.params.userId },
             data: {
-                kycStatus: action,
-                kycVerifiedAt: action === 'VERIFIED' ? new Date() : null,
-                kycRejectedReason: action === 'REJECTED' ? reason : null,
-                kycVerifiedBy: req.userId,
-                kycNotes: notes || null,
+                kycStatus: action, kycVerifiedAt: action === 'VERIFIED' ? new Date() : null,
+                kycRejectedReason: action === 'REJECTED' ? reason : null, kycVerifiedBy: req.userId, kycNotes: notes || null,
             }
         });
         await database_1.default.notification.create({
@@ -174,52 +164,12 @@ router.patch('/admin/verify/:userId', auth_1.authenticate, auth_1.requireAdmin, 
                 userId: user.id,
                 title: action === 'VERIFIED' ? 'KYC Verifie !' : 'KYC Rejete',
                 body: action === 'VERIFIED'
-                    ? 'Votre identite a ete verifiee. Vous pouvez maintenant investir et soumettre des projets.'
-                    : `Votre KYC a ete rejete. Motif : ${reason}. Vous pouvez soumettre de nouveaux documents.`,
-                type: action === 'VERIFIED' ? 'KYC_VERIFIED' : 'KYC_REJECTED',
-                data: { reason }
+                    ? 'Votre identite a ete verifiee. Vous pouvez maintenant investir.'
+                    : `Votre KYC a ete rejete. Motif : ${reason}.`,
+                type: action === 'VERIFIED' ? 'KYC_VERIFIED' : 'KYC_REJECTED', data: { reason }
             }
         });
         (0, helpers_1.successResponse)(res, user, `KYC ${action === 'VERIFIED' ? 'valide' : 'rejete'}`);
-    }
-    catch (e) {
-        (0, helpers_1.errorResponse)(res);
-    }
-});
-router.get('/admin/dossier/:userId', auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {
-    try {
-        const user = await database_1.default.user.findUnique({ where: { id: req.params.userId } });
-        if (!user) {
-            res.status(404).json({ success: false });
-            return;
-        }
-        const dir = `/home/baobab-invest/baobab-api/uploads/kyc/${req.params.userId}`;
-        if (!fs_1.default.existsSync(dir)) {
-            (0, helpers_1.successResponse)(res, { user: { id: user.id, name: `${user.firstName} ${user.lastName}`, role: user.role }, files: [] });
-            return;
-        }
-        const files = [];
-        const scanDir = (d, rel) => {
-            fs_1.default.readdirSync(d).forEach(f => {
-                const full = path_1.default.join(d, f);
-                const relPath = path_1.default.join(rel, f);
-                if (fs_1.default.statSync(full).isDirectory())
-                    scanDir(full, relPath);
-                else
-                    files.push({
-                        name: f,
-                        folder: rel,
-                        url: `/uploads/kyc/${req.params.userId}/${relPath}`,
-                        size: fs_1.default.statSync(full).size,
-                        modified: fs_1.default.statSync(full).mtime
-                    });
-            });
-        };
-        scanDir(dir, '');
-        (0, helpers_1.successResponse)(res, {
-            user: { id: user.id, name: `${user.firstName} ${user.lastName}`, role: user.role },
-            files
-        });
     }
     catch (e) {
         (0, helpers_1.errorResponse)(res);
@@ -229,32 +179,14 @@ router.post('/check-expiry', auth_1.authenticate, auth_1.requireAdmin, async (re
     try {
         const now = new Date();
         const in30days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        const expired = await database_1.default.user.findMany({
-            where: { kycStatus: 'VERIFIED', kycDocumentExpiry: { lt: now } }
-        });
+        const expired = await database_1.default.user.findMany({ where: { kycStatus: 'VERIFIED', kycDocumentExpiry: { lt: now } } });
         for (const u of expired) {
             await database_1.default.user.update({ where: { id: u.id }, data: { kycStatus: 'PENDING' } });
-            await database_1.default.notification.create({
-                data: {
-                    userId: u.id,
-                    title: 'Document KYC expire',
-                    body: 'Votre document d identite a expire. Soumettez un nouveau document.',
-                    type: 'KYC_PENDING'
-                }
-            });
+            await database_1.default.notification.create({ data: { userId: u.id, title: 'Document KYC expire', body: 'Votre document a expire. Soumettez un nouveau document.', type: 'KYC_PENDING' } });
         }
-        const expiringSoon = await database_1.default.user.findMany({
-            where: { kycStatus: 'VERIFIED', kycDocumentExpiry: { gte: now, lte: in30days } }
-        });
+        const expiringSoon = await database_1.default.user.findMany({ where: { kycStatus: 'VERIFIED', kycDocumentExpiry: { gte: now, lte: in30days } } });
         for (const u of expiringSoon) {
-            await database_1.default.notification.create({
-                data: {
-                    userId: u.id,
-                    title: 'Document KYC expire bientot',
-                    body: 'Votre document expire dans moins de 30 jours. Renouvelez-le.',
-                    type: 'KYC_PENDING'
-                }
-            });
+            await database_1.default.notification.create({ data: { userId: u.id, title: 'Document KYC expire bientot', body: 'Votre document expire dans moins de 30 jours.', type: 'KYC_PENDING' } });
         }
         (0, helpers_1.successResponse)(res, { expired: expired.length, expiringSoon: expiringSoon.length });
     }

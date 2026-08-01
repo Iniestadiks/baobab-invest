@@ -63,7 +63,7 @@ const projectSchema = zod_1.z.object({
     useOfFunds: zod_1.z.string().optional(),
 });
 // Calculer le score de bankabilité
-function calculateBankabilityScore(data) {
+function calculateBankabilityScore(data, certifiedCourseCount = 0) {
     let score = 0;
     if (data.description.length > 200)
         score += 15;
@@ -79,6 +79,9 @@ function calculateBankabilityScore(data) {
         score += 10;
     if (data.durationMonths >= 6)
         score += 10;
+    // Certifications Académie — +5 pts par cours certifiant terminé, plafonné à +15
+    // (cohérent avec ce qui est annoncé sur la page Académie)
+    score += Math.min(certifiedCourseCount * 5, 15);
     return Math.min(score, 100);
 }
 // Catalogue public — avec filtres
@@ -183,7 +186,7 @@ router.post('/:id/simulate', async (req, res) => {
         }
         const sharePercent = amount / project.goalAmount;
         const hasMentor = !!project.mentorId;
-        const fees = await (0, fees_1.getFees)();
+        const fees = await (0, fees_1.getProjectFees)(project);
         const withInsurance = req.body.withInsurance !== false;
         const returnRate = Math.max(project.expectedReturn || 0, fees.return_min);
         const platformFee = Math.round(amount * fees.commission_baobab_collection / 100);
@@ -243,7 +246,7 @@ router.post('/', auth_1.authenticate, (0, auth_1.requireRole)(['ENTREPRENEUR']),
                     data: JSON.stringify({ entrepreneurId: entrepreneur.id })
                 }))
             });
-            res.status(403).json({ success: false, message: "Votre compte est suspendu suite à des retards répétés. Contactez le support BAOBAB INVEST.", code: "BANNED" });
+            res.status(403).json({ success: false, message: "Votre compte est suspendu suite à des retards répétés. Contactez le support KORAPACT.", code: "BANNED" });
             return;
         }
         if (repScore < 50) {
@@ -293,9 +296,21 @@ router.post('/', auth_1.authenticate, (0, auth_1.requireRole)(['ENTREPRENEUR']),
                     where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: 'WAITLISTED' }
                 });
                 const data = projectSchema.parse(req.body);
-                const score = calculateBankabilityScore({ ...data, description: data.description });
+                const certifiedCount = await database_1.default.courseCompletion.count({ where: { userId: req.userId, pointsEarned: { gt: 0 } } });
+                // Même règle que la création normale — cohérence entre les deux chemins
+                if (data.goalAmount > 1000000 && certifiedCount < 2) {
+                    res.status(403).json({ success: false, message: "Les projets demandant plus de 1 000 000 FCFA nécessitent au moins 2 certifications de l'Académie KORAPACT. Rendez-vous sur /academy.", code: "CERTIFICATION_REQUIRED" });
+                    return;
+                }
+                const score = calculateBankabilityScore({ ...data, description: data.description }, certifiedCount);
                 const waitlistedProject = await database_1.default.project.create({
-                    data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED', useOfFunds: data.useOfFunds || null }
+                    data: { ...data, goalAmount: computedGoalCalc, netAmount: netAmountCalc, gracePeriodMonths: graceCalc, entrepreneurId: req.userId, campaignEndsAt: data.campaignEndsAt ? new Date(data.campaignEndsAt) : null, bankabilityScore: score, status: 'WAITLISTED', useOfFunds: data.useOfFunds || null,
+                        feeCollectionRate: feesCalc.commission_baobab_collection,
+                        feePayinRecoveryRate: feesCalc.payin_recovery,
+                        feeMentorRate: feesCalc.commission_mentor,
+                        feeGuaranteeRate: feesCalc.commission_guarantee,
+                        feePayinRepaymentRate: feesCalc.payin_repayment,
+                        feeReturnMin: feesCalc.return_min, }
                 });
                 await database_1.default.notification.create({
                     data: { userId: req.userId, title: 'Projet en liste d attente', body: `Votre projet "${waitlistedProject.title}" est en position ${waitlistCount + 1} dans la liste d attente.`, type: 'PROJECT_WAITLISTED', data: JSON.stringify({ projectId: waitlistedProject.id, position: waitlistCount + 1 }) }
@@ -313,7 +328,13 @@ router.post('/', auth_1.authenticate, (0, auth_1.requireRole)(['ENTREPRENEUR']),
             }
         }
         const data = projectSchema.parse(req.body);
-        const score = calculateBankabilityScore({ ...data, description: data.description });
+        const certifiedCountMain = await database_1.default.courseCompletion.count({ where: { userId: req.userId, pointsEarned: { gt: 0 } } });
+        // Règle réelle annoncée sur l'Académie : projets > 1M FCFA exigent au moins 2 certifications
+        if (data.goalAmount > 1000000 && certifiedCountMain < 2) {
+            res.status(403).json({ success: false, message: "Les projets demandant plus de 1 000 000 FCFA nécessitent au moins 2 certifications de l'Académie KORAPACT. Rendez-vous sur /academy.", code: "CERTIFICATION_REQUIRED" });
+            return;
+        }
+        const score = calculateBankabilityScore({ ...data, description: data.description }, certifiedCountMain);
         const project = await database_1.default.project.create({
             data: {
                 ...data,
@@ -325,6 +346,14 @@ router.post('/', auth_1.authenticate, (0, auth_1.requireRole)(['ENTREPRENEUR']),
                 bankabilityScore: score,
                 status: 'PENDING_REVIEW',
                 useOfFunds: data.useOfFunds || null,
+                // Taux figés à la création — ne changeront jamais même si l'admin
+                // modifie les taux globaux ensuite (ça n'affecte que les NOUVEAUX projets)
+                feeCollectionRate: feesCalc.commission_baobab_collection,
+                feePayinRecoveryRate: feesCalc.payin_recovery,
+                feeMentorRate: feesCalc.commission_mentor,
+                feeGuaranteeRate: feesCalc.commission_guarantee,
+                feePayinRepaymentRate: feesCalc.payin_repayment,
+                feeReturnMin: feesCalc.return_min,
             }
         });
         // Notifier les admins
@@ -678,7 +707,7 @@ router.post('/:id/mentor/accept', auth_1.authenticate, (0, auth_1.requireRole)([
             where: { mentorId: req.userId, status: { in: ['ACTIVE', 'PENDING_REVIEW', 'FUNDED', 'IN_PROGRESS'] } }
         });
         if (activeAsMentor >= 5) {
-            res.status(400).json({ success: false, message: 'Tu parraines déjà 5 projets simultanés — maximum atteint selon les règles BAOBAB INVEST' });
+            res.status(400).json({ success: false, message: 'Tu parraines déjà 5 projets simultanés — maximum atteint selon les règles KORAPACT' });
             return;
         }
         // Notifier l'entrepreneur
@@ -741,17 +770,18 @@ router.get('/mentor/my-projects', auth_1.authenticate, (0, auth_1.requireRole)([
             },
             orderBy: { createdAt: 'desc' }
         });
-        // Commission mentor = 2% du goalAmount à la collecte (nouvelle stratégie)
-        const fees = await (0, fees_1.getFees)();
-        const mentorRate = fees.commission_mentor / 100; // 2%
-        const enriched = projects.map(p => {
+        // Commission mentor = X% du goalAmount à la collecte — taux FIGÉ par projet
+        // (jamais recalculé en direct, cohérent avec ce qui a réellement été crédité)
+        const enriched = await Promise.all(projects.map(async (p) => {
+            const fees = await (0, fees_1.getProjectFees)(p);
+            const mentorRate = fees.commission_mentor / 100;
             const totalInvested = p.investments.reduce((s, i) => s + i.amount, 0);
             const totalReturns = p.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0);
-            // Commission déjà créditée au wallet lors de la collecte
+            // Commission déjà créditée au wallet lors de la collecte, au taux figé de ce projet
             const mentorCommission = Math.round(totalInvested * mentorRate);
             const mentorCommissionEstimated = Math.round((p.goalAmount || 0) * mentorRate);
-            return { ...p, mentorCommission, mentorCommissionEstimated, totalReturns, totalInvested };
-        });
+            return { ...p, mentorCommission, mentorCommissionEstimated, totalReturns, totalInvested, mentorRatePercent: fees.commission_mentor };
+        }));
         (0, helpers_1.successResponse)(res, enriched);
     }
     catch {

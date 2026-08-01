@@ -37,7 +37,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const client_1 = require("@prisma/client");
 const auth_1 = require("../middleware/auth");
-const paydunya_1 = require("../services/paydunya");
+const registry_1 = require("../services/payments/registry");
 const fees_1 = require("../config/fees");
 const router = (0, express_1.Router)();
 const prisma = new client_1.PrismaClient();
@@ -52,7 +52,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://46.202.132.161:3000';
 // Initier un dépôt via PayDunya
 router.post('/deposit', auth_1.authenticate, async (req, res) => {
     try {
-        const { amount } = req.body;
+        const { amount, provider: providerKey = 'paydunya' } = req.body;
         if (!amount || amount < 1000) {
             res.status(400).json({ success: false, message: 'Montant minimum 1 000 FCFA' });
             return;
@@ -62,6 +62,11 @@ router.post('/deposit', auth_1.authenticate, async (req, res) => {
             res.status(404).json({ success: false, message: 'Utilisateur introuvable' });
             return;
         }
+        const provider = await (0, registry_1.getProvider)(providerKey);
+        if (!provider) {
+            res.status(400).json({ success: false, message: `Prestataire "${providerKey}" non disponible ou désactivé` });
+            return;
+        }
         // Créer transaction en attente
         const tx = await prisma.walletTransaction.create({
             data: {
@@ -69,14 +74,15 @@ router.post('/deposit', auth_1.authenticate, async (req, res) => {
                 type: 'DEPOSIT',
                 amount,
                 status: 'PENDING',
-                description: `Depot via PayDunya — ${amount.toLocaleString()} FCFA`
+                providerKey: provider.key,
+                description: `Depot via ${provider.label} — ${amount.toLocaleString()} FCFA`
             }
         });
-        // Initier paiement PayDunya
-        const paydunyaRes = await (0, paydunya_1.initPayin)({
+        // Initier le paiement via le prestataire choisi (PayDunya, KiaKiaPay, Stripe...)
+        const payin = await provider.initPayin({
             amount,
-            description: `Depot wallet BAOBAB INVEST — ${amount.toLocaleString()} FCFA`,
-            callbackUrl: `${API_URL}/api/wallet/webhook/paydunya`,
+            description: `Depot wallet KORAPACT — ${amount.toLocaleString()} FCFA`,
+            callbackUrl: `${API_URL}/api/wallet/webhook/${provider.key}`,
             returnUrl: `${FRONTEND_URL}/wallet/deposit?status=success&txId=${tx.id}`,
             cancelUrl: `${FRONTEND_URL}/wallet/deposit?status=cancel&txId=${tx.id}`,
             customerName: `${user.firstName} ${user.lastName}`,
@@ -84,21 +90,21 @@ router.post('/deposit', auth_1.authenticate, async (req, res) => {
             customerPhone: user.phone,
             customData: { txId: tx.id, userId: req.userId, type: 'DEPOSIT' }
         });
-        if (paydunyaRes.response_code === '00') {
-            // Sauvegarder le token PayDunya
+        if (payin.success) {
             await prisma.walletTransaction.update({
                 where: { id: tx.id },
-                data: { description: `Depot PayDunya — token: ${paydunyaRes.token}` }
+                data: { providerRef: payin.token || null }
             });
             successResponse(res, {
-                paymentUrl: paydunyaRes.response_text,
-                token: paydunyaRes.token,
-                txId: tx.id
+                paymentUrl: payin.redirectUrl,
+                token: payin.token,
+                txId: tx.id,
+                provider: provider.key,
             }, 'Paiement initié');
         }
         else {
             await prisma.walletTransaction.update({ where: { id: tx.id }, data: { status: 'FAILED' } });
-            res.status(400).json({ success: false, message: paydunyaRes.response_text || 'Erreur PayDunya' });
+            res.status(400).json({ success: false, message: payin.raw?.response_text || payin.raw?.error || 'Erreur lors de l\'initiation du paiement' });
         }
     }
     catch (e) {
@@ -115,16 +121,22 @@ router.post('/webhook/paydunya', async (req, res) => {
             res.status(400).json({ success: false });
             return;
         }
-        // Vérifier le paiement
-        const confirmation = await (0, paydunya_1.checkPayin)(data.invoice.token);
-        if (confirmation.status !== 'completed') {
+        const provider = await (0, registry_1.getProvider)('paydunya');
+        if (!provider) {
+            res.status(400).json({ success: false });
+            return;
+        }
+        // Vérifier le paiement auprès du prestataire
+        const confirmation = await provider.checkPayin(data.invoice.token);
+        const raw = confirmation.raw;
+        if (!confirmation.success || raw?.status !== 'completed') {
             res.json({ success: false, message: 'Paiement non complété' });
             return;
         }
-        const customData = confirmation.custom_data || {};
+        const customData = raw?.custom_data || {};
         const txId = customData.txId;
         const userId = customData.userId;
-        const amount = confirmation.invoice?.total_amount;
+        const amount = raw?.invoice?.total_amount;
         // Calcul marge opérateur — frais sécurisés vs taux réel configuré
         const payinRealRate = await prisma.platformConfig.findUnique({ where: { key: 'payin_operator_real' } });
         const payinSecuredRate = await prisma.platformConfig.findUnique({ where: { key: 'payin_recovery' } });
@@ -157,7 +169,7 @@ router.post('/webhook/paydunya', async (req, res) => {
                 data: {
                     userId,
                     title: 'Depot confirme',
-                    body: `${amount.toLocaleString()} FCFA ont ete credites sur votre wallet BAOBAB INVEST.`,
+                    body: `${amount.toLocaleString()} FCFA ont ete credites sur votre wallet KORAPACT.`,
                     type: 'DEPOSIT_CONFIRMED',
                     data: JSON.stringify({ amount, txId })
                 }
@@ -201,7 +213,7 @@ router.post('/deposit/verify/:txId', auth_1.authenticate, async (req, res) => {
 // Demande de retrait via PayDunya Payout
 router.post('/withdraw', auth_1.authenticate, async (req, res) => {
     try {
-        const { amount, phoneNumber, operator } = req.body;
+        const { amount, phoneNumber, operator, provider: providerKey = 'paydunya' } = req.body;
         const minWithdraw = 5000;
         if (!amount || amount < minWithdraw) {
             res.status(400).json({ success: false, message: `Montant minimum de retrait : ${minWithdraw.toLocaleString()} FCFA` });
@@ -210,6 +222,11 @@ router.post('/withdraw', auth_1.authenticate, async (req, res) => {
         const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } });
         if (!wallet || wallet.balance < amount) {
             res.status(400).json({ success: false, message: `Solde insuffisant. Disponible : ${wallet?.balance?.toLocaleString() || 0} FCFA` });
+            return;
+        }
+        const provider = await (0, registry_1.getProvider)(providerKey);
+        if (!provider || !provider.initPayout) {
+            res.status(400).json({ success: false, message: `Prestataire "${providerKey}" non disponible pour les retraits` });
             return;
         }
         // Réserver les fonds immédiatement
@@ -225,6 +242,7 @@ router.post('/withdraw', auth_1.authenticate, async (req, res) => {
                 status: 'PENDING',
                 phoneNumber,
                 operator,
+                providerKey: provider.key,
                 description: `Retrait ${operator} — ${phoneNumber}`,
             }
         });
@@ -292,15 +310,15 @@ router.post('/withdraw', auth_1.authenticate, async (req, res) => {
                 depositBalance: { decrement: depositPart },
             }
         });
-        // Initier le payout PayDunya automatiquement
+        // Initier le payout via le prestataire choisi
         try {
-            const payoutRes = await (0, paydunya_1.initPayout)({
+            const payoutRes = await provider.initPayout({
                 amount: grossAmount,
                 phoneNumber,
                 operator,
-                description: `Retrait BAOBAB INVEST — ${amount.toLocaleString()} FCFA`
+                description: `Retrait KORAPACT — ${amount.toLocaleString()} FCFA`
             });
-            if (payoutRes.response_code === '00') {
+            if (payoutRes.success) {
                 await prisma.walletTransaction.update({
                     where: { id: tx.id },
                     data: { status: 'COMPLETED', processedAt: new Date() }
@@ -330,7 +348,7 @@ router.post('/withdraw', auth_1.authenticate, async (req, res) => {
                     data: admins.map(a => ({
                         userId: a.id,
                         title: 'Retrait a traiter manuellement',
-                        body: `Retrait de ${amount.toLocaleString()} FCFA via ${operator} (${phoneNumber}) — PayDunya: ${payoutRes.response_text}`,
+                        body: `Retrait de ${amount.toLocaleString()} FCFA via ${operator} (${phoneNumber}) — ${provider.label}: ${payoutRes.raw?.response_text || 'echec'}`,
                         type: 'WITHDRAWAL_REQUEST',
                         data: JSON.stringify({ transactionId: tx.id })
                     }))
@@ -339,7 +357,7 @@ router.post('/withdraw', auth_1.authenticate, async (req, res) => {
             }
         }
         catch (payErr) {
-            console.error('PayDunya payout error:', payErr);
+            console.error('Payout error:', payErr);
             const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
             await prisma.notification.createMany({
                 data: admins.map(a => ({

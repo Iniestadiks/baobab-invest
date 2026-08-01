@@ -222,7 +222,7 @@ router.post('/auth/login', async (req, res) => {
             return;
         }
         if (!supplier.password) {
-            res.status(400).json({ success: false, message: 'Mot de passe non configuré — contactez BAOBAB INVEST' });
+            res.status(400).json({ success: false, message: 'Mot de passe non configuré — contactez KORAPACT' });
             return;
         }
         const bcrypt = await Promise.resolve().then(() => __importStar(require('bcryptjs')));

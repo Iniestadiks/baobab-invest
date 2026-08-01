@@ -5,7 +5,10 @@ const express_1 = require("express");
 const client_1 = require("@prisma/client");
 const auth_1 = require("../middleware/auth");
 const builderGamification_1 = require("../services/builderGamification");
+const registry_1 = require("../services/payments/registry");
 const router = (0, express_1.Router)();
+const API_URL = process.env.API_URL || 'http://46.202.132.161:3001';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://46.202.132.161:3000';
 const prisma = new client_1.PrismaClient();
 const FUND_ID = '00000000-0000-0000-0000-000000000001';
 const FUND_SYSTEM_USER_ID = 'baobab-fund-system-001'; // Compte investisseur système Fonds Solidaire
@@ -44,6 +47,55 @@ async function awardFundBadges(userId) {
             where: { userId_badge: { userId, badge } },
             update: {},
             create: { userId, badge }
+        });
+    }
+}
+// Logique de confirmation partagée — appelée par le webhook PayDunya
+// et par la confirmation manuelle admin.
+async function finalizeContribution(contributionId) {
+    const contribution = await prisma.fundContribution.findUnique({ where: { id: contributionId } });
+    if (!contribution || contribution.status === 'COMPLETED')
+        return;
+    await prisma.fundContribution.update({
+        where: { id: contributionId },
+        data: { status: 'COMPLETED', updatedAt: new Date() }
+    });
+    await prisma.solidaryFund.upsert({
+        where: { id: FUND_ID },
+        create: { id: FUND_ID, totalReceived: contribution.amount, totalContributors: 1 },
+        update: { totalReceived: { increment: contribution.amount }, totalContributors: { increment: 1 } }
+    });
+    const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+    if (admin && contribution.baobabFee > 0) {
+        await prisma.wallet.update({
+            where: { userId: admin.id },
+            data: { commissionBalance: { increment: contribution.baobabFee } }
+        });
+        await prisma.platformRevenue.create({
+            data: {
+                type: 'FUND_COMMISSION',
+                amount: contribution.baobabFee,
+                description: `Commission Fonds Solidaire — contribution ${contribution.id.substring(0, 8)}`,
+            }
+        });
+    }
+    if (contribution.campaignId) {
+        await prisma.fundCampaign.update({
+            where: { id: contribution.campaignId },
+            data: { raised: { increment: contribution.netAmount } }
+        });
+    }
+    if (contribution.userId) {
+        await awardFundBadges(contribution.userId);
+        await (0, builderGamification_1.updateBuilderGamification)(contribution.userId, { type: 'DON_FONDS', amount: contribution.amount });
+        await prisma.notification.create({
+            data: {
+                userId: contribution.userId,
+                title: '🌱 Merci pour votre contribution !',
+                body: `Votre don de ${contribution.amount.toLocaleString()} FCFA au Fonds Solidaire BAOBAB a été confirmé.`,
+                type: 'FUND_CONTRIBUTION',
+                data: JSON.stringify({ contributionId: contribution.id, amount: contribution.amount })
+            }
         });
     }
 }
@@ -173,15 +225,16 @@ router.post('/contribute', async (req, res) => {
         const fundFeeRate = await getFundFeeRate();
         const baobabFee = Math.round(amount * fundFeeRate);
         const operatorFee = Math.round(amount * DEFAULT_OPERATOR_FEE_RATE);
-        const netAmount = amount - baobabFee; // net versé au fonds (hors opérateur)
-        // Récupérer userId si connecté
+        const netAmount = amount - baobabFee;
         let userId = null;
+        let userInfo = null;
         const authHeader = req.headers.authorization;
         if (authHeader?.startsWith('Bearer ')) {
             try {
                 const jwt = require('jsonwebtoken');
                 const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
                 userId = decoded.userId;
+                userInfo = await prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true, email: true, phone: true } });
             }
             catch { }
         }
@@ -196,84 +249,72 @@ router.post('/contribute', async (req, res) => {
                 status: 'PENDING'
             }
         });
-        // En mode test : confirmer immédiatement (en prod = webhook PayDunya)
-        // TODO: initier paiement PayDunya ici
+        // Initier le paiement réel via le prestataire actif
+        const provider = await (0, registry_1.getProvider)('paydunya');
+        if (!provider) {
+            errorResponse(res, 'Aucun prestataire de paiement disponible actuellement — contactez le support', 503);
+            return;
+        }
+        const payin = await provider.initPayin({
+            amount,
+            description: `Don Fonds Solidaire KORAPACT — ${amount.toLocaleString()} FCFA`,
+            callbackUrl: `${API_URL}/api/fund/webhook/paydunya`,
+            returnUrl: `${FRONTEND_URL}/fund?status=success&contribId=${contribution.id}`,
+            cancelUrl: `${FRONTEND_URL}/fund?status=cancel&contribId=${contribution.id}`,
+            customerName: guestName || (userInfo ? `${userInfo.firstName} ${userInfo.lastName}` : 'Donateur anonyme'),
+            customerEmail: guestEmail || userInfo?.email || 'don@korapact.com',
+            customerPhone: guestPhone || userInfo?.phone || '',
+            customData: { contributionId: contribution.id, type: 'FUND_CONTRIBUTION' }
+        });
+        if (!payin.success) {
+            await prisma.fundContribution.update({ where: { id: contribution.id }, data: { status: 'REJECTED' } });
+            errorResponse(res, "Erreur lors de l'initiation du paiement — réessayez", 400);
+            return;
+        }
+        await prisma.fundContribution.update({ where: { id: contribution.id }, data: { txRef: payin.token || null } });
         successResponse(res, {
             contributionId: contribution.id,
             amount, netAmount, baobabFee,
-            message: 'Contribution enregistrée. Paiement en attente.'
-        }, 'Contribution créée');
+            paymentUrl: payin.redirectUrl,
+            token: payin.token,
+        }, 'Paiement initié — redirection en cours');
     }
     catch (e) {
         console.error(e);
         errorResponse(res);
     }
 });
-// ─── CONFIRMER CONTRIBUTION (webhook PayDunya) ───────────────────────────────
-router.post('/confirm/:id', async (req, res) => {
+// ─── WEBHOOK PAYDUNYA — appelé automatiquement après paiement du don ────────
+router.post('/webhook/paydunya', async (req, res) => {
     try {
-        const contribution = await prisma.fundContribution.findUnique({ where: { id: req.params.id } });
-        if (!contribution || contribution.status === 'COMPLETED') {
-            res.json({ success: true });
+        const body = req.body || {};
+        const data = body.data || body;
+        if (!data?.invoice?.token) {
+            res.status(400).json({ success: false });
             return;
         }
-        await prisma.fundContribution.update({
-            where: { id: req.params.id },
-            data: { status: 'COMPLETED', updatedAt: new Date() }
-        });
-        // Mettre à jour fonds solidaire
-        await prisma.solidaryFund.upsert({
-            where: { id: FUND_ID },
-            create: { id: FUND_ID, totalReceived: contribution.amount, totalContributors: 1 },
-            update: { totalReceived: { increment: contribution.amount }, totalContributors: { increment: 1 } }
-        });
-        // Créditer BAOBAB commission + enregistrer revenu
-        const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
-        if (admin && contribution.baobabFee > 0) {
-            await prisma.wallet.update({
-                where: { userId: admin.id },
-                data: { commissionBalance: { increment: contribution.baobabFee } }
-            });
-            await prisma.platformRevenue.create({
-                data: {
-                    type: 'FUND_COMMISSION',
-                    amount: contribution.baobabFee,
-                    description: `Commission Fonds Solidaire 16% — contribution ${contribution.id.substring(0, 8)}`,
-                }
-            });
+        const provider = await (0, registry_1.getProvider)('paydunya');
+        if (!provider) {
+            res.status(400).json({ success: false });
+            return;
         }
-        // Si campagne → mettre à jour raised
-        if (contribution.campaignId) {
-            await prisma.fundCampaign.update({
-                where: { id: contribution.campaignId },
-                data: { raised: { increment: contribution.netAmount } }
-            });
+        const confirmation = await provider.checkPayin(data.invoice.token);
+        if (!confirmation.success) {
+            res.json({ success: false, message: 'Paiement non complété' });
+            return;
         }
-        // Attribution badges + gamification si user connecté
-        if (contribution.userId) {
-            await awardFundBadges(contribution.userId);
-            await (0, builderGamification_1.updateBuilderGamification)(contribution.userId, {
-                type: 'DON_FONDS',
-                amount: contribution.amount
-            });
+        const customData = confirmation.raw?.custom_data || {};
+        const contributionId = customData.contributionId;
+        if (!contributionId) {
+            res.status(400).json({ success: false });
+            return;
         }
-        // Notification si user connecté
-        if (contribution.userId) {
-            await prisma.notification.create({
-                data: {
-                    userId: contribution.userId,
-                    title: '🌱 Merci pour votre contribution !',
-                    body: `Votre don de ${contribution.amount.toLocaleString()} FCFA au Fonds Solidaire BAOBAB a été confirmé.`,
-                    type: 'FUND_CONTRIBUTION',
-                    data: JSON.stringify({ contributionId: contribution.id, amount: contribution.amount })
-                }
-            });
-        }
-        successResponse(res, { confirmed: true }, 'Contribution confirmée');
+        await finalizeContribution(contributionId);
+        res.json({ success: true });
     }
     catch (e) {
         console.error(e);
-        errorResponse(res);
+        res.status(500).json({ success: false });
     }
 });
 // ─── ADMIN — CONFIRMER MANUELLEMENT ─────────────────────────────────────────
@@ -613,10 +654,12 @@ router.get('/builder/impact', auth_1.authenticate, async (req, res) => {
         const totalNet = contributions.reduce((s, c) => s + c.netAmount, 0);
         const projectsSupported = projectIds.length;
         const badges = await prisma.fundBadge.findMany({ where: { userId: req.userId } });
-        // Niveau bâtisseur
-        let level = 'BATISSEUR';
-        let nextLevel = 'ARGENT';
-        let nextThreshold = 500000;
+        // Niveau bâtisseur — 5 paliers, cohérent avec BuildersAdminTab (admin) et
+        // le Hall of Fame public (LEVEL_CONFIG). Le défaut sous 100 000 FCFA doit
+        // être CONTRIBUTEUR, pas BATISSEUR (bug précédent).
+        let level = 'CONTRIBUTEUR';
+        let nextLevel = 'BATISSEUR';
+        let nextThreshold = 100000;
         if (totalDonated >= 10000000) {
             level = 'GRAND_MECENE';
             nextLevel = '';
@@ -692,13 +735,17 @@ router.get('/builders/public', async (req, res) => {
                 prisma.fundContribution.count({ where: { userId: b.userId, status: 'COMPLETED' } })
             ]);
             const total = b._sum.amount || 0;
-            let level = 'BATISSEUR';
+            // 5 paliers, cohérent avec BuildersAdminTab et /builder/impact —
+            // il manquait le seuil BATISSEUR (100k) et le défaut CONTRIBUTEUR.
+            let level = 'CONTRIBUTEUR';
             if (total >= 10000000)
                 level = 'GRAND_MECENE';
             else if (total >= 2000000)
                 level = 'OR';
             else if (total >= 500000)
                 level = 'ARGENT';
+            else if (total >= 100000)
+                level = 'BATISSEUR';
             // Projets soutenus via le fonds (allocations liées aux contributions)
             const projectsSupported = await prisma.fundContribution.count({
                 where: { userId: b.userId, status: 'COMPLETED', projectId: { not: null } }
@@ -758,7 +805,7 @@ router.patch('/admin/builder/:userId/verify', auth_1.authenticate, auth_1.requir
                 data: {
                     userId: req.params.userId,
                     title: '✅ Profil Bâtisseur vérifié !',
-                    body: 'Votre profil Bâtisseur a été vérifié par l\'équipe BAOBAB INVEST. Vous bénéficiez maintenant de tous les avantages.',
+                    body: 'Votre profil Bâtisseur a été vérifié par l\'équipe KORAPACT. Vous bénéficiez maintenant de tous les avantages.',
                     type: 'BUILDER_VERIFIED',
                     data: JSON.stringify({ verified: true })
                 }

@@ -102,7 +102,7 @@ router.post('/create/:projectId', auth_1.authenticate, async (req, res) => {
             res.status(400).json({ success: false, message: 'Echeancier deja cree' });
             return;
         }
-        const fees = await (0, fees_1.getFees)();
+        const fees = await (0, fees_1.getProjectFees)(project);
         // NOUVELLE STRATÉGIE : remboursement = 22% sur besoin net du projet
         // Pas de commission BAOBAB au retour (0%)
         // BAOBAB prélève 4% Payin sur chaque mensualité pour compenser ses avances
@@ -203,7 +203,7 @@ router.post('/pay/:scheduleId', auth_1.authenticate, (0, auth_1.requireRole)(['E
             res.status(400).json({ success: false, message: 'Solde insuffisant. Disponible: ' + (wallet?.balance?.toLocaleString() || 0) + ' FCFA' });
             return;
         }
-        const fees = await (0, fees_1.getFees)();
+        const fees = await (0, fees_1.getProjectFees)(schedule.project);
         const payinRate = fees.payin_repayment || 4; // Payin mensualités 4%
         const baobabRate = 0; // 0% commission retour BAOBAB (modèle validé)
         const payinFee = Math.round(nextPayment.amount * payinRate / 100);
@@ -443,7 +443,7 @@ router.post('/pay-advance/:scheduleId', auth_1.authenticate, (0, auth_1.requireR
             res.status(400).json({ success: false, message: 'Solde insuffisant. Disponible: ' + (wallet?.balance || 0).toLocaleString() + ' FCFA — Requis: ' + totalAmount.toLocaleString() + ' FCFA' });
             return;
         }
-        const fees = await (0, fees_1.getFees)();
+        const fees = await (0, fees_1.getProjectFees)(schedule.project);
         const baobabRate = fees.payin_repayment || 4; // Payin mensualités — 0% commission retour
         const totalInvested = schedule.project.investments.reduce((s, i) => s + i.amount, 0);
         const isEarlyFull = months === 0 || paymentsToProcess.length === schedule.payments.length;
@@ -587,7 +587,7 @@ router.post('/check-delays', auth_1.authenticate, async (req, res) => {
             else if (dueDate < late7days) {
                 // J+7 — alerte admin
                 title = 'Retard critique — 7 jours';
-                body = 'Votre paiement de ' + nextPayment.amount.toLocaleString() + ' FCFA est en retard de plus de 7 jours. L equipe BAOBAB INVEST intervient.';
+                body = 'Votre paiement de ' + nextPayment.amount.toLocaleString() + ' FCFA est en retard de plus de 7 jours. L equipe KORAPACT intervient.';
                 scoreDecrement = 30;
                 notifyAdmin = true;
                 notifyInvestors = true;
@@ -619,7 +619,7 @@ router.post('/check-delays', auth_1.authenticate, async (req, res) => {
                     data: investorIds.map(userId => ({
                         userId: userId,
                         title: 'Retard remboursement projet',
-                        body: 'L entrepreneur du projet "' + sched.project.title + '" est en retard de paiement. BAOBAB INVEST surveille la situation.',
+                        body: 'L entrepreneur du projet "' + sched.project.title + '" est en retard de paiement. KORAPACT surveille la situation.',
                         type: 'PAYMENT_LATE',
                         data: JSON.stringify({ projectId: sched.projectId })
                     }))

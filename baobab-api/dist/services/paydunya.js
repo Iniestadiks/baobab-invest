@@ -26,7 +26,7 @@ async function initPayin(data) {
             description: data.description,
         },
         store: {
-            name: 'BAOBAB INVEST',
+            name: 'KORAPACT',
             tagline: 'Plateforme de micro-investissement',
             postal_address: 'Dakar, Senegal',
             website_url: process.env.FRONTEND_URL || 'http://46.202.132.161:3000',

@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const database_1 = __importDefault(require("../config/database"));
 const auth_1 = require("../middleware/auth");
+const helpers_1 = require("../utils/helpers");
 const pdf_1 = require("../services/pdf");
 const router = (0, express_1.Router)();
 // Certificat d'investissement — par investisseur
@@ -32,30 +33,6 @@ router.get('/certificate/:investmentId', auth_1.authenticate, async (req, res) =
             investment,
             project: investment.project
         });
-    }
-    catch (e) {
-        console.error(e);
-        res.status(500).json({ success: false, message: 'Erreur génération PDF' });
-    }
-});
-// Relevé de compte investisseur
-router.get('/statement/investor', auth_1.authenticate, async (req, res) => {
-    try {
-        const { from, to } = req.query;
-        const where = { userId: req.userId };
-        if (from)
-            where.createdAt = { ...where.createdAt, gte: new Date(String(from)) };
-        if (to)
-            where.createdAt = { ...where.createdAt, lte: new Date(String(to)) };
-        const [user, investments, wallet] = await Promise.all([
-            database_1.default.user.findUnique({ where: { id: req.userId } }),
-            database_1.default.investment.findMany({ where, include: { project: { select: { title: true, sector: true, expectedReturn: true } } }, orderBy: { createdAt: 'desc' } }),
-            database_1.default.wallet.findUnique({ where: { userId: req.userId } })
-        ]);
-        const period = from && to
-            ? `Du ${new Date(String(from)).toLocaleDateString('fr-FR')} au ${new Date(String(to)).toLocaleDateString('fr-FR')}`
-            : `Relevé complet — ${new Date().toLocaleDateString('fr-FR')}`;
-        (0, pdf_1.generateInvestorStatement)(res, { investor: user, investments, wallet, period });
     }
     catch (e) {
         console.error(e);
@@ -91,22 +68,6 @@ router.get('/report/project/:projectId', auth_1.authenticate, async (req, res) =
             investments: project.investments,
             fees: feeMap
         });
-    }
-    catch (e) {
-        console.error(e);
-        res.status(500).json({ success: false, message: 'Erreur génération PDF' });
-    }
-});
-// Rapport mentor
-router.get('/report/mentor', auth_1.authenticate, async (req, res) => {
-    try {
-        const [mentor, projects, wallet] = await Promise.all([
-            database_1.default.user.findUnique({ where: { id: req.userId } }),
-            database_1.default.project.findMany({ where: { mentorId: req.userId }, include: { investments: true } }),
-            database_1.default.wallet.findUnique({ where: { userId: req.userId } })
-        ]);
-        const period = `Rapport mentor — ${new Date().toLocaleDateString('fr-FR')}`;
-        (0, pdf_1.generateMentorReport)(res, { mentor, projects, wallet, period });
     }
     catch (e) {
         console.error(e);
@@ -192,7 +153,7 @@ router.get('/statement/investor', auth_1.authenticate, async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        errorResponse(res);
+        (0, helpers_1.errorResponse)(res);
     }
 });
 // Rapport entrepreneur avec période
@@ -223,7 +184,7 @@ router.get('/report/entrepreneur', auth_1.authenticate, async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        errorResponse(res);
+        (0, helpers_1.errorResponse)(res);
     }
 });
 // Rapport mentor avec période
@@ -244,7 +205,7 @@ router.get('/report/mentor', auth_1.authenticate, async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        errorResponse(res);
+        (0, helpers_1.errorResponse)(res);
     }
 });
 // Admin — rapport d'un utilisateur spécifique
@@ -292,7 +253,7 @@ router.get('/admin/user/:userId', auth_1.authenticate, async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        errorResponse(res);
+        (0, helpers_1.errorResponse)(res);
     }
 });
 // Rapport bâtisseur PDF

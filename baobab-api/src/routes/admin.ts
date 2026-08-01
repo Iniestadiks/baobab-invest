@@ -638,33 +638,31 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
       },
       orderBy: { createdAt: 'desc' },
     })
-
-    const fees = await prisma.platformConfig.findMany()
-    const feeMap: Record<string, number> = {}
-    fees.forEach(f => { feeMap[f.key] = f.value })
-
     const investorWallets = await prisma.wallet.findMany({
       where: { user: { role: 'INVESTOR' } },
       select: { escrowBalance: true, balance: true, gainBalance: true },
     })
-
     const totalEscrowInvestors = investorWallets.reduce((s, w) => s + w.escrowBalance, 0)
     const totalInvestorBalances = investorWallets.reduce((s, w) => s + w.balance, 0)
     const totalGainBalances = investorWallets.reduce((s, w) => s + w.gainBalance, 0)
-
-    const projectsDetails = projects.map(p => {
+    // IMPORTANT : taux FIGÉS par projet (getProjectFees), jamais recalculés
+    // avec la config actuelle — sinon les chiffres de ce tableau (source pour
+    // la comptabilité/déclarations fiscales) ne correspondent plus à ce qui
+    // a réellement été prélevé/versé au moment de chaque transaction.
+    const projectsDetails = await Promise.all(projects.map(async p => {
       const totalInvested = p.investments.reduce((s, i) => s + i.amount, 0)
-      const baobabPct = feeMap.commission_baobab_collection || 6
-      const payinPct = feeMap.payin_recovery || 4
-      const mentorPct = feeMap.commission_mentor || 2
-      const payinRepayPct = feeMap.payin_repayment || 4
+      const projectFees = await getProjectFees(p)
+      const baobabPct = projectFees.commission_baobab_collection
+      const payinPct = projectFees.payin_recovery
+      const mentorPct = projectFees.commission_mentor
+      const payinRepayPct = projectFees.payin_repayment
       const fraisFixesPct = baobabPct + payinPct + (p.mentorId ? mentorPct : 0)
       const baobabOnCollection = Math.round((p.goalAmount || 0) * baobabPct / 100)
       const mentorFee = p.mentorId ? Math.round((p.goalAmount || 0) * mentorPct / 100) : 0
       const paydunyaPayin = Math.round((p.goalAmount || 0) * payinPct / 100)
       const guaranteeFee = p.investments.reduce((s, i) => s + (i.guaranteeContribution || 0), 0)
       const netAmount = p.netAmount || Math.round((p.goalAmount || 0) * (1 - fraisFixesPct / 100))
-      const returnRate = p.expectedReturn || (feeMap.return_min || 24)
+      const returnRate = p.expectedReturn || projectFees.return_min
       const totalRemb = Math.round(netAmount * (1 + returnRate / 100))
       const payinOnRepayment = Math.round(totalRemb * payinRepayPct / 100)
       const totalExpectedReturn = p.investments.reduce((s, i) => s + (i.expectedReturn || 0), 0)
@@ -698,7 +696,7 @@ router.get('/finances/details', authenticate, requireAdmin, async (req: AuthRequ
           date: i.createdAt, status: i.status,
         })),
       }
-    })
+    }))
 
     successResponse(res, {
       projects: projectsDetails,

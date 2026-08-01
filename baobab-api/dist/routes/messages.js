@@ -223,7 +223,6 @@ router.post('/broadcast/:projectId', auth_1.authenticate, (0, auth_1.requireRole
         (0, helpers_1.errorResponse)(res);
     }
 });
-exports.default = router;
 // Upload pièce jointe dans un message
 router.post('/upload-attachment', auth_1.authenticate, async (req, res) => {
     try {
@@ -278,4 +277,5 @@ router.post('/upload-attachment', auth_1.authenticate, async (req, res) => {
         (0, helpers_1.errorResponse)(res);
     }
 });
+exports.default = router;
 //# sourceMappingURL=messages.js.map

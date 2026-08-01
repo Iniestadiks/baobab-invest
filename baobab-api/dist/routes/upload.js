@@ -46,13 +46,13 @@ router.post('/pitch-video', auth_1.authenticate, upload.single('video'), async (
         const uploadResult = await new Promise((resolve, reject) => {
             const stream = cloudinary_1.v2.uploader.upload_stream({
                 resource_type: 'video',
-                folder: 'baobab-invest/pitch-videos',
+                folder: 'korapact/pitch-videos',
                 // Pas de transformation synchrone — trop lent pour grandes vidéos
                 eager: [{ format: 'mp4', quality: 'auto:low' }],
                 eager_async: true, // traitement asynchrone obligatoire pour grandes vidéos
                 chunk_size: 6000000, // upload par chunks de 6MB
-                tags: [`user-${req.userId}`, 'pitch-video', 'baobab-invest'],
-                context: `uploaded_by=${req.userId}|platform=baobab-invest`,
+                tags: [`user-${req.userId}`, 'pitch-video', 'korapact'],
+                context: `uploaded_by=${req.userId}|platform=korapact`,
             }, (error, result) => {
                 if (error)
                     reject(error);

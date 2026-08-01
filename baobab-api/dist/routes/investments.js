@@ -10,6 +10,7 @@ const auth_1 = require("../middleware/auth");
 const fees_1 = require("../config/fees");
 const paliers_1 = require("../services/paliers");
 const reputationService_1 = require("../services/reputationService");
+const referralService_1 = require("../services/referralService");
 const helpers_1 = require("../utils/helpers");
 const router = (0, express_1.Router)();
 // Stats investisseur
@@ -20,6 +21,7 @@ router.get('/my', auth_1.authenticate, async (req, res) => {
             include: { project: { select: {
                         title: true, sector: true, status: true, expectedReturn: true, id: true,
                         goalAmount: true, raisedAmount: true, netAmount: true, durationMonths: true,
+                        feePayinRepaymentRate: true,
                         entrepreneurId: true,
                         entrepreneur: { select: { id: true, firstName: true, lastName: true, profileImageUrl: true } },
                         mentor: { select: { id: true, firstName: true, lastName: true } }
@@ -90,8 +92,8 @@ router.post('/:projectId', auth_1.authenticate, async (req, res) => {
             return;
         }
         const wallet = await database_1.default.wallet.findUnique({ where: { userId: req.userId } });
-        // CALCUL DES COMMISSIONS — MODÈLE FINANCIER VALIDÉ
-        const fees = await (0, fees_1.getFees)();
+        // CALCUL DES COMMISSIONS — taux FIGÉS à la création du projet (jamais recalculés)
+        const fees = await (0, fees_1.getProjectFees)(project);
         const withInsurance = req.body.withInsurance === true; // false par défaut — choix explicite
         const platformFee = Math.round(amount * fees.commission_baobab_collection / 100);
         const payinFee = Math.round(amount * fees.payin_recovery / 100);
@@ -213,6 +215,9 @@ router.post('/:projectId', auth_1.authenticate, async (req, res) => {
             if (newStatus === 'FUNDED' && project.currentPalier === 0) {
                 await (0, paliers_1.triggerFundedActions)(projectId, tx);
             }
+            // 8. Vérifier si ce nouvel investissement déclenche un bonus de
+            // parrainage (KYC + investissement des deux côtés — voir service)
+            await (0, referralService_1.checkAndPayReferralBonus)(req.userId, tx);
         });
         // Points de réputation investisseur
         const invCount = await database_1.default.investment.count({ where: { userId: req.userId } });
@@ -257,7 +262,7 @@ router.post('/reimburse-project/:projectId', auth_1.authenticate, async (req, re
             return;
         }
         await database_1.default.project.update({ where: { id: project.id }, data: { status: 'IN_PROGRESS' } });
-        const fees = await (0, fees_1.getFees)();
+        const fees = await (0, fees_1.getProjectFees)(project);
         const netAmount = project.netAmount || project.goalAmount;
         const returnRate = Math.max(project.expectedReturn || 0, fees.return_min);
         const totalGross = Math.round(netAmount * (1 + returnRate / 100));

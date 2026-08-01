@@ -36,11 +36,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// @ts-nocheck
 const express_1 = __importDefault(require("express"));
 const client_1 = require("@prisma/client");
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
+const path_1 = __importDefault(require("path"));
 const config_1 = require("./config");
 const auth_1 = __importDefault(require("./routes/auth"));
 const projects_1 = __importDefault(require("./routes/projects"));
@@ -59,14 +59,38 @@ const exports_1 = __importDefault(require("./routes/exports"));
 const wallet_1 = __importDefault(require("./routes/wallet"));
 const config_2 = __importDefault(require("./routes/config"));
 const referral_1 = __importDefault(require("./routes/referral"));
+const academy_1 = __importDefault(require("./routes/academy"));
 const pdf_1 = __importDefault(require("./routes/pdf"));
 const geo_1 = __importDefault(require("./routes/geo"));
 const reputation_1 = __importDefault(require("./routes/reputation"));
+const statsPublic_1 = __importDefault(require("./routes/statsPublic"));
 const waitlistPromotion_1 = require("./jobs/waitlistPromotion");
 const monthlyRankings_1 = require("./jobs/monthlyRankings");
+process.on('uncaughtException', (err) => {
+    console.error('🔥 uncaughtException:', err);
+});
+process.on('unhandledRejection', (err) => {
+    console.error('🔥 unhandledRejection:', err);
+});
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)({ origin: '*', credentials: true }));
+app.set("trust proxy", 1);
+const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'https://korapact.com',
+    'https://www.korapact.com',
+];
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Autoriser les requêtes sans origin (mobile, Postman, etc.)
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.includes(origin))
+            return callback(null, true);
+        return callback(new Error('CORS non autorisé'), false);
+    },
+    credentials: true,
+}));
 app.use(express_1.default.json({ limit: '10mb' }));
 // Timeout étendu pour les uploads vidéo (5 minutes)
 app.use('/api/upload', (req, res, next) => {
@@ -74,7 +98,7 @@ app.use('/api/upload', (req, res, next) => {
     res.setTimeout(300000);
     next();
 });
-app.use('/uploads', require('express').static('/home/baobab-invest/baobab-api/uploads'));
+app.use('/uploads', require('express').static(path_1.default.join(__dirname, '../uploads')));
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', auth_1.default);
 app.use('/api/projects', projects_1.default);
@@ -93,11 +117,15 @@ app.use('/api/exports', exports_1.default);
 app.use('/api/wallet', wallet_1.default);
 app.use('/api/config', config_2.default);
 app.use('/api/referral', referral_1.default);
+app.use('/api/academy', academy_1.default);
 app.use('/api/pdf', pdf_1.default);
 app.use('/api/geo', geo_1.default);
+app.use('/api/stats', statsPublic_1.default);
 app.use('/api/reputation', reputation_1.default);
 // Cron toutes les heures — promotion liste d'attente
-setInterval(waitlistPromotion_1.checkAndPromoteWaitlist, 60 * 60 * 1000);
+setInterval(() => {
+    (0, waitlistPromotion_1.checkAndPromoteWaitlist)().catch((e) => console.error('[CRON] Erreur waitlist:', e));
+}, 60 * 60 * 1000);
 // Cron quotidien — vérification retards paiement (tous les jours à 9h)
 const checkRepaymentDelays = async () => {
     try {
@@ -149,7 +177,7 @@ const checkRepaymentDelays = async () => {
             }
             else if (dueDate <= late7days && dueDate > late15days) {
                 title = '🚨 Retard critique — 7 jours';
-                body = `7 jours de retard. BAOBAB INVEST intervient. Score -30 points.`;
+                body = `7 jours de retard. KORAPACT intervient. Score -30 points.`;
                 scoreDecrement = 30;
                 notifyInvestors = true;
                 notifyAdmin = true;
@@ -199,17 +227,15 @@ scheduleDelayCheck();
 // Cron mensuel — classements (1er du mois à 8h)
 const scheduleMonthlyRankings = () => {
     const now = new Date();
-    // Toujours programmer pour le 1er du PROCHAIN mois
     const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 8, 0, 0);
     const delay = next.getTime() - now.getTime();
     setTimeout(() => {
         (0, monthlyRankings_1.computeMonthlyRankings)();
-        // Reprogrammer chaque mois
         setInterval(monthlyRankings_1.computeMonthlyRankings, 30 * 24 * 60 * 60 * 1000);
     }, delay);
     console.log('[CRON] Classement mensuel prévu le', next.toLocaleDateString());
 };
-// // scheduleMonthlyRankings() // desactive // desactive
+// scheduleMonthlyRankings() // desactive
 // CRON mensuel — gamification bâtisseurs (1er du mois à 8h30)
 const scheduleBuilderGamification = () => {
     const now = new Date();
@@ -225,11 +251,11 @@ const scheduleBuilderGamification = () => {
     }, delay);
     console.log('[CRON] Gamification bâtisseurs prévue le', next.toLocaleDateString());
 };
-// // scheduleBuilderGamification() // desactive // desactive
-(0, waitlistPromotion_1.checkAndPromoteWaitlist)(); // Lancer au démarrage
+// scheduleBuilderGamification() // desactive
+(0, waitlistPromotion_1.checkAndPromoteWaitlist)().catch((e) => console.error('[STARTUP] Erreur waitlist:', e));
 app.listen(config_1.config.port, () => {
-    console.log(`🌳 BAOBAB INVEST API démarrée sur le port ${config_1.config.port}`);
-    console.log(`📡 Environnement : ${config_1.config.env}`);
+    console.log(`🌳 KORAPACT API démarrée sur le port ${config_1.config.port}`);
+    console.log(`📡 Environnement : ${config_1.config.nodeEnv}`);
     console.log(`🗄️  Routes : auth | projects | investments | milestones | suppliers | feed | admin | fund | upload | notifications`);
 });
 //# sourceMappingURL=index.js.map

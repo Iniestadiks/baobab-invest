@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FEE_LABELS = exports.DEFAULT_FEES = void 0;
 exports.getFees = getFees;
+exports.getProjectFees = getProjectFees;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 exports.DEFAULT_FEES = {
@@ -51,5 +52,24 @@ async function getFees() {
     catch {
         return exports.DEFAULT_FEES;
     }
+}
+// Renvoie les taux FIGÉS d'un projet (snapshot à la création).
+// Si le projet a été créé avant ce correctif (champs null), on retombe
+// sur getFees() en direct — mais ça ne devrait plus arriver pour les
+// nouveaux projets.
+async function getProjectFees(project) {
+    const live = await getFees();
+    return {
+        commission_baobab_collection: project.feeCollectionRate ?? live.commission_baobab_collection,
+        payin_recovery: project.feePayinRecoveryRate ?? live.payin_recovery,
+        commission_mentor: project.feeMentorRate ?? live.commission_mentor,
+        commission_guarantee: project.feeGuaranteeRate ?? live.commission_guarantee,
+        payin_repayment: project.feePayinRepaymentRate ?? live.payin_repayment,
+        return_min: project.feeReturnMin ?? live.return_min,
+        withdrawal_fee_standard: live.withdrawal_fee_standard,
+        withdrawal_fee_no_invest: live.withdrawal_fee_no_invest,
+        grace_period_agriculture: live.grace_period_agriculture,
+        grace_period_other: live.grace_period_other,
+    };
 }
 //# sourceMappingURL=fees.js.map

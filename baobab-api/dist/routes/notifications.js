@@ -82,7 +82,6 @@ router.post('/read-all', auth_1.authenticate, async (req, res) => {
         (0, helpers_1.errorResponse)(res);
     }
 });
-exports.default = router;
 // Marquer une notification spécifique comme lue
 router.patch('/:id/read', auth_1.authenticate, async (req, res) => {
     try {
@@ -96,4 +95,5 @@ router.patch('/:id/read', auth_1.authenticate, async (req, res) => {
         (0, helpers_1.errorResponse)(res);
     }
 });
+exports.default = router;
 //# sourceMappingURL=notifications.js.map

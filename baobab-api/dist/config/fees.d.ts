@@ -13,4 +13,12 @@ export interface Fees {
 export declare const DEFAULT_FEES: Fees;
 export declare const FEE_LABELS: Record<string, string>;
 export declare function getFees(): Promise<Fees>;
+export declare function getProjectFees(project: {
+    feeCollectionRate?: number | null;
+    feePayinRecoveryRate?: number | null;
+    feeMentorRate?: number | null;
+    feeGuaranteeRate?: number | null;
+    feePayinRepaymentRate?: number | null;
+    feeReturnMin?: number | null;
+}): Promise<Fees>;
 //# sourceMappingURL=fees.d.ts.map

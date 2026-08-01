@@ -323,74 +323,10 @@ router.post('/:id/reject', auth_1.authenticate, auth_1.requireAdmin, async (req,
         (0, helpers_1.errorResponse)(res);
     }
 });
-// Système de remboursement investisseurs (fin de projet)
-router.post('/project/:projectId/reimburse', auth_1.authenticate, auth_1.requireAdmin, async (req, res) => {
-    try {
-        const projectId = req.params.projectId;
-        const project = await database_1.default.project.findUnique({
-            where: { id: projectId },
-            include: { investments: { include: { user: { include: { wallet: true } } } } }
-        });
-        if (!project) {
-            res.status(404).json({ success: false, message: 'Projet introuvable' });
-            return;
-        }
-        let totalReimbursed = 0;
-        const results = [];
-        for (const inv of project.investments) {
-            if (!inv.user.wallet)
-                continue;
-            const totalReturn = inv.amount + inv.expectedReturn;
-            const commission = inv.expectedReturn * 0.04;
-            await database_1.default.$transaction([
-                // Créditer le wallet de l'investisseur
-                database_1.default.wallet.update({
-                    where: { userId: inv.userId },
-                    data: {
-                        balance: { increment: totalReturn - commission },
-                        escrowBalance: { decrement: inv.amount },
-                        totalEarned: { increment: inv.expectedReturn - commission },
-                    }
-                }),
-                // Mettre à jour l'investissement
-                database_1.default.investment.update({
-                    where: { id: inv.id },
-                    data: { status: 'COMPLETED', returnedAmount: totalReturn - commission }
-                }),
-                // Transaction
-                database_1.default.transaction.create({
-                    data: {
-                        userId: inv.userId,
-                        type: 'RETURN',
-                        amount: totalReturn - commission,
-                        status: 'COMPLETED',
-                        description: `Remboursement projet "${project.title}"`,
-                    }
-                }),
-                // Notification
-                database_1.default.notification.create({
-                    data: {
-                        userId: inv.userId,
-                        title: '💰 Remboursement reçu !',
-                        body: `Tu as reçu ${(totalReturn - commission).toLocaleString()} FCFA du projet "${project.title}"`,
-                        type: 'REIMBURSEMENT',
-                    }
-                }),
-            ]);
-            totalReimbursed += totalReturn - commission;
-            results.push({ investor: `${inv.user.firstName} ${inv.user.lastName}`, amount: totalReturn - commission });
-        }
-        // Clôturer le projet
-        await database_1.default.project.update({
-            where: { id: projectId },
-            data: { status: 'COMPLETED' }
-        });
-        (0, helpers_1.successResponse)(res, { totalReimbursed, investors: results }, `✅ ${project.investments.length} investisseurs remboursés — ${totalReimbursed.toLocaleString()} FCFA distribués`);
-    }
-    catch (e) {
-        console.error(e);
-        (0, helpers_1.errorResponse)(res);
-    }
-});
+// La logique de remboursement se trouve désormais uniquement dans
+// repayment.ts (échéancier mensuel + paliers) et admin.ts (création
+// d'échéancier). Cette ancienne route utilisait un calcul de commission
+// obsolète (4% codé en dur, sans lien avec getProjectFees) et aurait pu
+// créer des doubles paiements si jamais réactivée — supprimée.
 exports.default = router;
 //# sourceMappingURL=milestones.js.map

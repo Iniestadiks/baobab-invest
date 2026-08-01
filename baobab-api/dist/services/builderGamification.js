@@ -6,6 +6,7 @@ exports.getBadgeFromPoints = getBadgeFromPoints;
 exports.updateBuilderGamification = updateBuilderGamification;
 exports.updateTopDonor = updateTopDonor;
 exports.decrementInactiveBuilders = decrementInactiveBuilders;
+// @ts-nocheck
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 exports.BADGE_THRESHOLDS = [

@@ -11,7 +11,7 @@ exports.config = {
         refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
     },
     app: {
-        name: process.env.APP_NAME || 'BAOBAB INVEST',
+        name: process.env.APP_NAME || 'KORAPACT',
         frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
         apiUrl: process.env.API_URL || 'http://localhost:3001',
     },
