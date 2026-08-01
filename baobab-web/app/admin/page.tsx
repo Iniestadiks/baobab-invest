@@ -1035,7 +1035,9 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                       </div>
                       <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800 mb-2">
                         ✅ Échéancier + Palier 1 (40%) créés <strong>automatiquement</strong> dès FUNDED.
-                        <div className="text-xs text-green-600 mt-1">P1 (40%) immédiat · P2 (35%) après M2 · P3 (25%) après M4</div>
+                        <div className="text-xs text-green-600 mt-1">
+                          P1 (40%) immédiat · P2 (35%) après M{Math.max(2, Math.round((p.durationMonths || 12) / 3))} · P3 (25%) après M{Math.max(4, Math.round((p.durationMonths || 12) * 2 / 3))} — seuils proportionnels à la durée de {p.durationMonths || 12} mois
+                        </div>
                       </div>
                       <button onClick={() => reimburse(p.id)} disabled={processing === p.id}
                         className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 rounded-xl disabled:opacity-50 text-sm">

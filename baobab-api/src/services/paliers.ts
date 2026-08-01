@@ -122,15 +122,20 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
     include: { project: true }
   })
   if (!schedule) return
-
   const project = schedule.project
   const netAmount = project.netAmount || Math.round((project.goalAmount || 0) * 0.90)
-  const currentPalier = project.currentPalier || 1
+  let currentPalier = project.currentPalier || 1
   const totalMonths = schedule.totalMonths || project.durationMonths || 12
   const { moisP2, moisP3 } = getPalierThresholds(totalMonths)
-
-  // ── PALIER 2 : 35% après moisP2 mensualités payées ──
-  if (currentPalier === 1 && schedule.paidMonths >= moisP2) {
+  // Garde-fou : sur un projet très court, moisP3 peut dépasser le nombre
+  // total de mensualités (ex: projet de 3 mois → moisP3=4, impossible à
+  // atteindre normalement). Si le projet est intégralement remboursé
+  // (statut COMPLETED ou toutes les mensualités payées), on débloque tout
+  // palier restant — l'entrepreneur ne doit jamais rester bloqué sous 100%
+  // après avoir tout remboursé.
+  const isFullyRepaid = schedule.status === 'COMPLETED' || schedule.paidMonths >= totalMonths
+  // ── PALIER 2 : 35% après moisP2 mensualités payées (ou remboursement total) ──
+  if (currentPalier === 1 && (schedule.paidMonths >= moisP2 || isFullyRepaid)) {
     const p2Amount = Math.round(netAmount * 0.35)
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
@@ -157,11 +162,10 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         data: JSON.stringify({ projectId: project.id, palier: 2, amount: p2Amount })
       }
     })
-    return
+    currentPalier = 2
   }
-
-  // ── PALIER 3 : 25% après moisP3 mensualités payées ──
-  if (currentPalier === 2 && schedule.paidMonths >= moisP3) {
+  // ── PALIER 3 : 25% après moisP3 mensualités payées (ou remboursement total) ──
+  if (currentPalier === 2 && (schedule.paidMonths >= moisP3 || isFullyRepaid)) {
     const p3Amount = Math.round(netAmount * 0.25)
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
@@ -188,6 +192,5 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         data: JSON.stringify({ projectId: project.id, palier: 3, amount: p3Amount })
       }
     })
-    return
   }
 }
