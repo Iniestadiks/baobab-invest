@@ -114,7 +114,13 @@ router.get('/admin', authenticate, requireAdmin, async (req: AuthRequest, res: R
     ])
     const revHeaders = ['Date', 'Type', 'Montant (FCFA)', 'Description']
     const revRows = revenues.map(r => [new Date(r.createdAt).toLocaleDateString('fr-FR'), r.type, r.amount, r.description || ''])
-    revRows.push(['TOTAL', '', revenues.reduce((s,r)=>s+r.amount,0), ''])
+    revRows.push(['TOTAL — TOUS MOUVEMENTS (revenus + versements + coûts confondus)', '', revenues.reduce((s,r)=>s+r.amount,0), 'Ne pas utiliser comme "revenu net" — voir ligne dédiée ci-dessous'])
+    // Revenu NET réel BAOBAB — uniquement les vraies commissions encaissées,
+    // en excluant les versements aux entrepreneurs (paliers) et les coûts
+    // opérateur. C'est CE chiffre-là qui doit servir de référence comptable/fiscale.
+    const byType: Record<string, number> = {}
+    revenues.forEach(r => { byType[r.type] = (byType[r.type] || 0) + r.amount })
+    const revenuNetReelBAOBAB = (byType.COMMISSION_COLLECTION || 0) + (byType.FUND_COMMISSION || 0) + (byType.WITHDRAWAL_FEE || 0)
     const statsHeaders = ['Metrique', 'Valeur']
     const statsRows = [
       ['Total utilisateurs', users.length],
@@ -127,7 +133,7 @@ router.get('/admin', authenticate, requireAdmin, async (req: AuthRequest, res: R
       ['Projets termines', projects.filter(p=>p.status==='COMPLETED').length],
       ['Total leve (FCFA)', projects.reduce((s,p)=>s+p.raisedAmount,0)],
       ['Volume investissements (FCFA)', investments.reduce((s,i)=>s+i.amount,0)],
-      ['Revenus BAOBAB (FCFA)', revenues.reduce((s,r)=>s+r.amount,0)],
+      ['Revenu NET reel BAOBAB — commissions pures (FCFA)', revenuNetReelBAOBAB],
     ]
     const csv = '=== REVENUS KORAPACT ===\n' + toCSV(revHeaders, revRows) + '\n\n=== STATISTIQUES GLOBALES ===\n' + toCSV(statsHeaders, statsRows)
     res.setHeader('Content-Type', 'text/csv; charset=utf-8')

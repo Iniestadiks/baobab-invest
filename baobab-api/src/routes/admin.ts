@@ -935,16 +935,18 @@ router.get('/mentors', authenticate, async (req: AuthRequest, res: Response): Pr
 
 router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const revenues = await prisma.platformRevenue.findMany({
+    // IMPORTANT : les totaux (byType, byMonth, revenueNetBAOBAB, projection)
+    // doivent porter sur TOUT l'historique — un take: 100 sous-estimerait
+    // silencieusement les revenus réels au fur et à mesure que la plateforme
+    // grandit. Seul l'affichage de la liste "dernières transactions" est limité.
+    const allRevenues = await prisma.platformRevenue.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100,
     })
-
+    const revenues = allRevenues.slice(0, 100) // pour affichage liste uniquement
     const byType: Record<string, number> = {}
-    revenues.forEach(r => { byType[r.type] = (byType[r.type] || 0) + r.amount })
-
+    allRevenues.forEach(r => { byType[r.type] = (byType[r.type] || 0) + r.amount })
     const byMonth: Record<string, number> = {}
-    revenues.forEach(r => {
+    allRevenues.forEach(r => {
       const key = new Date(r.createdAt).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
       byMonth[key] = (byMonth[key] || 0) + r.amount
     })
@@ -971,7 +973,7 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
 
     successResponse(res, {
       revenues,
-      totalRevenue: revenues.reduce((s, r) => s + r.amount, 0),
+      totalRevenue: allRevenues.reduce((s, r) => s + r.amount, 0),
       commissionCollecte, commissionFonds, commissionRetrait, revenusBrutsPurs,
       margePayin, margePayout, totalOperatorMargin: margePayin + margePayout,
       coutPaydunyaReel: Math.round(payinRecovery * payinReel / payinFacure),
