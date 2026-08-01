@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { PrismaClient } from '@prisma/client'
 import { getProjectFees } from '../config/fees'
+import { sendNotificationEmail } from './emailService'
 const prisma = new PrismaClient()
 
 // Seuils de déblocage PROPORTIONNELS à la durée totale du projet —
@@ -101,6 +102,8 @@ export async function triggerFundedActions(projectId: string, tx: any) {
       data: JSON.stringify({ projectId, palier: 1, amount: p1Amount })
     }
   })
+  const entrepreneurP1 = await tx.user.findUnique({ where: { id: project.entrepreneurId }, select: { email: true, firstName: true } })
+  if (entrepreneurP1) sendNotificationEmail(entrepreneurP1.email, entrepreneurP1.firstName, '🎉 Palier 1 débloqué', `${p1Amount.toLocaleString()} FCFA (40%) ont été crédités sur votre wallet.`).catch(() => {})
   const investorIds = [...new Set(project.investments.map((i: any) => i.userId))]
   if (investorIds.length > 0) {
     await tx.notification.createMany({
@@ -182,6 +185,8 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         data: JSON.stringify({ projectId: project.id, palier: 2, amount: p2Amount })
       }
     })
+    const entrepreneurP2 = await tx.user.findUnique({ where: { id: project.entrepreneurId }, select: { email: true, firstName: true } })
+    if (entrepreneurP2) sendNotificationEmail(entrepreneurP2.email, entrepreneurP2.firstName, '🎉 Palier 2 débloqué', `${p2Amount.toLocaleString()} FCFA (25%) supplémentaires crédités.`).catch(() => {})
     currentPalier = 2
   }
   // ── PALIER 3 : 35% après moisP3 mensualités payées (ou remboursement total) ──
@@ -214,5 +219,7 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         data: JSON.stringify({ projectId: project.id, palier: 3, amount: p3Amount })
       }
     })
+    const entrepreneurP3 = await tx.user.findUnique({ where: { id: project.entrepreneurId }, select: { email: true, firstName: true } })
+    if (entrepreneurP3) sendNotificationEmail(entrepreneurP3.email, entrepreneurP3.firstName, '🎉 Palier 3 débloqué — cagnotte complète', `${p3Amount.toLocaleString()} FCFA (35%) finaux crédités. Vous avez reçu l'intégralité de votre cagnotte !`).catch(() => {})
   }
 }

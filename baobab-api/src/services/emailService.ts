@@ -77,3 +77,50 @@ export async function sendWelcomeEmail(email: string, firstName: string) {
     `,
   })
 }
+// Email générique pour les notifications importantes uniquement —
+// remboursement effectué, palier débloqué, 21 jours sans update,
+// changement de niveau/réputation, rappel de remboursement, etc.
+export async function sendNotificationEmail(
+  email: string,
+  firstName: string,
+  title: string,
+  body: string,
+  ctaText?: string,
+  ctaUrl?: string
+) {
+  try {
+    await transporter.sendMail({
+      from: `"KORAPACT" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: title.replace(/[🎉🎬⏳❌✅🚀💰📅⚠️🚨💀🏆⭐🔥]/g, '').trim(),
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="margin:0;padding:0;background:#050810;font-family:'Segoe UI',sans-serif;">
+          <div style="max-width:520px;margin:40px auto;background:#0C1024;border:1px solid rgba(255,255,255,0.07);border-radius:24px;overflow:hidden;">
+            <div style="background:linear-gradient(135deg,#0F7A3D,#16A34A);padding:32px;text-align:center;">
+              <div style="width:52px;height:52px;background:rgba(255,255,255,0.15);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:#fff;margin-bottom:12px;">K</div>
+              <h1 style="color:#fff;margin:0;font-size:20px;font-weight:900;letter-spacing:-0.5px;">KORAPACT</h1>
+            </div>
+            <div style="padding:36px 40px;">
+              <h2 style="color:#fff;font-size:19px;font-weight:800;margin:0 0 12px;">${title}</h2>
+              <p style="color:rgba(255,255,255,0.6);font-size:15px;line-height:1.7;margin:0 0 ${ctaUrl ? '28px' : '0'};">
+                Bonjour ${firstName}, ${body}
+              </p>
+              ${ctaUrl ? `
+              <div style="text-align:center;">
+                <a href="${ctaUrl}" style="display:inline-block;background:linear-gradient(135deg,#0F7A3D,#16A34A);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:12px;">${ctaText || 'Voir sur KORAPACT'}</a>
+              </div>` : ''}
+            </div>
+            <div style="padding:20px 40px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
+              <p style="color:rgba(255,255,255,0.25);font-size:12px;margin:0;">© 2026 KORAPACT · Vous recevez cet email pour une notification importante de votre compte.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    })
+  } catch (e) {
+    console.error('[EMAIL] Erreur envoi notification email:', e)
+  }
+}

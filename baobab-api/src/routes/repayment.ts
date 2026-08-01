@@ -2,6 +2,7 @@
 import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authenticate, requireRole } from '../middleware/auth'
+import { sendNotificationEmail } from '../services/emailService'
 import { getFees, getProjectFees } from '../config/fees'
 import { checkAndUnlockPalier } from '../services/paliers'
 import { updateBuilderGamification } from '../services/builderGamification'
@@ -248,6 +249,10 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
             data: JSON.stringify({ projectId: schedule.projectId, amount: data.totalShare })
           }
         })
+        const investorUser = await tx.user.findUnique({ where: { id: userId }, select: { email: true, firstName: true } })
+        if (investorUser) {
+          sendNotificationEmail(investorUser.email, investorUser.firstName, '💰 Remboursement reçu', `vous avez reçu ${data.totalShare.toLocaleString()} FCFA du projet "${schedule.project.title}" (mois ${nextPayment.monthNumber}/${schedule.totalMonths}).`).catch(() => {})
+        }
       }
 
       const baobabFee = Math.round(nextPayment.amount * baobabRate / 100)

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { PrismaClient } from '@prisma/client'
+import { sendNotificationEmail } from './emailService'
 
 const prisma = new PrismaClient()
 
@@ -105,7 +106,7 @@ export async function addReputationPoints(
   projectId?: string
 ) {
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { reputationScore: true, reputationPoints: true, level: true, firstName: true } })
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { reputationScore: true, reputationPoints: true, level: true, firstName: true, email: true } })
     if (!user) return
 
     const oldPoints = user.reputationPoints || 0
@@ -146,15 +147,19 @@ export async function addReputationPoints(
 
     // Notifier si passage de niveau
     if (newLevel.level > oldLevel.level) {
+      const title = "🎉 Nouveau niveau atteint !"
+      const body = "Félicitations ! Vous êtes maintenant " + newLevel.icon + " " + newLevel.label + " (Niveau " + newLevel.level + ")"
       await prisma.notification.create({
-        data: {
-          userId,
-          title: "🎉 Nouveau niveau atteint !",
-          body: "Félicitations ! Vous êtes maintenant " + newLevel.icon + " " + newLevel.label + " (Niveau " + newLevel.level + ")",
-          type: "LEVEL_UP",
-          data: JSON.stringify({ level: newLevel.level, label: newLevel.label })
-        }
+        data: { userId, title, body, type: "LEVEL_UP", data: JSON.stringify({ level: newLevel.level, label: newLevel.label }) }
       })
+      sendNotificationEmail(user.email, user.firstName, title, body).catch(() => {})
+    } else if (newLevel.level < oldLevel.level) {
+      const title = "📉 Niveau de réputation en baisse"
+      const body = "Votre niveau est passé à " + newLevel.icon + " " + newLevel.label + " (Niveau " + newLevel.level + "). Continuez vos remboursements et mises à jour pour remonter."
+      await prisma.notification.create({
+        data: { userId, title, body, type: "LEVEL_DOWN", data: JSON.stringify({ level: newLevel.level, label: newLevel.label }) }
+      })
+      sendNotificationEmail(user.email, user.firstName, title, body).catch(() => {})
     }
 
     return { newPoints, newLevel }

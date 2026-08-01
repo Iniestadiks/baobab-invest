@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import cors from 'cors'
 import helmet from 'helmet'
 import path from 'path'
+import { sendNotificationEmail } from './services/emailService'
 import { config } from './config'
 import authRoutes from './routes/auth'
 import projectRoutes from './routes/projects'
@@ -97,6 +98,40 @@ setInterval(() => {
 }, 60 * 60 * 1000)
 
 // Cron quotidien — vérification retards paiement (tous les jours à 9h)
+// Cron quotidien — rappel 21 jours sans mise à jour projet
+const check21DayUpdate = async () => {
+  try {
+    const prisma = new PrismaClient()
+    const now = new Date()
+    const projects = await prisma.project.findMany({
+      where: { status: { in: ['ACTIVE', 'FUNDED', 'IN_PROGRESS'] } },
+      include: {
+        entrepreneur: { select: { id: true, firstName: true, email: true } },
+        posts: { orderBy: { createdAt: 'desc' }, take: 1 },
+      }
+    })
+    let alerts = 0
+    for (const project of projects) {
+      const lastUpdate = project.posts[0]?.createdAt || project.createdAt
+      const daysSince = Math.floor((now.getTime() - new Date(lastUpdate).getTime()) / (1000*60*60*24))
+      if (daysSince < 21) continue
+      const oneDayAgo = new Date(now.getTime() - 24*60*60*1000)
+      const recentAlert = await prisma.notification.findFirst({
+        where: { userId: project.entrepreneurId, type: 'UPDATE_REMINDER_21D', createdAt: { gte: oneDayAgo } }
+      })
+      if (recentAlert) continue
+      const title = '📢 21 jours sans mise à jour'
+      const body = `Vos investisseurs attendent des nouvelles du projet "${project.title}". Publiez une mise à jour sur l'avancement.`
+      await prisma.notification.create({
+        data: { userId: project.entrepreneurId, title, body, type: 'UPDATE_REMINDER_21D', data: JSON.stringify({ projectId: project.id }) }
+      })
+      sendNotificationEmail(project.entrepreneur.email, project.entrepreneur.firstName, title, body).catch(() => {})
+      alerts++
+    }
+    if (alerts > 0) console.log('[CRON] Rappel 21j —', alerts, 'alertes envoyées')
+    await prisma.$disconnect()
+  } catch (e) { console.error('[CRON] Erreur check 21j:', e) }
+}
 const checkRepaymentDelays = async () => {
   try {
     const prisma = new PrismaClient()
@@ -108,7 +143,7 @@ const checkRepaymentDelays = async () => {
     const schedules = await prisma.repaymentSchedule.findMany({
       where: { status: 'ACTIVE' },
       include: {
-        project: { include: { investments: { select: { userId: true } }, entrepreneur: { select: { id: true, firstName: true } } } },
+        project: { include: { investments: { select: { userId: true } }, entrepreneur: { select: { id: true, firstName: true, email: true } } } },
         payments: { where: { status: 'PENDING' }, orderBy: { monthNumber: 'asc' }, take: 1 }
       }
     })
@@ -145,6 +180,7 @@ const checkRepaymentDelays = async () => {
         scoreDecrement = 50; notifyInvestors = true; notifyAdmin = true
       } else continue
       await prisma.notification.create({ data: { userId: entrepreneurId, title, body, type: 'PAYMENT_REMINDER', data: JSON.stringify({ scheduleId: sched.id }) } })
+      sendNotificationEmail(sched.project.entrepreneur.email, sched.project.entrepreneur.firstName, title, body).catch(() => {})
       if (scoreDecrement > 0) await prisma.user.update({ where: { id: entrepreneurId }, data: { reputationScore: { decrement: scoreDecrement } } })
       if (notifyInvestors) {
         const ids = [...new Set(sched.project.investments.map(i => i.userId))]
@@ -168,7 +204,7 @@ const scheduleDelayCheck = () => {
   next9h.setHours(9, 0, 0, 0)
   if (next9h <= now) next9h.setDate(next9h.getDate() + 1)
   const delay = next9h.getTime() - now.getTime()
-  setTimeout(() => { checkRepaymentDelays(); setInterval(checkRepaymentDelays, 24*60*60*1000) }, delay)
+  setTimeout(() => { checkRepaymentDelays(); check21DayUpdate(); setInterval(checkRepaymentDelays, 24*60*60*1000); setInterval(check21DayUpdate, 24*60*60*1000) }, delay)
   console.log('[CRON] Vérification retards paiement prévue à', next9h.toLocaleTimeString())
 }
 scheduleDelayCheck()
