@@ -911,9 +911,13 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
           <div className="font-semibold text-gray-700">✅ Projets éligibles — collecte terminée (FUNDED)</div>
           {fundedProjects.map((p: any) => {
             const det = details[p.id];
-            // MODÈLE VALIDÉ — utiliser netAmount de la DB directement
+            // MODÈLE VALIDÉ — utiliser netAmount de la DB directement.
+            // Taux : préférer ceux FIGÉS sur le projet (feeXxxRate), sinon
+            // retomber sur la config globale actuelle (vieux projets sans
+            // taux figé). Cohérent avec ce que /reimburse exécute réellement.
             const netAmount = p.netAmount || Math.round((p.goalAmount || 0) * 0.90);
-            const payinRepayment = fees.payin_repayment || 4;
+            const payinRepayment = p.feePayinRepaymentRate ?? (fees.payin_repayment || 4);
+            const collectionRate = p.feeCollectionRate ?? (fees.commission_baobab_collection || 6);
             const returnRate = p.expectedReturn || 24;
             // Retour calculé sur netAmount (besoin net entrepreneur)
             const grossReturn = Math.round(netAmount * (1 + returnRate / 100));
@@ -922,7 +926,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
             const baobabOnReturn = payinOnReturn;
             const paydunyaPayout = 0;
             // Revenu BAOBAB = commission collecte déjà encaissée + payin mensualités
-            const revenueBAOBAB = Math.round((p.raisedAmount || 0) * (fees.commission_baobab_collection || 6) / 100) + payinOnReturn;
+            const revenueBAOBAB = Math.round((p.raisedAmount || 0) * collectionRate / 100) + payinOnReturn;
             // Assurance = hors cagnotte — montant réel des guaranteeContribution
             const garantie = p.investments?.reduce((s: number, i: any) => s + (i.guaranteeContribution || 0), 0) || 0;
 
@@ -978,7 +982,7 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
                         <span className="font-bold">{grossReturn.toLocaleString()} FCFA</span>
                       </div>
                       <div className="flex justify-between py-1 border-b border-gray-50 text-red-600">
-                        <span>— BAOBAB Payin mensualités ({fees.payin_repayment || 4}%)</span>
+                        <span>— BAOBAB Payin mensualités ({payinRepayment}%)</span>
                         <span>-{baobabOnReturn.toLocaleString()} FCFA</span>
                       </div>
 
