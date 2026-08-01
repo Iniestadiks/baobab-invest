@@ -141,14 +141,14 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
         data: {
           userId: project.entrepreneurId,
           title: `🎬 Palier ${palierNum} atteint — vidéo requise`,
-          body: `Vous avez atteint le seuil de mensualités pour le Palier ${palierNum} (${label}). Postez une courte vidéo (1min45 max) sur l'avancement de votre projet pour débloquer les ${amount.toLocaleString()} FCFA.`,
+          body: `Vous avez atteint le seuil de mensualités pour le Palier ${palierNum} (${label}). Postez une courte vidéo (1min45 max) sur l'avancement de votre projet. Une fois validée par vos investisseurs (ou l'admin), les ${amount.toLocaleString()} FCFA seront débloqués.`,
           type: 'PALIER_PROOF_REQUIRED',
           data: JSON.stringify({ projectId: project.id, palier: palierNum, amount })
         }
       })
       return false // pas encore débloqué — en attente de la vidéo
     }
-    if (!proof.videoUrl) return false // déjà notifié, en attente de l'upload
+    if (proof.status !== 'APPROVED') return false // en attente de vidéo, d'examen, ou vidéo rejetée
     return true // preuve déjà envoyée — on peut débloquer
   }
 

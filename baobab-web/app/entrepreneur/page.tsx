@@ -834,33 +834,48 @@ export default function EntrepreneurDashboard() {
                     const moisP2 = Math.max(2, Math.round(totalMonths / 3));
                     const moisP3 = Math.max(4, Math.round(totalMonths * 2 / 3));
                     const proofs = palierProofs[project.id] || [];
-                    const pending = (n: number) => proofs.find((p: any) => p.palier === n && !p.videoUrl);
-                    if (palier === 1) {
-                      const p = pending(2);
-                      if (p) return (
+                    const proofFor = (n: number) => proofs.find((p: any) => p.palier === n);
+                    const renderProofState = (n: number, amount: number) => {
+                      const p = proofFor(n);
+                      if (!p || p.status === "PENDING") return (
                         <div className="bg-orange-50 border border-orange-300 rounded-xl p-3 mb-4 flex items-start gap-3">
                           <div className="text-2xl">🎬</div>
                           <div className="flex-1">
-                            <div className="font-bold text-orange-700 text-sm">Palier 2 atteint — vidéo requise !</div>
-                            <div className="text-orange-600 text-xs mt-1">Postez une vidéo (1min45 max) sur l&apos;avancement pour débloquer +{fmt(Math.round(net*0.25))} FCFA</div>
-                            <button onClick={() => setProofModal({ projectId: project.id, palier: 2 })} className="mt-2 bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-orange-700">📹 Envoyer ma vidéo</button>
+                            <div className="font-bold text-orange-700 text-sm">Palier {n} atteint — vidéo requise !</div>
+                            <div className="text-orange-600 text-xs mt-1">Postez une vidéo (1min45 max) sur l&apos;avancement pour débloquer +{fmt(amount)} FCFA (soumis au vote des investisseurs)</div>
+                            <button onClick={() => setProofModal({ projectId: project.id, palier: n })} className="mt-2 bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-orange-700">📹 Envoyer ma vidéo</button>
                           </div>
                         </div>
                       );
+                      if (p.status === "IN_REVIEW") return (
+                        <div className="bg-blue-50 border border-blue-300 rounded-xl p-3 mb-4 flex items-start gap-3">
+                          <div className="text-2xl">⏳</div>
+                          <div className="flex-1">
+                            <div className="font-bold text-blue-700 text-sm">Palier {n} — vidéo en cours d&apos;examen</div>
+                            <div className="text-blue-600 text-xs mt-1">{p.approveCount || 0} approbation(s) · {p.rejectCount || 0} rejet(s) sur {p.totalInvestors || 0} investisseur(s). Débloqué automatiquement dès que la majorité des votants approuve.</div>
+                          </div>
+                        </div>
+                      );
+                      if (p.status === "REJECTED") return (
+                        <div className="bg-red-50 border border-red-300 rounded-xl p-3 mb-4 flex items-start gap-3">
+                          <div className="text-2xl">❌</div>
+                          <div className="flex-1">
+                            <div className="font-bold text-red-700 text-sm">Palier {n} — vidéo rejetée</div>
+                            <div className="text-red-600 text-xs mt-1">Postez une nouvelle vidéo pour retenter le déblocage de +{fmt(amount)} FCFA.</div>
+                            <button onClick={() => setProofModal({ projectId: project.id, palier: n })} className="mt-2 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-red-700">📹 Renvoyer une vidéo</button>
+                          </div>
+                        </div>
+                      );
+                      return null;
+                    };
+                    if (palier === 1) {
+                      const rendered = renderProofState(2, Math.round(net*0.25));
+                      if (rendered) return rendered;
                       return (<div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🎯</div><div><div className="font-bold text-blue-700 text-sm">Payez M{moisP2} pour debloquer le Palier 2</div><div className="text-blue-600 text-xs mt-1">+{fmt(Math.round(net*0.25))} FCFA verses automatiquement sur votre wallet</div></div></div>);
                     }
                     if (palier === 2) {
-                      const p = pending(3);
-                      if (p) return (
-                        <div className="bg-orange-50 border border-orange-300 rounded-xl p-3 mb-4 flex items-start gap-3">
-                          <div className="text-2xl">🎬</div>
-                          <div className="flex-1">
-                            <div className="font-bold text-orange-700 text-sm">Palier 3 atteint — vidéo requise !</div>
-                            <div className="text-orange-600 text-xs mt-1">Postez une vidéo (1min45 max) sur l&apos;avancement pour débloquer +{fmt(Math.round(net*0.35))} FCFA</div>
-                            <button onClick={() => setProofModal({ projectId: project.id, palier: 3 })} className="mt-2 bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-orange-700">📹 Envoyer ma vidéo</button>
-                          </div>
-                        </div>
-                      );
+                      const rendered = renderProofState(3, Math.round(net*0.35));
+                      if (rendered) return rendered;
                       return (<div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4 flex items-start gap-3"><div className="text-2xl">🚀</div><div><div className="font-bold text-purple-700 text-sm">Payez M{moisP3} pour debloquer le Palier 3 !</div><div className="text-purple-600 text-xs mt-1">+{fmt(Math.round(net*0.35))} FCFA - La totalite de votre cagnotte sera liberee</div></div></div>);
                     }
                     if (palier >= 3) return (<div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4"><div className="font-bold text-green-700 text-sm">Tous les paliers debloques ! Continuez vos remboursements.</div></div>);

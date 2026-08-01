@@ -86,10 +86,10 @@ export default function DashboardPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const flagProof = async (projectId: string, palier: number) => {
-    if (!flagReason || flagReason.trim().length < 10) { flash("❌ Motif trop court (10 caractères min)"); return; }
-    const res = await authPost(`/api/palier-proof/${projectId}/${palier}/flag`, { reason: flagReason });
-    if (res.success) { flash("✅ Signalement envoyé"); setFlagging(null); setFlagReason(""); }
+  const voteProof = async (projectId: string, palier: number, vote: "APPROVE" | "REJECT") => {
+    if (vote === "REJECT" && (!flagReason || flagReason.trim().length < 10)) { flash("❌ Motif de rejet requis (10 caractères min)"); return; }
+    const res = await authPost(`/api/palier-proof/${projectId}/${palier}/vote`, { vote, reason: vote === "REJECT" ? flagReason : undefined });
+    if (res.success) { flash("✅ Vote enregistré" + (res.data?.outcome === "APPROVED" ? " — palier débloqué !" : "")); setFlagging(null); setFlagReason(""); loadData(); }
     else flash("❌ " + res.message);
   };
   const downloadPDF = async (url: string, filename: string) => {
@@ -587,10 +587,14 @@ export default function DashboardPage() {
                            Math.round(((inv.returnedAmount||0)/nr)*100) + "% du retour total reçu"}
                         </div>
                       </div>
-                      {/* Preuves de palier (vidéo + documents) */}
-                      {(palierProofs[inv.projectId] || []).filter((p: any) => p.videoUrl).map((p: any) => (
+                      {/* Preuves de palier (vidéo + documents) — vote requis */}
+                      {(palierProofs[inv.projectId] || []).filter((p: any) => p.status === "IN_REVIEW" || p.status === "APPROVED").map((p: any) => (
                         <div key={p.palier} className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs mt-2">
-                          <div className="font-semibold text-purple-800 mb-2">🎬 Preuve Palier {p.palier}</div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="font-semibold text-purple-800">🎬 Preuve Palier {p.palier}</div>
+                            {p.status === "APPROVED" && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✅ Approuvé</span>}
+                            {p.status === "IN_REVIEW" && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">⏳ En examen</span>}
+                          </div>
                           <video src={p.videoUrl} controls className="w-full rounded-lg mb-2 max-h-48" />
                           {(p.documents || []).length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-2">
@@ -599,19 +603,27 @@ export default function DashboardPage() {
                               ))}
                             </div>
                           )}
-                          {p.flagged ? (
-                            <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-lg">🚩 Déjà signalé — en attente de vérification admin</span>
-                          ) : flagging?.projectId === inv.projectId && flagging?.palier === p.palier ? (
-                            <div className="space-y-2">
-                              <input value={flagReason} onChange={e => setFlagReason(e.target.value)} placeholder="Motif du signalement (10 caractères min)..."
-                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
-                              <div className="flex gap-2">
-                                <button onClick={() => flagProof(inv.projectId, p.palier)} className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700">Confirmer</button>
-                                <button onClick={() => { setFlagging(null); setFlagReason(""); }} className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg">Annuler</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button onClick={() => setFlagging({ projectId: inv.projectId, palier: p.palier })} className="text-xs text-red-500 hover:underline">🚩 Signaler cette preuve</button>
+                          {p.status === "IN_REVIEW" && (
+                            <>
+                              <div className="text-xs text-gray-500 mb-2">{p.approveCount || 0} 👍 · {p.rejectCount || 0} 👎 sur {p.totalInvestors || 0} investisseur(s)</div>
+                              {p.myVote ? (
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">Vous avez voté : {p.myVote === "APPROVE" ? "👍 Approuvé" : "👎 Rejeté"}</span>
+                              ) : flagging?.projectId === inv.projectId && flagging?.palier === p.palier ? (
+                                <div className="space-y-2">
+                                  <input value={flagReason} onChange={e => setFlagReason(e.target.value)} placeholder="Motif du rejet (10 caractères min)..."
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => voteProof(inv.projectId, p.palier, "REJECT")} className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700">Confirmer le rejet</button>
+                                    <button onClick={() => { setFlagging(null); setFlagReason(""); }} className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg">Annuler</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button onClick={() => voteProof(inv.projectId, p.palier, "APPROVE")} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 font-medium">👍 Approuver</button>
+                                  <button onClick={() => setFlagging({ projectId: inv.projectId, palier: p.palier })} className="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 font-medium">👎 Rejeter</button>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       ))}
