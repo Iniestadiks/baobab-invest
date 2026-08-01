@@ -695,6 +695,46 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       )}
+                      {/* Preuves de palier en attente de vote — visible directement ici, pas besoin d'aller dans Investissements */}
+                      {(palierProofs[inv.projectId] || []).filter((p: any) => p.status === "IN_REVIEW" || p.status === "APPROVED").map((p: any) => (
+                        <div key={p.palier} className="bg-white border-2 border-purple-200 rounded-xl p-3 text-xs mt-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="font-semibold text-purple-800">🎬 Preuve Palier {p.palier} — {p.status === "APPROVED" ? "déjà approuvée" : "à voter"}</div>
+                            {p.status === "APPROVED" && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✅ Approuvé</span>}
+                            {p.status === "IN_REVIEW" && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">⏳ En examen</span>}
+                          </div>
+                          <video src={p.videoUrl} controls className="w-full rounded-lg mb-2 max-h-48" />
+                          {(p.documents || []).length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {p.documents.map((d: any, i: number) => (
+                                <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-gray-50 border border-purple-200 text-purple-700 px-2 py-1 rounded-lg hover:bg-purple-100">📄 {d.name}</a>
+                              ))}
+                            </div>
+                          )}
+                          {p.status === "IN_REVIEW" && (
+                            <>
+                              <div className="text-xs text-gray-500 mb-2">{p.approveCount || 0} 👍 · {p.rejectCount || 0} 👎 sur {p.totalInvestors || 0} investisseur(s)</div>
+                              {p.myVote ? (
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">Vous avez voté : {p.myVote === "APPROVE" ? "👍 Approuvé" : "👎 Rejeté"}</span>
+                              ) : flagging?.projectId === inv.projectId && flagging?.palier === p.palier ? (
+                                <div className="space-y-2">
+                                  <input value={flagReason} onChange={e => setFlagReason(e.target.value)} placeholder="Motif du rejet (10 caractères min)..."
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                                  <div className="flex gap-2">
+                                    <button onClick={() => voteProof(inv.projectId, p.palier, "REJECT")} className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700">Confirmer le rejet</button>
+                                    <button onClick={() => { setFlagging(null); setFlagReason(""); }} className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg">Annuler</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button onClick={() => voteProof(inv.projectId, p.palier, "APPROVE")} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 font-medium">👍 Approuver</button>
+                                  <button onClick={() => setFlagging({ projectId: inv.projectId, palier: p.palier })} className="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 font-medium">👎 Rejeter</button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   );
                 })}
