@@ -501,6 +501,7 @@ export default function EntrepreneurDashboard() {
                     { href: "/academy", icon: "📚", label: "Académie Baobab", color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
                     { href: "/referral", icon: "🌳", label: "Parrainer un ami", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
                     { href: "/profile", icon: "👤", label: "Mon profil", color: "bg-gray-50 text-gray-700 border-gray-200" },
+                    { href: "/devenir/entrepreneur", icon: "❓", label: "Comment ça marche", color: "bg-teal-50 text-teal-700 border-teal-200" },
                   ].map(link => (
                     <Link key={link.href} href={link.href} className={`flex items-center gap-3 p-2.5 rounded-xl border text-xs font-medium hover:opacity-80 transition-opacity ${link.color}`}>
                       <span className="text-base">{link.icon}</span>
@@ -1031,7 +1032,7 @@ export default function EntrepreneurDashboard() {
                   {(user?.reputationScore||0) < 50 && <div className="text-xs mt-1 opacity-80">⛔ Création de nouveau projet bloquée</div>}
                   {(user?.reputationScore||0) >= 50 && (user?.reputationScore||0) < 70 && <div className="text-xs mt-1 opacity-80">⚠️ Accès à la liste d'attente bloqué</div>}
                   {(user?.reputationScore||0) < 25 && <div className="text-xs mt-1 opacity-80">🚨 Compte suspendu — contactez le support</div>}
-                  {(user?.reputationScore||0) >= 90 && <div className="text-xs mt-1 opacity-80">✅ Éligible au refinancement</div>}
+                  {(user?.reputationScore||0) >= 90 && <div className="text-xs mt-1 opacity-80">✅ Excellent historique de remboursement</div>}
                 </div>
               </div>
             </div>
