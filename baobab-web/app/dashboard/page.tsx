@@ -11,17 +11,20 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, Legend
 } from "recharts";
 
+// Système de niveau RÉEL — identique à celui du backend (reputationService.ts
+// getLevel), basé sur les points de réputation gagnés (investissements,
+// académie, etc.), pas un système fictif basé sur le seul montant investi.
 const LEVELS = [
-  { name: "Graine",      min: 0,      max: 10000,   icon: "🌱", color: "text-green-600",  bg: "bg-green-50" },
-  { name: "Jeune Baobab",min: 10000,  max: 50000,   icon: "🌿", color: "text-emerald-600",bg: "bg-emerald-50" },
-  { name: "Baobab",      min: 50000,  max: 200000,  icon: "🌳", color: "text-green-700",  bg: "bg-green-100" },
-  { name: "Grand Baobab",min: 200000, max: Infinity, icon: "🏅", color: "text-yellow-600", bg: "bg-yellow-50" },
+  { name: "Graine",  min: 0,    max: 100,  icon: "🌱", color: "text-green-600",  bg: "bg-green-50" },
+  { name: "Pousse",  min: 100,  max: 300,  icon: "🌿", color: "text-emerald-600",bg: "bg-emerald-50" },
+  { name: "Arbre",   min: 300,  max: 600,  icon: "🌳", color: "text-green-700",  bg: "bg-green-100" },
+  { name: "Baobab",  min: 600,  max: 1000, icon: "🌲", color: "text-teal-700",   bg: "bg-teal-50" },
+  { name: "Grand Baobab", min: 1000, max: Infinity, icon: "🏆", color: "text-yellow-600", bg: "bg-yellow-50" },
 ];
 const COLORS = ["#16a34a","#2563eb","#d97706","#7c3aed","#dc2626","#0891b2"];
-
 function fmt(n: number) { return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0"); }
-function getLevel(t: number) { return LEVELS.find(l => t >= l.min && t < l.max) || LEVELS[0]; }
-function getNextLevel(t: number) { const i = LEVELS.findIndex(l => t >= l.min && t < l.max); return i < LEVELS.length-1 ? LEVELS[i+1] : null; }
+function getLevel(points: number) { return LEVELS.find(l => points >= l.min && points < l.max) || LEVELS[0]; }
+function getNextLevel(points: number) { const i = LEVELS.findIndex(l => points >= l.min && points < l.max); return i < LEVELS.length-1 ? LEVELS[i+1] : null; }
 
 export default function DashboardPage() {
   const { config: fees } = usePlatformConfig();
@@ -129,9 +132,10 @@ export default function DashboardPage() {
   const escrow = wallet?.escrowBalance || 0;
   const gainBalance = wallet?.gainBalance || 0;
   const depositBalance = wallet?.depositBalance || 0;
-  const level = getLevel(totalInvested);
-  const nextLevel = getNextLevel(totalInvested);
-  const levelProgress = nextLevel ? Math.min(((totalInvested - level.min) / (nextLevel.min - level.min)) * 100, 100) : 100;
+  const reputationPoints = user?.reputationPoints || 0;
+  const level = getLevel(reputationPoints);
+  const nextLevel = getNextLevel(reputationPoints);
+  const levelProgress = nextLevel ? Math.min(((reputationPoints - level.min) / (nextLevel.min - level.min)) * 100, 100) : 100;
   const unread = notifications.filter(n => !n.isRead).length;
   const projetsActifs = investments.filter(i => i.project?.status !== "COMPLETED").length;
   const projetsTermines = investments.filter(i => i.project?.status === "COMPLETED").length;
@@ -244,11 +248,11 @@ export default function DashboardPage() {
                 <Link href="/wallet/deposit" className="mt-2 inline-block text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg font-medium">+ Déposer</Link>
               </div>
               <div>
-                <div className="text-green-200 text-xs mb-1">📈 Gains (retrait 3%)</div>
+                <div className="text-green-200 text-xs mb-1">📈 Gains (retrait {fees?.withdrawal_fee_standard ?? 3}%)</div>
                 <div className="text-xl font-bold">{fmt(gainBalance)} FCFA</div>
               </div>
               <div>
-                <div className="text-green-200 text-xs mb-1">💵 À investir (retrait 7%)</div>
+                <div className="text-green-200 text-xs mb-1">💵 À investir (retrait {fees?.withdrawal_fee_no_invest ?? 7}%)</div>
                 <div className="text-xl font-bold">{fmt(depositBalance)} FCFA</div>
               </div>
               <div>
@@ -436,6 +440,7 @@ export default function DashboardPage() {
                     { href: "/referral",       icon: "🌳", label: "Parrainer un ami",         color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
                     { href: "/profile",        icon: "👤", label: "Mon profil",               color: "bg-gray-50 text-gray-700 border-gray-200" },
                     { href: "/kyc",            icon: "🪪", label: "Vérification KYC",         color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+                    { href: "/devenir/investisseur", icon: "❓", label: "Comment ça marche",   color: "bg-teal-50 text-teal-700 border-teal-200" },
                   ].map(l => (
                     <Link key={l.href} href={l.href} className={`flex items-center gap-3 p-2.5 rounded-xl border text-xs font-medium hover:opacity-80 transition-opacity ${l.color}`}>
                       <span className="text-base">{l.icon}</span>{l.label}
@@ -583,7 +588,7 @@ export default function DashboardPage() {
                           </div>
                         )}
                         <div className="text-gray-400 mt-1 text-center">
-                          {(inv.returnedAmount||0) === 0 ? "Aucun versement reçu pour l instant" :
+                          {(inv.returnedAmount||0) === 0 ? "Aucun versement reçu pour l'instant" :
                            Math.round(((inv.returnedAmount||0)/nr)*100) + "% du retour total reçu"}
                         </div>
                       </div>
