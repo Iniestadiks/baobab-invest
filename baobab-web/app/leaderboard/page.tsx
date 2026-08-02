@@ -180,17 +180,18 @@ export default function LeaderboardPage() {
               </div>
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
                 {[
-                  "Accès standard",
-                  "Projets 24h avant",
-                  "Projets 48h avant + badge",
-                  "Projets 72h + exclusifs",
-                  "VIP + frais réduits"
+                  "0-99 pts",
+                  "100-299 pts",
+                  "300-599 pts",
+                  "600-999 pts",
+                  "1000+ pts"
                 ].map((benefit, i) => (
                   <div key={i} className={`rounded-xl p-2 text-center ${LEVEL_INFO[i+1].bg} ${LEVEL_INFO[i+1].color} font-medium`}>
                     {LEVEL_INFO[i+1].icon} {benefit}
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-gray-400 mt-2 text-center">Votre niveau reflète votre engagement et votre sérieux sur la plateforme.</p>
             </div>
 
             {/* Points par rôle */}
