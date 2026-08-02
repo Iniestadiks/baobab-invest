@@ -15,12 +15,20 @@ const FUND_SYSTEM_USER_ID = 'baobab-fund-system-001' // Compte investisseur syst
 
 // Taux configurables — chargés depuis platformConfig
 const DEFAULT_FUND_FEE_RATE = 0.16    // 16% BAOBAB par défaut
-const DEFAULT_OPERATOR_FEE_RATE = 0.04 // 4% opérateur
+const DEFAULT_OPERATOR_FEE_RATE = 0.035 // 3.5% — secours, aligné sur payin_operator_real
 
 async function getFundFeeRate(): Promise<number> {
   try {
     const config = await prisma.platformConfig.findUnique({ where: { key: 'fund_baobab_fee' } })
     return config ? Number(config.value) / 100 : DEFAULT_FUND_FEE_RATE
+// Taux opérateur réel — même clé de config que les dépôts wallet (wallet.ts),
+// cohérence sur tous les paiements PayDunya de la plateforme.
+async function getOperatorFeeRate(): Promise<number> {
+  try {
+    const config = await prisma.platformConfig.findUnique({ where: { key: 'payin_operator_real' } })
+    return config ? Number(config.value) / 100 : DEFAULT_OPERATOR_FEE_RATE
+  } catch { return DEFAULT_OPERATOR_FEE_RATE }
+}
   } catch { return DEFAULT_FUND_FEE_RATE }
 }
 
@@ -215,8 +223,9 @@ router.post('/contribute', async (req: any, res: Response): Promise<void> => {
     const { amount, anonymous = false, message, projectId, campaignId, paymentMethod = 'WAVE', operator, guestName, guestEmail, guestPhone } = req.body
     if (!amount || amount < 500) { errorResponse(res, 'Montant minimum : 500 FCFA', 400); return }
     const fundFeeRate = await getFundFeeRate()
+    const operatorFeeRate = await getOperatorFeeRate()
     const baobabFee  = Math.round(amount * fundFeeRate)
-    const operatorFee = Math.round(amount * DEFAULT_OPERATOR_FEE_RATE)
+    const operatorFee = Math.round(amount * operatorFeeRate)
     const netAmount  = amount - baobabFee
     let userId: string | null = null
     let userInfo: any = null
