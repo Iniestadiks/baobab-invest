@@ -215,6 +215,7 @@ export default function BuilderDashboard() {
                   { level: "OR", icon: "🥇", label: "Bâtisseur Or", min: 2000000 },
                   { level: "ARGENT", icon: "🥈", label: "Bâtisseur Argent", min: 500000 },
                   { level: "BATISSEUR", icon: "🏗️", label: "Bâtisseur", min: 100000 },
+                  { level: "CONTRIBUTEUR", icon: "🌱", label: "Contributeur", min: 0 },
                 ].filter(l => impactData.level === l.level).map(l => (
                   <span key={l.level} className="text-xs bg-yellow-400/20 border border-yellow-400/30 text-yellow-300 px-3 py-1 rounded-full font-bold">
                     {l.icon} {l.label}
