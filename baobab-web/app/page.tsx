@@ -68,7 +68,7 @@ export default function LandingPage() {
   const [stats, setStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [fund, setFund] = useState<any>(null);
-  const [fees, setFees] = useState<any>({ commission_baobab_collection: 6, commission_mentor: 2, commission_guarantee: 2, payin_repayment: 4, return_min: 23, withdrawal_fee_standard: 0 });
+  const [fees, setFees] = useState<any>({ commission_baobab_collection: 5, commission_mentor: 2, commission_guarantee: 2, payin_repayment: 4, return_min: 22, withdrawal_fee_standard: 0, fund_baobab_fee: 16 });
   const [loading, setLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [howToDropdown, setHowToDropdown] = useState(false);
@@ -101,10 +101,10 @@ export default function LandingPage() {
     });
   }, []);
   const simAmount = 100000;
-  const totalFeesPct = (fees.commission_baobab_collection || 6) + (fees.commission_mentor || 2) + (fees.commission_guarantee || 2);
+  const totalFeesPct = (fees.commission_baobab_collection || 5) + (fees.commission_mentor || 2) + (fees.commission_guarantee || 2);
   const simFees = Math.round(simAmount * totalFeesPct / 100);
   const simNet = simAmount - simFees;
-  const simRetour = Math.round(simNet * (1 + (fees.return_min || 23) / 100));
+  const simRetour = Math.round(simNet * (1 + (fees.return_min || 22) / 100));
   const simPayin = Math.round(simRetour * (fees.payin_repayment || 4) / 100);
   const simGain = simRetour - simPayin;
   const simGainNet = simGain - simAmount;
@@ -354,7 +354,7 @@ export default function LandingPage() {
       <section className="section" style={{position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:800,height:800,borderRadius:"50%",background:"radial-gradient(circle,rgba(124,58,237,0.05) 0%,transparent 70%)",pointerEvents:"none"}}/>
         <div className="section-inner" style={{position:"relative"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center"}}>
+          <div className="two-col-section">
             <div>
               <div className="section-eyebrow" style={{color:"#7C3AED"}}>Solidarité</div>
               <h2 className="section-title">Fonds Solidaire<br/>
@@ -375,7 +375,7 @@ export default function LandingPage() {
                   {label:"Total collecté",value:loading?null:`${fmt(fund?.totalReceived||0)} F`,color:"#7C3AED"},
                   {label:"Contributeurs",value:loading?null:String(fund?.totalContributors||0),color:"#16A34A"},
                   {label:"Projets aidés",value:loading?null:String(fund?.totalProjects||0),color:"#0F7A3D"},
-                  {label:"Net aux projets",value:loading?null:`${fmt((fund?.totalReceived||0)*0.9)} F`,color:"#C8860D"},
+                  {label:"Net aux projets",value:loading?null:`${fmt((fund?.totalReceived||0)*(1-(fees.fund_baobab_fee||16)/100))} F`,color:"#C8860D"},
                 ].map(s=>(
                   <div key={s.label} style={{background:"var(--cream-deep)",border:`1px solid ${s.color}20`,borderRadius:16,padding:"18px 14px",textAlign:"center"}}>
                     <div style={{fontSize:20,fontWeight:900,color:s.color,minHeight:28}}>
@@ -386,7 +386,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <div style={{background:"rgba(124,58,237,0.06)",border:"1px solid rgba(124,58,237,0.14)",borderRadius:14,padding:"14px 18px",textAlign:"center",fontSize:13,color:"var(--ink-soft)",lineHeight:1.7}}>
-                <span style={{color:"#7C3AED",fontWeight:700}}>90%</span> va directement aux projets.
+                <span style={{color:"#7C3AED",fontWeight:700}}>{100-(fees.fund_baobab_fee||16)}%</span> va directement aux projets.
               </div>
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function LandingPage() {
       {/* BATISSEURS */}
       <section id="batisseurs" className="section section-alt">
         <div className="section-inner">
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"center"}}>
+          <div className="two-col-section">
             <div>
               <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"var(--gold-pale)",border:"1px solid rgba(200,134,13,0.2)",borderRadius:100,padding:"5px 14px",fontSize:11.5,fontWeight:700,color:"#B36B0A",marginBottom:24}}>
                 🏗️ Rôle premium — Bâtisseur
@@ -442,7 +442,7 @@ export default function LandingPage() {
       {/* TRANSPARENCE + SIMULATION */}
       <section id="transparence" className="section">
         <div className="section-inner">
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:80,alignItems:"start"}}>
+          <div className="two-col-section" style={{alignItems:"start"}}>
             <div>
               <div className="section-eyebrow">Transparence</div>
               <h2 className="section-title">Zéro surprise.<br/><span style={{color:"#0F7A3D"}}>Tous les frais publics.</span></h2>

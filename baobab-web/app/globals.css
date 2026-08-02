@@ -380,6 +380,8 @@ a { text-decoration: none; color: inherit; }
 /* ── HERO VISUAL — Illustration mains + croissance animée ───────── */
 .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px; align-items: center; }
 @media (max-width: 1024px) { .hero-grid { grid-template-columns: 1fr; } }
+.two-col-section { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+@media (max-width: 900px) { .two-col-section { grid-template-columns: 1fr; gap: 40px; } }
 
 .hero-visual { position: relative; width: 100%; max-width: 480px; margin: 0 auto; aspect-ratio: 1/1; }
 .hv-ring {
