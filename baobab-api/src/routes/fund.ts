@@ -62,11 +62,16 @@ async function awardFundBadges(userId: string) {
 // et par la confirmation manuelle admin.
 async function finalizeContribution(contributionId: string) {
   const contribution = await prisma.fundContribution.findUnique({ where: { id: contributionId } })
-  if (!contribution || contribution.status === 'COMPLETED') return
-  await prisma.fundContribution.update({
-    where: { id: contributionId },
+  if (!contribution) return
+  // Réservation atomique et conditionnelle — AVANT tout effet de bord. Le
+  // webhook et la confirmation manuelle admin peuvent toutes deux appeler
+  // cette fonction sur la même contribution ; seule l'une des deux doit
+  // réellement finaliser.
+  const reserved = await prisma.fundContribution.updateMany({
+    where: { id: contributionId, status: { not: 'COMPLETED' } },
     data: { status: 'COMPLETED', updatedAt: new Date() }
   })
+  if (reserved.count === 0) return // déjà finalisée par un appel concurrent
   await prisma.solidaryFund.upsert({
     where: { id: FUND_ID },
     create: { id: FUND_ID, totalReceived: contribution.amount, totalContributors: 1 },
@@ -303,16 +308,10 @@ router.post('/admin/confirm/:id', authenticate, requireAdmin, async (req: AuthRe
   try {
     const contribution = await prisma.fundContribution.findUnique({ where: { id: req.params.id } })
     if (!contribution) { errorResponse(res, 'Contribution introuvable', 404); return }
-    // Réutiliser la route confirm
-    req.params = { id: req.params.id }
-    // Appeler directement la logique
-    await prisma.fundContribution.update({ where: { id: req.params.id }, data: { status: 'COMPLETED' } })
-    await prisma.solidaryFund.upsert({
-      where: { id: FUND_ID },
-      create: { id: FUND_ID, totalReceived: contribution.amount, totalContributors: 1 },
-      update: { totalReceived: { increment: contribution.amount }, totalContributors: { increment: 1 } }
-    })
-    if (contribution.userId) await awardFundBadges(contribution.userId)
+    // Appelle la même fonction que le webhook — idempotente et complète
+    // (commission, campagne, gamification, notification), au lieu de la
+    // logique dupliquée et incomplète d'avant.
+    await finalizeContribution(req.params.id)
     successResponse(res, {}, 'Contribution confirmée manuellement')
   } catch (e) { errorResponse(res) }
 })
