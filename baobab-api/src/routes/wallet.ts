@@ -154,7 +154,8 @@ router.post('/deposit/verify/:txId', authenticate, async (req: AuthRequest, res:
 router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { amount, phoneNumber, operator, provider: providerKey = 'paydunya' } = req.body
-    const minWithdraw = 5000
+    const minWithdrawCfg = await prisma.platformConfig.findUnique({ where: { key: 'withdrawal_min' } })
+    const minWithdraw = minWithdrawCfg ? Number(minWithdrawCfg.value) : 5000
     if (!amount || amount < minWithdraw) {
       res.status(400).json({ success: false, message: `Montant minimum de retrait : ${minWithdraw.toLocaleString()} FCFA` }); return
     }
