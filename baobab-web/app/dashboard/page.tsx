@@ -594,7 +594,7 @@ export default function DashboardPage() {
                       {(palierProofs[inv.projectId] || []).filter((p: any) => p.status === "IN_REVIEW" || p.status === "APPROVED").map((p: any) => (
                         <div key={p.palier} className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs mt-2">
                           <div className="flex items-center justify-between mb-2">
-                            <div className="font-semibold text-purple-800">🎬 Preuve Palier {p.palier}</div>
+                            <div className="font-semibold text-purple-800">🎬 {p.palier === 4 ? "Vidéo de clôture" : `Preuve Palier ${p.palier}`}</div>
                             {p.status === "APPROVED" && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✅ Approuvé</span>}
                             {p.status === "IN_REVIEW" && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">⏳ En examen</span>}
                           </div>
@@ -699,7 +699,7 @@ export default function DashboardPage() {
                       {(palierProofs[inv.projectId] || []).filter((p: any) => p.status === "IN_REVIEW" || p.status === "APPROVED").map((p: any) => (
                         <div key={p.palier} className="bg-white border-2 border-purple-200 rounded-xl p-3 text-xs mt-3">
                           <div className="flex items-center justify-between mb-2">
-                            <div className="font-semibold text-purple-800">🎬 Preuve Palier {p.palier} — {p.status === "APPROVED" ? "déjà approuvée" : "à voter"}</div>
+                            <div className="font-semibold text-purple-800">🎬 {p.palier === 4 ? "Vidéo de clôture" : `Preuve Palier ${p.palier}`} {p.palier !== 4 && (p.status === "APPROVED" ? "— déjà approuvée" : "— à voter")}</div>
                             {p.status === "APPROVED" && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✅ Approuvé</span>}
                             {p.status === "IN_REVIEW" && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">⏳ En examen</span>}
                           </div>

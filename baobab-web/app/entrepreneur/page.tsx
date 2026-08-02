@@ -968,8 +968,24 @@ export default function EntrepreneurDashboard() {
                     </div>
                   )}
                   {sc.status === "COMPLETED" && (
-                    <div className="text-center bg-green-100 rounded-xl py-4 text-green-700 font-bold">🎉 Ce projet est entièrement remboursé !</div>
+                    <div className="text-center bg-green-100 rounded-xl py-4 text-green-700 font-bold mb-2">🎉 Ce projet est entièrement remboursé !</div>
                   )}
+                  {sc.status === "COMPLETED" && project && (() => {
+                    const closureProof = (palierProofs[project.id] || []).find((p: any) => p.palier === 4);
+                    if (closureProof?.status === "APPROVED") return (
+                      <div className="text-center text-xs text-green-600 bg-green-50 rounded-xl py-2">✅ Vidéo de clôture déjà publiée</div>
+                    );
+                    return (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-3">
+                        <div className="text-2xl">🎬</div>
+                        <div className="flex-1">
+                          <div className="font-bold text-blue-700 text-sm">Vidéo de clôture (optionnel mais recommandé)</div>
+                          <div className="text-blue-600 text-xs mt-1">Postez une courte vidéo pour remercier vos investisseurs — pure transparence, rien à débloquer.</div>
+                          <button onClick={() => setProofModal({ projectId: project.id, palier: 4 })} className="mt-2 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-blue-700">📹 Publier la vidéo de clôture</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   </div>}
                 </div>
               );
@@ -1074,7 +1090,7 @@ export default function EntrepreneurDashboard() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-900">🎬 Preuve Palier {proofModal.palier}</h3>
+              <h3 className="font-bold text-gray-900">🎬 {proofModal.palier === 4 ? "Vidéo de clôture" : `Preuve Palier ${proofModal.palier}`}</h3>
               <button onClick={() => { setProofModal(null); setProofVideo(null); setProofDocs([]); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             <p className="text-xs text-gray-500 mb-4">Une courte vidéo (1min45 max) montrant l&apos;avancement réel de votre projet. Vos investisseurs pourront la voir.</p>
