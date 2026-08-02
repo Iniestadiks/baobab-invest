@@ -160,13 +160,19 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
     const p2Amount = Math.round(netAmount * 0.25)
     const canUnlock = await checkProofAndMaybeUnlock(2, p2Amount, '25%')
     if (!canUnlock) return
+    // Réservation atomique et conditionnelle — AVANT tout crédit d'argent.
+    // checkAndUnlockPalier peut être déclenchée en parallèle depuis deux
+    // chemins différents (remboursement ET vote investisseur sur la preuve) ;
+    // sans cette condition en premier, les deux pouvaient créditer le
+    // Palier 2 deux fois.
+    const p2Reserved = await tx.project.updateMany({
+      where: { id: project.id, currentPalier: 1 },
+      data: { disbursedP2: p2Amount, currentPalier: 2 }
+    })
+    if (p2Reserved.count === 0) return // déjà débloqué par un déclenchement concurrent
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
       data: { balance: { increment: p2Amount }, depositBalance: { increment: p2Amount } }
-    })
-    await tx.project.update({
-      where: { id: project.id },
-      data: { disbursedP2: p2Amount, currentPalier: 2 }
     })
     await tx.platformRevenue.create({
       data: {
@@ -194,13 +200,15 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
     const p3Amount = Math.round(netAmount * 0.35)
     const canUnlock = await checkProofAndMaybeUnlock(3, p3Amount, '35%')
     if (!canUnlock) return
+    // Réservation atomique et conditionnelle — AVANT tout crédit d'argent.
+    const p3Reserved = await tx.project.updateMany({
+      where: { id: project.id, currentPalier: 2 },
+      data: { disbursedP3: p3Amount, currentPalier: 3 }
+    })
+    if (p3Reserved.count === 0) return // déjà débloqué par un déclenchement concurrent
     await tx.wallet.update({
       where: { userId: project.entrepreneurId },
       data: { balance: { increment: p3Amount }, depositBalance: { increment: p3Amount } }
-    })
-    await tx.project.update({
-      where: { id: project.id },
-      data: { disbursedP3: p3Amount, currentPalier: 3 }
     })
     await tx.platformRevenue.create({
       data: {
