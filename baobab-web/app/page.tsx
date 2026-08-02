@@ -71,6 +71,7 @@ export default function LandingPage() {
   const [fees, setFees] = useState<any>({ commission_baobab_collection: 6, commission_mentor: 2, commission_guarantee: 2, payin_repayment: 4, return_min: 23, withdrawal_fee_standard: 0 });
   const [loading, setLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [howToDropdown, setHowToDropdown] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [processRole, setProcessRole] = useState("ENTREPRENEUR");
@@ -128,23 +129,52 @@ export default function LandingPage() {
             {[["Fonctionnement","#comment"],["Projets","#projets"],["Fonds Solidaire","/fund"],["Bâtisseurs","#batisseurs"],["Transparence","#transparence"]].map(([l,h])=>(
               <a key={l} href={h} className="nav-link">{l}</a>
             ))}
+            <div style={{position:"relative"}} onMouseEnter={() => setHowToDropdown(true)} onMouseLeave={() => setHowToDropdown(false)}>
+              <span className="nav-link" style={{cursor:"pointer"}}>Comment ça marche ▾</span>
+              {howToDropdown && (
+                <div style={{position:"absolute",top:"100%",left:0,background:"#fff",border:"1px solid var(--line)",borderRadius:14,boxShadow:"0 12px 32px rgba(11,17,32,0.12)",padding:8,minWidth:200,zIndex:200}}>
+                  {[["💼 Investisseur","investisseur"],["🚀 Entrepreneur","entrepreneur"],["🎓 Mentor","mentor"],["🏗️ Bâtisseur","batisseur"]].map(([label,role]) => (
+                    <Link key={role} href={`/devenir/${role}`} style={{display:"block",padding:"8px 12px",borderRadius:8,fontSize:13,fontWeight:600,color:"var(--ink)"}}>
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="nav-actions">
             <Link href="/auth/login" className="btn-ghost">Connexion</Link>
             <Link href="/auth/register" className="btn-cta">Commencer →</Link>
             <button onClick={() => setMobileMenu(!mobileMenu)}
-              style={{background:"none",border:"none",color:"var(--ink)",fontSize:22,cursor:"pointer",padding:4}}
-              className="mobile-btn">
-              {mobileMenu ? "✕" : "☰"}
+              style={{background:"none",border:"none",color:"var(--ink)",cursor:"pointer",padding:4,display:"flex",alignItems:"center",justifyContent:"center"}}
+              className="mobile-btn" aria-label="Menu">
+              {mobileMenu ? (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="4" y1="4" x2="20" y2="20" /><line x1="20" y1="4" x2="4" y2="20" />
+                </svg>
+              ) : (
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
         {mobileMenu && (
           <div style={{background:"rgba(251,250,247,0.98)",backdropFilter:"blur(20px)",borderTop:"1px solid var(--line)",padding:"20px 32px",display:"flex",flexDirection:"column",gap:16}}>
-            {[["Fonctionnement","#comment"],["Projets","#projets"],["Fonds Solidaire","/fund"],["Transparence","#transparence"],["Connexion","/auth/login"]].map(([l,h])=>(
+            {[["Fonctionnement","#comment"],["Projets","#projets"],["Fonds Solidaire","/fund"],["Transparence","#transparence"]].map(([l,h])=>(
               <a key={l} href={h} onClick={() => setMobileMenu(false)}
                 style={{color:"var(--ink-soft)",fontSize:15,fontWeight:600}}>{l}</a>
             ))}
+            <div style={{borderTop:"1px solid var(--line)",paddingTop:16,display:"flex",flexDirection:"column",gap:14}}>
+              <span style={{fontSize:11,fontWeight:700,color:"var(--ink-faint)",textTransform:"uppercase"}}>Comment ça marche</span>
+              {[["💼 Investisseur","investisseur"],["🚀 Entrepreneur","entrepreneur"],["🎓 Mentor","mentor"],["🏗️ Bâtisseur","batisseur"]].map(([label,role]) => (
+                <Link key={role} href={`/devenir/${role}`} onClick={() => setMobileMenu(false)}
+                  style={{color:"var(--ink-soft)",fontSize:15,fontWeight:600}}>{label}</Link>
+              ))}
+            </div>
+            <a href="/auth/login" onClick={() => setMobileMenu(false)}
+              style={{color:"var(--ink-soft)",fontSize:15,fontWeight:600}}>Connexion</a>
           </div>
         )}
       </nav>
