@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Router, Response } from 'express'
 import prisma from '../config/database'
-import { authenticate, AuthRequest } from '../middleware/auth'
+import { authenticate, AuthRequest, requireAdmin } from '../middleware/auth'
 import { getFees, getProjectFees } from '../config/fees'
 import { triggerFundedActions } from '../services/paliers'
 import { addReputationPoints, awardBadge, checkAndAwardBadges, REPUTATION_POINTS } from '../services/reputationService'
@@ -276,7 +276,7 @@ router.post('/savings-config', authenticate, async (req: AuthRequest, res: Respo
 })
 
 // Export CSV
-router.get('/exports/admin', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/exports/admin', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const investments = await prisma.investment.findMany({
       include: { user: { select: { firstName: true, lastName: true, email: true, phone: true } }, project: { select: { title: true, sector: true, status: true } } },

@@ -21,7 +21,7 @@ function errorResponse(res: Response, message = 'Erreur serveur') {
 }
 
 // Admin — voir tous les echéanciers (AVANT /my/:projectId pour eviter conflit)
-router.get('/admin/all', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/admin/all', authenticate, requireRole(['ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const schedules = await prisma.repaymentSchedule.findMany({
       include: {
@@ -166,6 +166,17 @@ router.post('/create/:projectId', authenticate, async (req: AuthRequest, res: Re
 // Entrepreneur — voir son echeancier
 router.get('/my/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.projectId },
+      select: { entrepreneurId: true, investments: { select: { userId: true } } }
+    })
+    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
+    const isOwnerOrInvestor = project.entrepreneurId === req.userId
+      || project.investments.some(i => i.userId === req.userId)
+      || req.userRole === 'ADMIN'
+    if (!isOwnerOrInvestor) {
+      res.status(403).json({ success: false, message: 'Accès refusé' }); return
+    }
     const schedule = await prisma.repaymentSchedule.findFirst({
       where: { projectId: req.params.projectId },
       include: { payments: { orderBy: { monthNumber: 'asc' } } }

@@ -82,6 +82,13 @@ router.get('/project/:projectId/budget', authenticate, async (req: AuthRequest, 
       }
     })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
+    const isAuthorized = project.entrepreneurId === req.userId
+      || project.mentorId === req.userId
+      || project.investments.some(i => i.userId === req.userId)
+      || req.userRole === 'ADMIN'
+    if (!isAuthorized) {
+      res.status(403).json({ success: false, message: 'Accès refusé' }); return
+    }
 
     const dejaAlloue = project.milestones
       .filter(m => !['REJECTED'].includes(m.status))
@@ -118,6 +125,18 @@ router.get('/project/:projectId/budget', authenticate, async (req: AuthRequest, 
 
 router.get('/project/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.projectId },
+      select: { entrepreneurId: true, mentorId: true, investments: { select: { userId: true } } }
+    })
+    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
+    const isAuthorized = project.entrepreneurId === req.userId
+      || project.mentorId === req.userId
+      || project.investments.some(i => i.userId === req.userId)
+      || req.userRole === 'ADMIN'
+    if (!isAuthorized) {
+      res.status(403).json({ success: false, message: 'Accès refusé' }); return
+    }
     const milestones = await prisma.milestone.findMany({
       where: { projectId: req.params.projectId },
       include: {
@@ -215,7 +234,7 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req: AuthRequest,
     // Transaction atomique avec calcul PayDunya Payout
     const { getFees } = await import('../config/fees')
     const fees = await getFees()
-    const payoutRate = fees.withdrawal_fee_standard || 3
+    const payoutRate = fees.withdrawal_fee_standard ?? 3
     const paydunyaPayout = Math.round(milestone.amount * payoutRate / 100)
     const netSupplier = milestone.amount - paydunyaPayout
 

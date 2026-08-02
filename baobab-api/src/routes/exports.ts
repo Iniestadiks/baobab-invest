@@ -78,7 +78,7 @@ router.get('/mentor', authenticate, async (req: AuthRequest, res: Response): Pro
   } catch (e) { res.status(500).json({ success: false, message: 'Erreur export' }) }
 })
 
-router.get('/supplier', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/supplier', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { supplierId } = req.query
     const payments = await prisma.milestonePayment.findMany({

@@ -205,7 +205,7 @@ router.get('/report/mentor', authenticate, async (req: AuthRequest, res: Respons
 })
 
 // Admin — rapport d'un utilisateur spécifique
-router.get('/admin/user/:userId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/admin/user/:userId', authenticate, requireAdmin, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { type } = req.query // investor, entrepreneur, mentor
     const [user, wallet, feesConfig] = await Promise.all([

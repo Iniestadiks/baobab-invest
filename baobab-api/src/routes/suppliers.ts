@@ -145,35 +145,6 @@ router.patch('/:id/suspend', authenticate, requireAdmin, async (req: AuthRequest
 
 export default router
 
-// Fournisseur par email (pour son espace dédié)
-router.get('/by-email/:email', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const supplier = await prisma.supplier.findFirst({
-      where: { email: decodeURIComponent(req.params.email) }
-    })
-    if (!supplier) {
-      res.status(404).json({ success: false, message: 'Fournisseur introuvable' })
-      return
-    }
-    const payments = await prisma.milestonePayment.findMany({
-      where: { supplierId: supplier.id },
-      include: {
-        milestone: {
-          select: {
-            title: true,
-            project: { select: { title: true } }
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
-    successResponse(res, { supplier, payments })
-  } catch (e) {
-    console.error(e)
-    errorResponse(res)
-  }
-})
-
 // Auth fournisseur — login
 router.post('/auth/login', async (req: any, res: Response): Promise<void> => {
   try {
