@@ -546,11 +546,6 @@ router.post('/:id/approve-extension', authenticate, requireAdmin, async (req: Au
 
 export default router
 
-// Debug route — à supprimer en production
-router.get('/debug/pending', async (req, res) => {
-  const projects = await prisma.project.findMany({ where: { status: 'PENDING_REVIEW' }, orderBy: { createdAt: 'asc' } })
-  res.json({ count: projects.length, ids: projects.map(p => ({ id: p.id, title: p.title })) })
-})
 
 // Investisseurs d'un projet (visible par l'entrepreneur propriétaire)
 router.get('/:id/investors', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {

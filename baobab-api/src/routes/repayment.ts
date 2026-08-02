@@ -293,22 +293,27 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
       }
 
       const baobabFee = Math.round(nextPayment.amount * baobabRate / 100)
-      // Crediter wallet admin de la commission retour BAOBAB
-      const adminRep = await tx.user.findFirst({ where: { role: 'ADMIN' } })
-      if (adminRep) {
-        await tx.wallet.update({
-          where: { userId: adminRep.id },
-          data: { balance: { increment: baobabFee }, commissionBalance: { increment: baobabFee } }
+      // Crediter wallet admin de la commission retour BAOBAB — seulement si
+      // positif (baobabRate est actuellement figé à 0% ; créer une écriture
+      // à montant nul à chaque mensualité polluait le journal des revenus
+      // pour rien).
+      if (baobabFee > 0) {
+        const adminRep = await tx.user.findFirst({ where: { role: 'ADMIN' } })
+        if (adminRep) {
+          await tx.wallet.update({
+            where: { userId: adminRep.id },
+            data: { balance: { increment: baobabFee }, commissionBalance: { increment: baobabFee } }
+          })
+        }
+        await tx.platformRevenue.create({
+          data: {
+            type: 'COMMISSION_RETURN',
+            amount: baobabFee,
+            projectId: schedule.projectId,
+            description: 'Commission retour ' + baobabRate + '% — mois ' + nextPayment.monthNumber
+          }
         })
       }
-      await tx.platformRevenue.create({
-        data: {
-          type: 'COMMISSION_RETURN',
-          amount: baobabFee,
-          projectId: schedule.projectId,
-          description: 'Commission retour ' + baobabRate + '% — mois ' + nextPayment.monthNumber
-        }
-      })
 
       await tx.repaymentPayment.update({
         where: { id: nextPayment.id },
