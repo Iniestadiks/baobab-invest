@@ -114,7 +114,7 @@ export default function NewProjectPage() {
   // Init taux depuis config
   useEffect(() => {
     if (fees?.return_min && !form.expectedReturn) {
-      setForm(f => ({ ...f, expectedReturn: String(fees.return_min || 24) }));
+      setForm(f => ({ ...f, expectedReturn: String(fees.return_min || 22) }));
     }
   }, [fees]);
 
@@ -164,7 +164,7 @@ export default function NewProjectPage() {
   };
 
   const submit = async () => {
-    const minReturn = fees?.return_min || 24;
+    const minReturn = fees?.return_min || 22;
     if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) { setError(`Taux minimum : ${minReturn}%`); return; }
     if (!form.goalAmount || Number(form.goalAmount) < 100000) { setError("Montant minimum : 100 000 FCFA"); return; }
     setLoading(true); setError("");
@@ -195,7 +195,7 @@ export default function NewProjectPage() {
   // Calculs simulation
   const netAmount = Number(form.goalAmount) || 0;
   const hasMentor = !!form.mentorId;
-  const baobabPct   = fees?.commission_baobab_collection || 6;
+  const baobabPct   = fees?.commission_baobab_collection || 5;
   const payinPct    = fees?.payin_recovery || 4;
   const mentorPct   = hasMentor ? (fees?.commission_mentor || 2) : 0;
   const assurancePct = fees?.commission_guarantee || 2; // addon individuel — hors cagnotte
@@ -203,7 +203,7 @@ export default function NewProjectPage() {
   // Assurance exclue du diviseur — c'est un addon individuel payé par l'investisseur
   const diviseur = 1 - (baobabPct + payinPct + mentorPct) / 100;
   const goalAmount = netAmount > 0 ? Math.ceil(netAmount / diviseur) : 0;
-  const retour = Number(form.expectedReturn) || (fees?.return_min || 24);
+  const retour = Number(form.expectedReturn) || (fees?.return_min || 22);
   const totalRemb = Math.round(netAmount * (1 + retour / 100));
   const duree = Number(form.durationMonths) || 12;
   const mensualite = Math.round(totalRemb / duree);
@@ -494,9 +494,9 @@ export default function NewProjectPage() {
                 <div>
                   <label className={labelClass}>Taux de retour promis (%) *</label>
                   <input name="expectedReturn" type="number" value={form.expectedReturn} onChange={handleChange}
-                    min={fees?.return_min || 24} max="100" placeholder={String(fees?.return_min || 24)} className={inputClass}
-                    onBlur={e => { if (Number(e.target.value) < (fees?.return_min || 24)) setForm(f => ({ ...f, expectedReturn: String(fees?.return_min || 24) })); }} />
-                  <div className="text-xs text-gray-400 mt-1">Minimum {fees?.return_min || 24}%. Taux promis sur le montant net reçu. Un taux élevé attire plus d'investisseurs.</div>
+                    min={fees?.return_min || 22} max="100" placeholder={String(fees?.return_min || 22)} className={inputClass}
+                    onBlur={e => { if (Number(e.target.value) < (fees?.return_min || 22)) setForm(f => ({ ...f, expectedReturn: String(fees?.return_min || 22) })); }} />
+                  <div className="text-xs text-gray-400 mt-1">Minimum {fees?.return_min || 22}%. Taux promis sur le montant net reçu. Un taux élevé attire plus d'investisseurs.</div>
                 </div>
                 <div>
                   <label className={labelClass}>Niveau de risque</label>
@@ -624,7 +624,7 @@ export default function NewProjectPage() {
             <div className="flex gap-3">
               <button onClick={() => { setError(""); setStep(2); }} className="flex-1 border border-gray-200 text-gray-600 font-bold py-3 rounded-2xl hover:bg-gray-50">← Retour</button>
               <button onClick={() => {
-                const minReturn = fees?.return_min || 24;
+                const minReturn = fees?.return_min || 22;
                 if (!form.goalAmount || Number(form.goalAmount) < 100000) { setError("Montant minimum : 100 000 FCFA"); return; }
                 if (!form.expectedReturn || Number(form.expectedReturn) < minReturn) { setError(`Taux minimum : ${minReturn}%`); return; }
                 setError(""); setStep(4);
