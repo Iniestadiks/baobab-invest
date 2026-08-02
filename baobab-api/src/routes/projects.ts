@@ -17,7 +17,7 @@ const projectSchema = z.object({
   country: z.string().default('SN'),
   goalAmount: z.number().min(100000, 'Montant minimum 100 000 FCFA'),
   minimumInvestment: z.number().min(5000).default(5000),
-  expectedReturn: z.number().min(24, 'Taux de retour minimum : 24%').max(100),
+  expectedReturn: z.number().min(0, 'Taux de retour invalide').max(100),
   durationMonths: z.number().min(1).max(60),
   riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).default('MEDIUM'),
   mentorId: z.string().optional(),
@@ -262,6 +262,9 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
           where: { sector: req.body.sector, subSector: req.body.subSector, city: { contains: req.body.city, mode: 'insensitive' }, status: 'WAITLISTED' }
         })
         const data = projectSchema.parse(req.body)
+        if (data.expectedReturn < feesCalc.return_min) {
+          res.status(400).json({ success: false, message: `Taux de retour minimum : ${feesCalc.return_min}%` }); return
+        }
         const certifiedCount = await prisma.courseCompletion.count({ where: { userId: req.userId!, pointsEarned: { gt: 0 } } })
         // Même règle que la création normale — cohérence entre les deux chemins
         if (data.goalAmount > 1000000 && certifiedCount < 2) {
@@ -296,6 +299,9 @@ router.post('/', authenticate, requireRole(['ENTREPRENEUR']), async (req: AuthRe
     }
 
     const data = projectSchema.parse(req.body)
+    if (data.expectedReturn < feesCalc.return_min) {
+      res.status(400).json({ success: false, message: `Taux de retour minimum : ${feesCalc.return_min}%` }); return
+    }
     const certifiedCountMain = await prisma.courseCompletion.count({ where: { userId: req.userId!, pointsEarned: { gt: 0 } } })
     // Règle réelle annoncée sur l'Académie : projets > 1M FCFA exigent au moins 2 certifications
     if (data.goalAmount > 1000000 && certifiedCountMain < 2) {

@@ -69,8 +69,10 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
   try {
     const { amount } = req.body
     const { projectId } = req.params
-    if (!amount || amount < 5000) {
-      res.status(400).json({ success: false, message: 'Montant minimum : 5 000 FCFA' }); return
+    const invMinCfg = await prisma.platformConfig.findUnique({ where: { key: 'investment_min' } })
+    const investMin = invMinCfg ? Number(invMinCfg.value) : 5000
+    if (!amount || amount < investMin) {
+      res.status(400).json({ success: false, message: `Montant minimum : ${investMin.toLocaleString()} FCFA` }); return
     }
     const user = await prisma.user.findUnique({ where: { id: req.userId } })
     if (!user || user.kycStatus !== 'VERIFIED') {
@@ -226,52 +228,6 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       fees: { platform: platformFee, payin: payinFee, mentor: mentorFee, guarantee: guaranteeFee },
       sharePercent: (sharePercent * 100).toFixed(4) + '%'
     }, `Investissement de ${amount.toLocaleString()} FCFA effectué !`)
-  } catch (e) { console.error(e); errorResponse(res) }
-})
-
-// Admin — remboursement global projet
-router.post('/reimburse-project/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.projectId },
-      include: { investments: { include: { user: { select: { id: true, firstName: true } } } }, entrepreneur: { select: { id: true, firstName: true, lastName: true } }, mentor: { select: { id: true, firstName: true } } }
-    })
-    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
-    if (!['FUNDED', 'IN_PROGRESS'].includes(project.status)) { res.status(400).json({ success: false, message: 'Projet non eligible' }); return }
-    await prisma.project.update({ where: { id: project.id }, data: { status: 'IN_PROGRESS' } })
-    const fees = await getProjectFees(project)
-    const netAmount = (project as any).netAmount || project.goalAmount
-    const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
-    const totalGross = Math.round(netAmount * (1 + returnRate / 100))
-    const months = project.durationMonths || 12
-    const monthly = Math.ceil(totalGross / months)
-    const uniqueInvestors = [...new Set(project.investments.map((i: any) => i.userId))]
-    await prisma.notification.create({
-      data: { userId: project.entrepreneurId, title: 'Echéancier activé', body: `Remboursez ${monthly.toLocaleString()} FCFA/mois pendant ${months} mois. Total: ${totalGross.toLocaleString()} FCFA.`, type: 'REPAYMENT_SCHEDULE_CREATED', data: JSON.stringify({ projectId: project.id, monthly, months, total: totalGross }) }
-    })
-    for (const userId of uniqueInvestors) {
-      const inv = project.investments.filter((i: any) => i.userId === userId)
-      const invShare = inv.reduce((s: number, i: any) => s + (i.amount / project.goalAmount), 0)
-      const invNet = Math.round(totalGross * invShare)
-      await prisma.notification.create({
-        data: { userId: userId as string, title: 'Remboursement en cours', body: `Le projet "${project.title}" entre en remboursement. Vous recevrez ~${Math.ceil(invNet/months).toLocaleString()} FCFA/mois.`, type: 'REPAYMENT_STARTED', data: JSON.stringify({ projectId: project.id }) }
-      })
-    }
-    // Créer échéancier si pas encore fait
-    const existing = await prisma.repaymentSchedule.findFirst({ where: { projectId: project.id } })
-    if (!existing) {
-      const gracePeriod = (project as any).gracePeriodMonths || 0
-      const nextDue = new Date(); nextDue.setMonth(nextDue.getMonth() + 1 + gracePeriod)
-      const schedule = await prisma.repaymentSchedule.create({
-        data: { projectId: project.id, totalAmount: totalGross, monthlyAmount: monthly, totalMonths: months, remainingAmount: totalGross, nextDueDate: nextDue, status: 'ACTIVE' }
-      })
-      const paymentsData = Array.from({ length: months }, (_, i) => {
-        const due = new Date(); due.setMonth(due.getMonth() + i + 1 + gracePeriod)
-        return { scheduleId: schedule.id, projectId: project.id, amount: i === months-1 ? totalGross - monthly*(months-1) : monthly, monthNumber: i+1, dueDate: due, status: 'PENDING' }
-      })
-      await prisma.repaymentPayment.createMany({ data: paymentsData })
-    }
-    successResponse(res, {}, 'Projet en remboursement — échéancier créé')
   } catch (e) { console.error(e); errorResponse(res) }
 })
 
