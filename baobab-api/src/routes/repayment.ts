@@ -211,10 +211,24 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
     const goalAmount = schedule.project.goalAmount
 
     await prisma.$transaction(async (tx) => {
-      await tx.wallet.update({
-        where: { userId: req.userId! },
+      // Réservation atomique et conditionnelle — AVANT tout mouvement d'argent.
+      // Avant ce correctif, la mensualité était lue PENDING puis marquée PAID
+      // sans revérifier son statut au moment de l'écriture : un double-clic ou
+      // deux requêtes concurrentes payaient deux fois la même mensualité.
+      const paymentReserved = await tx.repaymentPayment.updateMany({
+        where: { id: nextPayment.id, status: 'PENDING' },
+        data: { status: 'PAID', paidAt: new Date() }
+      })
+      if (paymentReserved.count === 0) {
+        throw new Error('ALREADY_PAID: cette mensualité a déjà été réglée')
+      }
+      const walletReserved = await tx.wallet.updateMany({
+        where: { userId: req.userId!, balance: { gte: nextPayment.amount } },
         data: { balance: { decrement: nextPayment.amount } }
       })
+      if (walletReserved.count === 0) {
+        throw new Error('INSUFFICIENT: solde insuffisant au moment du paiement')
+      }
       // Payin 4% → admin
       const adminRep2 = await tx.user.findFirst({ where: { role: "ADMIN" } })
       if (adminRep2 && payinFee > 0) {
@@ -337,7 +351,15 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
       amount: nextPayment.amount,
       remainingMonths: schedule.totalMonths - schedule.paidMonths - 1
     }, 'Mensualite ' + nextPayment.monthNumber + '/' + schedule.totalMonths + ' payee')
-  } catch (e) { console.error(e); errorResponse(res) }
+  } catch (e: any) {
+    if (e?.message?.startsWith('ALREADY_PAID')) {
+      res.status(409).json({ success: false, message: 'Cette mensualité a déjà été réglée — probablement un double-clic.' }); return
+    }
+    if (e?.message?.startsWith('INSUFFICIENT')) {
+      res.status(400).json({ success: false, message: 'Solde insuffisant au moment du paiement.' }); return
+    }
+    console.error(e); errorResponse(res)
+  }
 })
 
 // Admin — reporter une échéance
@@ -489,8 +511,25 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
     const netToDistribute = totalAmount - baobabFee
 
     await prisma.$transaction(async (tx) => {
-      // Débiter wallet entrepreneur
-      await tx.wallet.update({ where: { userId: req.userId! }, data: { balance: { decrement: totalAmount } } })
+      // Réservation atomique et conditionnelle — AVANT tout mouvement d'argent.
+      // Un double-clic sur "tout rembourser" pouvait, avant ce correctif, payer
+      // deux fois le même lot de mensualités (update par id, sans revérifier le
+      // statut PENDING au moment de l'écriture).
+      const paymentIds = paymentsToProcess.map(p => p.id)
+      const paymentsReserved = await tx.repaymentPayment.updateMany({
+        where: { id: { in: paymentIds }, status: 'PENDING' },
+        data: { status: 'PAID', paidAt: new Date() }
+      })
+      if (paymentsReserved.count !== paymentIds.length) {
+        throw new Error('ALREADY_PAID: une ou plusieurs de ces mensualités ont déjà été réglées')
+      }
+      const walletReserved = await tx.wallet.updateMany({
+        where: { userId: req.userId!, balance: { gte: totalAmount } },
+        data: { balance: { decrement: totalAmount } }
+      })
+      if (walletReserved.count === 0) {
+        throw new Error('INSUFFICIENT: solde insuffisant au moment du paiement')
+      }
 
       // Distribuer à chaque investisseur proportionnellement — sur le NET, pas le brut
       for (const inv of schedule.project.investments) {
@@ -533,11 +572,6 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
         data: { type: 'COMMISSION_RETURN', amount: baobabFee, projectId: schedule.projectId, description: 'Commission remboursement anticipe — ' + paymentsToProcess.length + ' mois' }
       })
 
-      // Marquer paiements comme payés
-      for (const pay of paymentsToProcess) {
-        await tx.repaymentPayment.update({ where: { id: pay.id }, data: { status: 'PAID', paidAt: new Date() } })
-      }
-
       // Mettre à jour l'échéancier
       const newPaid = schedule.paidMonths + paymentsToProcess.length
       const newRemaining = Math.max(0, schedule.remainingAmount - totalAmount)
@@ -574,7 +608,15 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
     })
 
     successResponse(res, { monthsPaid: paymentsToProcess.length, totalPaid: totalAmount }, (isEarlyFull ? 'Remboursement complet effectue' : paymentsToProcess.length + ' mensualites payees en avance'))
-  } catch (e) { console.error(e); errorResponse(res) }
+  } catch (e: any) {
+    if (e?.message?.startsWith('ALREADY_PAID')) {
+      res.status(409).json({ success: false, message: 'Une ou plusieurs de ces mensualités ont déjà été réglées — probablement un double-clic.' }); return
+    }
+    if (e?.message?.startsWith('INSUFFICIENT')) {
+      res.status(400).json({ success: false, message: 'Solde insuffisant au moment du paiement.' }); return
+    }
+    console.error(e); errorResponse(res)
+  }
 })
 // Admin — déclarer un projet FAILED et distribuer le remboursement
 // (fonds paliers jamais débloqués + compensation assurance, frais opérateur déduits)
