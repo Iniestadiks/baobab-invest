@@ -168,90 +168,119 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
       res.status(400).json({ success: false, message: `Prestataire "${providerKey}" non disponible pour les retraits` }); return
     }
 
-    // Réserver les fonds immédiatement
-    await prisma.wallet.update({
-      where: { userId: req.userId! },
-      data: { balance: { decrement: amount } }
-    })
-
-    const tx = await prisma.walletTransaction.create({
-      data: {
-        userId: req.userId!,
-        type: 'WITHDRAWAL',
-        amount,
-        status: 'PENDING',
-        phoneNumber,
-        operator,
-        providerKey: provider.key,
-        description: `Retrait ${operator} — ${phoneNumber}`,
-      }
-    })
-
     // Règle retrait proportionnelle : 3% sur gains, 7% sur dépôts non investis
     const fees = await getFees()
-    const walletData = await prisma.wallet.findUnique({ where: { userId: req.userId! } })
-    const gainBal = walletData?.gainBalance || 0
-    const depositBal = walletData?.depositBalance || 0
-
-    // D'abord puiser dans les gains (3%), puis dans les dépôts (7%)
+    const gainBal = wallet.gainBalance || 0
+    const depositBal = wallet.depositBalance || 0
     const gainPart    = Math.min(amount, gainBal)
     const depositPart = Math.max(0, amount - gainPart)
     const gainFee     = Math.round(gainPart * fees.withdrawal_fee_standard / 100)
     const depositFee  = Math.round(depositPart * fees.withdrawal_fee_no_invest / 100)
     const payoutFee   = gainFee + depositFee
     const netReceived = amount - payoutFee
-    const withdrawRate = amount > 0 ? ((payoutFee / amount) * 100).toFixed(1) : '0'
     const grossAmount = netReceived
 
-    // Créditer BAOBAB — si frais standard = 0%, BAOBAB absorbe le Payout réel 2%
     const adminW = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    // Taux réel opérateur depuis config (configurable dans admin)
     const payoutRealConfig = await prisma.platformConfig.findUnique({ where: { key: 'payout_operator_real' } })
     const payoutSecuredConfig = await prisma.platformConfig.findUnique({ where: { key: 'payin_repayment' } })
     const payoutRealRate = payoutRealConfig?.value || 2.0
     const payoutSecuredRate = payoutSecuredConfig?.value || 4.0
     const realPayoutCost = Math.round(gainPart * payoutRealRate / 100)
     const payoutOperatorMargin = Math.round(gainPart * (payoutSecuredRate - payoutRealRate) / 100)
-    if (adminW) {
-      if (payoutFee > 0) {
-        // Frais perçus sur dépôts anti-abus
-        await prisma.wallet.update({
-          where: { userId: adminW.id },
-          data: { commissionBalance: { increment: payoutFee - realPayoutCost } }
+    const adminCommissionDelta = payoutFee > 0 ? (payoutFee - realPayoutCost) : (realPayoutCost > 0 ? -realPayoutCost : 0)
+
+    // Réservation + tous les mouvements liés en UNE transaction atomique et
+    // conditionnelle. Avant ce correctif, ces écritures étaient séparées et
+    // non conditionnées : deux retraits simultanés pouvaient tous deux passer
+    // et pousser le solde en négatif, et un échec de payout ne restaurait
+    // que le solde principal (gainBalance/depositBalance/commission admin/
+    // journal des revenus restaient décrémentés/crédités pour rien).
+    let txId: string
+    try {
+      const result = await prisma.$transaction(async (t) => {
+        const reserved = await t.wallet.updateMany({
+          where: { userId: req.userId!, balance: { gte: amount } },
+          data: {
+            balance: { decrement: amount },
+            gainBalance: { decrement: gainPart },
+            depositBalance: { decrement: depositPart },
+          }
         })
-      } else if (realPayoutCost > 0) {
-        // Retrait gratuit — BAOBAB absorbe le Payout réel depuis commissionBalance
-        await prisma.wallet.update({
-          where: { userId: adminW.id },
-          data: { commissionBalance: { decrement: realPayoutCost } }
+        if (reserved.count === 0) {
+          throw new Error('INSUFFICIENT: solde insuffisant ou retrait concurrent déjà en cours')
+        }
+        const created = await t.walletTransaction.create({
+          data: {
+            userId: req.userId!, type: 'WITHDRAWAL', amount, status: 'PENDING',
+            phoneNumber, operator, providerKey: provider.key,
+            description: `Retrait ${operator} — ${phoneNumber}`,
+          }
         })
+        if (adminW && adminCommissionDelta !== 0) {
+          await t.wallet.update({
+            where: { userId: adminW.id },
+            data: { commissionBalance: { increment: adminCommissionDelta } }
+          })
+        }
+        await t.platformRevenue.create({
+          data: {
+            type: 'WITHDRAWAL_FEE', amount: payoutFee - realPayoutCost,
+            description: `Retrait — gains:${gainPart} gratuit (BAOBAB absorbe ${realPayoutCost} FCFA) + dépôts:${depositPart}@7% — ${phoneNumber || ''}`
+          }
+        })
+        if (payoutOperatorMargin > 0) {
+          await t.platformRevenue.create({
+            data: {
+              type: 'OPERATOR_MARGIN', amount: payoutOperatorMargin,
+              description: `Marge opérateur retrait — sécurisé ${payoutSecuredRate}% vs réel ${payoutRealRate}% — gains: ${gainPart.toLocaleString()} FCFA`
+            }
+          })
+        }
+        return created
+      })
+      txId = result.id
+    } catch (resErr: any) {
+      if (resErr?.message?.startsWith('INSUFFICIENT')) {
+        res.status(409).json({ success: false, message: `Solde insuffisant ou un autre retrait est déjà en cours. Disponible : ${wallet?.balance?.toLocaleString() || 0} FCFA` }); return
       }
+      throw resErr
     }
-    await prisma.platformRevenue.create({
-      data: {
-        type: 'WITHDRAWAL_FEE',
-        amount: payoutFee - realPayoutCost,
-        description: `Retrait — gains:${gainPart} gratuit (BAOBAB absorbe ${realPayoutCost} FCFA) + dépôts:${depositPart}@7% — ${phoneNumber || ''}`
-      }
-    })
-    // Marge opérateur payout si positive
-    if (payoutOperatorMargin > 0) {
-      await prisma.platformRevenue.create({
-        data: {
-          type: 'OPERATOR_MARGIN',
-          amount: payoutOperatorMargin,
-          description: `Marge opérateur retrait — sécurisé ${payoutSecuredRate}% vs réel ${payoutRealRate}% — gains: ${gainPart.toLocaleString()} FCFA`
+
+    // Compensation exacte — contre-écritures, jamais de modification silencieuse
+    // du journal déjà créé (traçabilité complète en cas d'échec/erreur).
+    const reverseReservation = async () => {
+      await prisma.$transaction(async (t) => {
+        await t.wallet.update({
+          where: { userId: req.userId! },
+          data: {
+            balance: { increment: amount },
+            gainBalance: { increment: gainPart },
+            depositBalance: { increment: depositPart },
+          }
+        })
+        if (adminW && adminCommissionDelta !== 0) {
+          await t.wallet.update({
+            where: { userId: adminW.id },
+            data: { commissionBalance: { decrement: adminCommissionDelta } }
+          })
+        }
+        await t.platformRevenue.create({
+          data: {
+            type: 'WITHDRAWAL_FEE', amount: -(payoutFee - realPayoutCost),
+            description: `Contre-écriture — retrait échoué/annulé — ${phoneNumber || ''}`
+          }
+        })
+        if (payoutOperatorMargin > 0) {
+          await t.platformRevenue.create({
+            data: {
+              type: 'OPERATOR_MARGIN', amount: -payoutOperatorMargin,
+              description: `Contre-écriture marge opérateur — retrait échoué/annulé`
+            }
+          })
         }
       })
     }
-    // Décrémenter gainBalance et depositBalance
-    await prisma.wallet.update({
-      where: { userId: req.userId! },
-      data: {
-        gainBalance: { decrement: gainPart },
-        depositBalance: { decrement: depositPart },
-      }
-    })
+
     // Initier le payout via le prestataire choisi
     try {
       const payoutRes = await provider.initPayout({
@@ -263,7 +292,7 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
 
       if (payoutRes.success) {
         await prisma.walletTransaction.update({
-          where: { id: tx.id },
+          where: { id: txId },
           data: { status: 'COMPLETED', processedAt: new Date() }
         })
         await prisma.wallet.update({
@@ -279,37 +308,39 @@ router.post('/withdraw', authenticate, async (req: AuthRequest, res: Response): 
             data: JSON.stringify({ amount })
           }
         })
-        successResponse(res, { txId: tx.id, status: 'COMPLETED' }, `${amount.toLocaleString()} FCFA envoyes sur votre ${operator}`)
+        successResponse(res, { txId, status: 'COMPLETED' }, `${amount.toLocaleString()} FCFA envoyes sur votre ${operator}`)
       } else {
-        // Payout échoué — rembourser le wallet et mettre en attente admin
-        await prisma.wallet.update({ where: { userId: req.userId! }, data: { balance: { increment: amount } } })
-        await prisma.walletTransaction.update({ where: { id: tx.id }, data: { status: 'PENDING' } })
-        // Notifier l'admin
+        // Payout échoué — compensation complète et exacte, pas juste le solde
+        await reverseReservation()
+        await prisma.walletTransaction.update({ where: { id: txId }, data: { status: 'FAILED' } })
         const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
         await prisma.notification.createMany({
           data: admins.map(a => ({
             userId: a.id,
-            title: 'Retrait a traiter manuellement',
-            body: `Retrait de ${amount.toLocaleString()} FCFA via ${operator} (${phoneNumber}) — ${provider.label}: ${(payoutRes.raw as any)?.response_text || 'echec'}`,
+            title: 'Retrait echoue — fonds restaures',
+            body: `Retrait de ${amount.toLocaleString()} FCFA via ${operator} (${phoneNumber}) — ${provider.label}: ${(payoutRes.raw as any)?.response_text || 'echec'}. Fonds restaures automatiquement.`,
             type: 'WITHDRAWAL_REQUEST',
-            data: JSON.stringify({ transactionId: tx.id })
+            data: JSON.stringify({ transactionId: txId })
           }))
         })
-        successResponse(res, { txId: tx.id, status: 'PENDING' }, 'Retrait en cours de traitement — sous 24h ouvrées')
+        res.status(400).json({ success: false, message: "Le retrait n'a pas pu être traité — vos fonds ont été restaurés sur votre wallet. Réessayez ou contactez le support." })
       }
     } catch (payErr) {
       console.error('Payout error:', payErr)
+      // Erreur réseau/exception — même compensation complète, pas de fonds perdus
+      await reverseReservation()
+      await prisma.walletTransaction.update({ where: { id: txId }, data: { status: 'FAILED' } })
       const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
       await prisma.notification.createMany({
         data: admins.map(a => ({
           userId: a.id,
-          title: 'Retrait a traiter manuellement',
-          body: `Retrait de ${amount.toLocaleString()} FCFA via ${operator} — traitement manuel requis`,
+          title: 'Retrait — erreur technique — fonds restaures',
+          body: `Retrait de ${amount.toLocaleString()} FCFA via ${operator} — erreur technique lors de l'appel prestataire. Fonds restaures automatiquement.`,
           type: 'WITHDRAWAL_REQUEST',
-          data: JSON.stringify({ transactionId: tx.id })
+          data: JSON.stringify({ transactionId: txId })
         }))
       })
-      successResponse(res, { txId: tx.id, status: 'PENDING' }, 'Retrait enregistre — traitement sous 24h ouvrées')
+      res.status(500).json({ success: false, message: "Erreur technique lors du retrait — vos fonds ont été restaurés sur votre wallet. Réessayez." })
     }
   } catch (e) { console.error(e); errorResponse(res) }
 })
