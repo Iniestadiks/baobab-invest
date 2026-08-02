@@ -88,7 +88,7 @@ export default function ProjectsPage() {
       <div className="bg-gradient-to-r from-green-900 to-green-700 text-white py-12 px-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold mb-2">Catalogue des Projets</h1>
-          <p className="text-green-200">{total} projet{total > 1 ? "s" : ""} vérifié{total > 1 ? "s" : ""} disponible{total > 1 ? "s" : ""} — Investis dès 500 FCFA</p>
+          <p className="text-green-200">{total} projet{total > 1 ? "s" : ""} vérifié{total > 1 ? "s" : ""} disponible{total > 1 ? "s" : ""} — Investis dès 5 000 FCFA</p>
         </div>
       </div>
 

@@ -17,7 +17,7 @@ const ROLE_DATA: Record<string, {
     sub: "Investissez dès 5 000 F dans des projets analysés par notre équipe, avec un mentor garant, et percevez des retours mensuels transparents.",
     stats: [
       { label: "Investissement minimum", value: "5 000 F" },
-      { label: "Retour minimum", value: "+23%" },
+      { label: "Retour minimum", value: "+22%" },
       { label: "Vérification KYC", value: "24h" },
       { label: "Retrait des gains", value: "Gratuit" },
     ],
@@ -45,7 +45,7 @@ const ROLE_DATA: Record<string, {
     stats: [
       { label: "Validation dossier", value: "48h" },
       { label: "Financement possible en", value: "30 jours" },
-      { label: "Commission collecte", value: "6%" },
+      { label: "Commission collecte", value: "5%" },
       { label: "Paliers de déblocage", value: "3" },
     ],
     steps: [
@@ -97,7 +97,7 @@ const ROLE_DATA: Record<string, {
     stats: [
       { label: "KYC requis", value: "Aucun" },
       { label: "Contribution minimum", value: "5 000 F" },
-      { label: "Reversé aux projets", value: "90%" },
+      { label: "Reversé aux projets", value: "84%" },
       { label: "Niveaux de reconnaissance", value: "5" },
     ],
     steps: [
