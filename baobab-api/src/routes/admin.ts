@@ -971,9 +971,21 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
     const revenusBrutsPurs = commissionCollecte + commissionFonds + commissionRetrait
     const revenueNetBAOBAB = revenusBrutsPurs + margePayin + margePayout
 
+    // Projection annuelle correcte — annualise le revenu net réel sur la
+    // période réellement observée (depuis la première écriture), pas sur
+    // le cumul total × 12 qui explose dès que la plateforme dépasse 1 mois.
+    const oldestRevenue = allRevenues.length > 0 ? allRevenues[allRevenues.length - 1] : null
+    const joursObserves = oldestRevenue
+      ? Math.max(1, Math.ceil((Date.now() - new Date(oldestRevenue.createdAt).getTime()) / (24*60*60*1000)))
+      : 1
+    const projectionAnnuelle = Math.round((revenueNetBAOBAB / joursObserves) * 365)
+
     successResponse(res, {
       revenues,
-      totalRevenue: allRevenues.reduce((s, r) => s + r.amount, 0),
+      // Revenu net réel BAOBAB uniquement — pas la somme brute de toutes les
+      // écritures (qui mélangerait commission mentor, assurance et paliers
+      // décaissés à l'entrepreneur, aucun des deux n'étant un revenu BAOBAB).
+      totalRevenue: revenueNetBAOBAB,
       commissionCollecte, commissionFonds, commissionRetrait, revenusBrutsPurs,
       margePayin, margePayout, totalOperatorMargin: margePayin + margePayout,
       coutPaydunyaReel: Math.round(payinRecovery * payinReel / payinFacure),
@@ -984,7 +996,7 @@ router.get('/platform-revenues', authenticate, requireAdmin, async (req: AuthReq
       totalWithdrawalFee: commissionRetrait,
       byType, payinFacure, payinReel, payoutFacure, payoutReel,
       byMonth: Object.entries(byMonth).map(([date, amount]) => ({ date, amount })),
-      projectionAnnuelle: revenueNetBAOBAB * 12,
+      projectionAnnuelle,
     })
   } catch (e) {
     console.error('[ADMIN] Erreur platform-revenues:', e)
