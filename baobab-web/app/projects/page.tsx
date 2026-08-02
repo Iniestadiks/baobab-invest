@@ -1,10 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePlatformConfig } from "@/hooks/usePlatformConfig";
 
 const SECTORS = ["Tous","AGRICULTURE","COMMERCE","TECH","ARTISANAT","EDUCATION","SANTE","SERVICES","ENERGIE","TRANSPORT"];
 const RISKS = [{ value: "", label: "Tous les risques" },{ value: "LOW", label: "🟢 Faible" },{ value: "MEDIUM", label: "🟡 Modéré" },{ value: "HIGH", label: "🔴 Élevé" }];
 const SORTS = [{ value: "newest", label: "Plus récents" },{ value: "popular", label: "Plus populaires" },{ value: "ending", label: "Se terminent bientôt" }];
+const STATUSES = [
+  { value: "", label: "🚀 En collecte", statuses: "ACTIVE,FUNDED,IN_PROGRESS" },
+  { value: "COMPLETED", label: "✅ Réussis", statuses: "COMPLETED" },
+];
 
 interface Project {
   id: string; title: string; description: string; sector: string;
@@ -28,10 +33,11 @@ const SECTOR_EMOJI: Record<string, string> = {
 };
 
 export default function ProjectsPage() {
+  const { config: fees } = usePlatformConfig();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
-  const [filters, setFilters] = useState({ sector: "", riskLevel: "", sortBy: "newest", search: "" });
+  const [filters, setFilters] = useState({ sector: "", riskLevel: "", sortBy: "newest", search: "", status: "" });
   const [simulate, setSimulate] = useState<{ projectId: string; amount: string; result: any } | null>(null);
 
   const fetchProjects = async () => {
@@ -41,13 +47,15 @@ export default function ProjectsPage() {
       if (filters.sector && filters.sector !== "Tous") params.set("sector", filters.sector);
       if (filters.riskLevel) params.set("riskLevel", filters.riskLevel);
       if (filters.sortBy) params.set("sortBy", filters.sortBy);
+      const statusCfg = STATUSES.find(s => s.value === filters.status);
+      if (statusCfg) params.set("status", statusCfg.statuses);
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects?${params}`);
       const data = await res.json();
       if (data.success) { setProjects(data.data.projects); setTotal(data.data.pagination.total); }
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchProjects(); }, [filters.sector, filters.riskLevel, filters.sortBy]);
+  useEffect(() => { fetchProjects(); }, [filters.sector, filters.riskLevel, filters.sortBy, filters.status]);
 
   const runSimulation = async (projectId: string) => {
     const amount = simulate?.amount;
@@ -87,6 +95,18 @@ export default function ProjectsPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Filtres */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-8 shadow-sm">
+          <div className="mb-4">
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">STATUT</label>
+            <div className="flex flex-wrap gap-2">
+              {STATUSES.map(s => (
+                <button key={s.value} onClick={() => setFilters(f => ({ ...f, status: s.value }))}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                    filters.status === s.value ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-green-50"}`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="text-xs font-semibold text-gray-500 mb-1 block">SECTEUR</label>
@@ -158,7 +178,11 @@ export default function ProjectsPage() {
                         </span>
                       )}
                     </div>
-                    {p.daysLeft !== null && p.daysLeft <= 7 && (
+                    {p.status === "COMPLETED" ? (
+                      <div className="absolute top-3 right-3 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        ✅ Réussi
+                      </div>
+                    ) : p.daysLeft !== null && p.daysLeft <= 7 && (
                       <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                         ⏰ {p.daysLeft}j restants
                       </div>
@@ -222,7 +246,7 @@ export default function ProjectsPage() {
                             <div className="flex justify-between"><span>Investi</span><span className="font-bold">{simulate.result.invested?.toLocaleString()} FCFA</span></div>
                             <div className="flex justify-between"><span>Retour net estimé</span><span className="font-bold text-green-600">+{simulate.result.expectedNetReturn?.toLocaleString()} FCFA</span></div>
                             <div className="flex justify-between"><span>Total reçu</span><span className="font-bold">{simulate.result.totalReceived?.toLocaleString()} FCFA</span></div>
-                            <div className="flex justify-between text-gray-500"><span>Fonds de garantie (2%)</span><span>{simulate.result.guaranteeFundContrib?.toLocaleString()} FCFA</span></div>
+                            <div className="flex justify-between text-gray-500"><span>Fonds de garantie ({fees?.commission_guarantee ?? 2}%)</span><span>{simulate.result.guaranteeFundContrib?.toLocaleString()} FCFA</span></div>
                           </div>
                         )}
                         <button onClick={() => setSimulate(null)} className="text-xs text-gray-400 mt-2 hover:text-gray-600">Fermer</button>
