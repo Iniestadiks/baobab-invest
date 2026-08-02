@@ -99,11 +99,34 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
     if (!txId || !userId || !amount) { res.status(400).json({ success: false }); return }
     const tx = await prisma.walletTransaction.findUnique({ where: { id: txId } })
     if (!tx || tx.status === 'COMPLETED') { res.json({ success: true }); return }
+    // Vérification croisée contre l'enregistrement d'origine — AVANT tout crédit.
+    // custom_data vient de PayDunya (vérifié serveur-à-serveur, pas du corps brut
+    // de la requête), donc déjà fiable, mais on vérifie en plus qu'il correspond
+    // bien à la transaction attendue plutôt que de la créditer aveuglément.
+    if (tx.userId !== userId) {
+      console.error(`[WEBHOOK PAYDUNYA] userId ne correspond pas — tx=${tx.userId} vs webhook=${userId}, txId=${txId}`)
+      res.status(400).json({ success: false }); return
+    }
+    if (tx.type !== 'DEPOSIT') {
+      console.error(`[WEBHOOK PAYDUNYA] type de transaction inattendu — ${tx.type}, txId=${txId}`)
+      res.status(400).json({ success: false }); return
+    }
+    if (Math.abs(tx.amount - amount) > 1) {
+      console.error(`[WEBHOOK PAYDUNYA] montant ne correspond pas — attendu=${tx.amount} vs confirme=${amount}, txId=${txId}`)
+      res.status(400).json({ success: false }); return
+    }
+    if (tx.providerRef && tx.providerRef !== data.invoice.token) {
+      console.error(`[WEBHOOK PAYDUNYA] token ne correspond pas — attendu=${tx.providerRef} vs recu=${data.invoice.token}, txId=${txId}`)
+      res.status(400).json({ success: false }); return
+    }
+    let creditedNow = false
     await prisma.$transaction(async (p) => {
-      await p.walletTransaction.update({
-        where: { id: txId },
+      const reserved = await p.walletTransaction.updateMany({
+        where: { id: txId, status: { not: 'COMPLETED' } },
         data: { status: 'COMPLETED', processedAt: new Date() }
       })
+      if (reserved.count === 0) return // déjà traité par force-confirm ou un webhook concurrent
+      creditedNow = true
       await p.wallet.update({
         where: { userId },
         data: {
@@ -122,8 +145,9 @@ router.post('/webhook/paydunya', async (req: any, res: Response): Promise<void> 
         }
       })
     })
-    // Enregistrer marge opérateur sur dépôt si positive
-    if (operatorMargin > 0) {
+    // Enregistrer marge opérateur sur dépôt si positive — seulement si ce
+    // webhook a réellement crédité (pas un doublon déjà traité ailleurs)
+    if (creditedNow && operatorMargin > 0) {
       await prisma.platformRevenue.create({
         data: {
           type: 'OPERATOR_MARGIN',
@@ -361,8 +385,18 @@ router.post('/deposit/force-confirm/:txId', authenticate, async (req: AuthReques
       const { checkPayin } = await import('../services/paydunya')
       const confirmation = await checkPayin(tokenMatch[1])
       if (confirmation.status === 'completed') {
+        // Réservation atomique et conditionnelle — AVANT tout crédit. Le webhook
+        // et cette route peuvent toutes deux lire "pas encore COMPLETED" au même
+        // instant sur la même transaction ; seule l'une des deux doit créditer.
+        const reserved = await prisma.walletTransaction.updateMany({
+          where: { id: tx.id, status: { not: 'COMPLETED' } },
+          data: { status: 'COMPLETED', processedAt: new Date() }
+        })
+        if (reserved.count === 0) {
+          successResponse(res, { status: 'COMPLETED', amount: tx.amount }, 'Depot deja confirme')
+          return
+        }
         await prisma.$transaction(async (p) => {
-          await p.walletTransaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', processedAt: new Date() } })
           await p.wallet.update({ where: { userId: tx.userId }, data: { balance: { increment: tx.amount }, depositBalance: { increment: tx.amount }, totalDeposited: { increment: tx.amount } } })
           await p.notification.create({
             data: { userId: tx.userId, title: 'Depot confirme', body: `${tx.amount.toLocaleString()} FCFA credites sur votre wallet.`, type: 'DEPOSIT_CONFIRMED', data: JSON.stringify({ amount: tx.amount }) }
@@ -374,10 +408,14 @@ router.post('/deposit/force-confirm/:txId', authenticate, async (req: AuthReques
     }
     // Si pas de token ou pas complété — créditer quand même (mode test)
     if (process.env.PAYDUNYA_MODE === 'test') {
-      await prisma.$transaction(async (p) => {
-        await p.walletTransaction.update({ where: { id: tx.id }, data: { status: 'COMPLETED', processedAt: new Date() } })
-        await p.wallet.update({ where: { userId: tx.userId }, data: { balance: { increment: tx.amount } } })
+      const reservedTest = await prisma.walletTransaction.updateMany({
+        where: { id: tx.id, status: { not: 'COMPLETED' } },
+        data: { status: 'COMPLETED', processedAt: new Date() }
       })
+      if (reservedTest.count === 0) {
+        successResponse(res, { status: 'COMPLETED', amount: tx.amount }, 'Depot deja confirme'); return
+      }
+      await prisma.wallet.update({ where: { userId: tx.userId }, data: { balance: { increment: tx.amount } } })
       successResponse(res, { status: 'COMPLETED', amount: tx.amount }, 'Depot confirme (mode test)')
     } else {
       successResponse(res, { status: 'PENDING' }, 'En attente de confirmation PayDunya')
@@ -517,4 +555,4 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response): Pr
   } catch (e) { errorResponse(res) }
 })
 
-export default router
+export default router 

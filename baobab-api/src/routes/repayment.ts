@@ -569,9 +569,12 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
             totalEarned: { increment: investorShare }
           }
         })
-        // Mettre à jour returnedAmount de l'investissement
-        await tx.investment.updateMany({
-          where: { userId: inv.userId, projectId: schedule.projectId },
+        // Mettre à jour returnedAmount de CETTE ligne d'investissement précise —
+        // updateMany par userId+projectId ciblait TOUTES les lignes de cet
+        // investisseur à chaque itération, gonflant returnedAmount par la
+        // somme de toutes ses parts sur chaque ligne au lieu de sa propre part.
+        await tx.investment.update({
+          where: { id: inv.id },
           data: { returnedAmount: { increment: investorShare } }
         })
         await tx.notification.create({
