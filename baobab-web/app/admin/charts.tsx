@@ -36,8 +36,8 @@ export default function AdminCharts() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Total levé (brut)", value: `${(k.totalRaised/1000).toFixed(0)}k FCFA`, icon: "💰", color: "text-green-700", bg: "bg-green-50", note: "Capital investi total" },
-            { label: "Cagnotte nette projets", value: `${(k.totalCagnotteNette/1000).toFixed(0)}k FCFA`, icon: "🏗️", color: "text-blue-700", bg: "bg-blue-50", note: "Après frais clôture (9%)" },
-            { label: "Retours nets investisseurs", value: `${(k.totalNetInvestors/1000).toFixed(0)}k FCFA`, icon: "📈", color: "text-orange-700", bg: "bg-orange-50", note: "Projetés — Payin 4% mensualités seulement" },
+            { label: "Cagnotte nette projets", value: `${(k.totalCagnotteNette/1000).toFixed(0)}k FCFA`, icon: "🏗️", color: "text-blue-700", bg: "bg-blue-50", note: `Après frais clôture (${(k.feeMap?.commission_baobab_collection||5) + (k.feeMap?.payin_recovery||4)}%)` },
+            { label: "Retours nets investisseurs", value: `${(k.totalNetInvestors/1000).toFixed(0)}k FCFA`, icon: "📈", color: "text-orange-700", bg: "bg-orange-50", note: `Projetés — Payin ${k.feeMap?.payin_repayment||4}% mensualités seulement` },
             { label: "Revenu net BAOBAB", value: `${(k.revenuNetBAOBAB||0).toLocaleString()} FCFA`, icon: "🏦", color: "text-purple-700", bg: "bg-purple-50", note: "Encaissé à ce jour" },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>

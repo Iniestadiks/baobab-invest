@@ -84,7 +84,7 @@ export default function WithdrawPage() {
             <div className="bg-white/20 rounded-xl p-3">
               <div className="text-xs opacity-80">💵 Dépôts à investir</div>
               <div className="font-bold">{fmt(depositBalance)} FCFA</div>
-              <div className="text-xs opacity-70">Frais retrait : 7%</div>
+              <div className="text-xs opacity-70">Frais retrait : {depositFeePct}%</div>
             </div>
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function WithdrawPage() {
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
             <p className="font-semibold mb-2">📊 Détail des frais</p>
             {gainPart > 0 && <p>• Gains {fmt(gainPart)} FCFA × {gainFeePct}% = <strong>{gainFeePct === 0 ? "Gratuit ✅" : "-" + fmt(gainFee) + " FCFA"}</strong></p>}
-            {depositPart > 0 && <p>• Dépôts {fmt(depositPart)} FCFA × 7% = <strong>-{fmt(depositFee)} FCFA</strong></p>}
+            {depositPart > 0 && <p>• Dépôts {fmt(depositPart)} FCFA × {depositFeePct}% = <strong>-{fmt(depositFee)} FCFA</strong></p>}
             <p className="border-t border-blue-200 mt-2 pt-2 font-bold">
               Taux effectif : {effectiveRate}% — Vous recevez : {fmt(netReceived)} FCFA
             </p>
