@@ -86,7 +86,7 @@ router.get('/users', authenticate, requireAdmin, async (req: AuthRequest, res: R
     // Filtre par statut KYC
     if (kycFilter && kycFilter !== 'ALL') {
       if (kycFilter === 'NOT_SUBMITTED') {
-        where.kycStatus = null
+        where.kycStatus = 'NOT_SUBMITTED'
       } else {
         where.kycStatus = kycFilter
       }
