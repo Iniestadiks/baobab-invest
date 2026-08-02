@@ -274,7 +274,7 @@ model Project {
   country             String        @default("SN")
   goalAmount          Float
   raisedAmount        Float         @default(0)
-  minimumInvestment   Float         @default(500)
+  minimumInvestment   Float         @default(5000)
   expectedReturn      Float
   durationMonths      Int
   status              ProjectStatus @default(DRAFT)

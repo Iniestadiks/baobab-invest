@@ -126,15 +126,23 @@ async function seed() {
 
   const configs = [
     { key: 'commission_baobab_collection', value: 5, label: 'Commission BAOBAB cloture (%)' },
+    { key: 'payin_recovery', value: 4, label: 'Payin recuperation investissement (%)' },
     { key: 'commission_mentor', value: 2, label: 'Commission mentor (%)' },
     { key: 'commission_guarantee', value: 2, label: 'Fonds de garantie (%)' },
-    { key: 'commission_baobab_return', value: 5, label: 'Commission BAOBAB retours (%)' },
-    { key: 'paydunya_payin', value: 3, label: 'PayDunya Payin (%)' },
-    { key: 'paydunya_payout', value: 2, label: 'PayDunya Payout (%)' },
-    { key: 'return_min_with_mentor', value: 15, label: 'Retour min avec mentor (%)' },
-    { key: 'return_min_no_mentor', value: 17, label: 'Retour min sans mentor (%)' },
+    { key: 'payin_repayment', value: 4, label: 'Payin mensualites remboursement (%)' },
+    { key: 'withdrawal_fee_standard', value: 3, label: 'Frais retrait gains (%)' },
+    { key: 'withdrawal_fee_no_invest', value: 7, label: 'Frais retrait depots non investis (%)' },
+    { key: 'return_min', value: 22, label: 'Taux de retour minimum (%)' },
+    { key: 'grace_period_agriculture', value: 2, label: 'Delai de grace Agriculture/Elevage (mois)' },
+    { key: 'grace_period_other', value: 1, label: 'Delai de grace autres secteurs (mois)' },
+    { key: 'fund_baobab_fee', value: 16, label: 'Commission Fonds Solidaire (%)' },
     { key: 'investment_min', value: 5000, label: 'Investissement minimum (FCFA)' },
     { key: 'withdrawal_min', value: 5000, label: 'Retrait minimum (FCFA)' },
+    { key: 'payin_operator_real', value: 3.5, label: 'Cout reel operateur payin (%)' },
+    { key: 'payout_operator_real', value: 2, label: 'Cout reel operateur payout (%)' },
+    { key: 'referral_bonus_amount', value: 2000, label: 'Bonus parrainage (FCFA)' },
+    { key: 'referral_budget_total', value: 200000, label: 'Budget parrainage total (FCFA)' },
+    { key: 'referral_program_active', value: 1, label: 'Programme parrainage actif (1/0)' },
   ];
   for (const c of configs) {
     await p.platformConfig.upsert({
