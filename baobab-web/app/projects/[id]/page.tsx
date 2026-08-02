@@ -26,6 +26,7 @@ export default function ProjectDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const { config: fees } = usePlatformConfig();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [closureVideo, setClosureVideo] = useState<any>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -34,6 +35,19 @@ export default function ProjectDetailPage() {
       .then(r => r.json())
       .then(d => { if (d.success) setProject(d.data); })
       .finally(() => setLoading(false));
+    // Vidéo de clôture — réservée aux investisseurs du projet (403 silencieux si non autorisé)
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/palier-proof/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.success) {
+            const closure = (d.data || []).find((p: any) => p.palier === 4 && p.status === "APPROVED");
+            if (closure) setClosureVideo(closure);
+          }
+        })
+        .catch(() => {});
+    }
   }, [id]);
 
   const simulate = async () => {
@@ -234,6 +248,22 @@ export default function ProjectDetailPage() {
               <div className="p-6">
                 {activeTab === "overview" && (
                   <div className="space-y-4">
+                    {closureVideo && (
+                      <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">🎬</span>
+                          <span className="font-bold text-emerald-800">Vidéo de clôture — projet remboursé avec succès</span>
+                        </div>
+                        <video src={closureVideo.videoUrl} controls className="w-full rounded-xl mb-2 max-h-64" />
+                        {(closureVideo.documents || []).length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {closureVideo.documents.map((d: any, i: number) => (
+                              <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-white border border-emerald-200 text-emerald-700 px-2 py-1 rounded-lg hover:bg-emerald-100">📄 {d.name}</a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       {[
                         { label: "Retour attendu", value: `+${project.expectedReturn}%`, icon: "📈" },
