@@ -223,3 +223,24 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
     if (entrepreneurP3) sendNotificationEmail(entrepreneurP3.email, entrepreneurP3.firstName, '🎉 Palier 3 débloqué — cagnotte complète', `${p3Amount.toLocaleString()} FCFA (35%) finaux crédités. Vous avez reçu l'intégralité de votre cagnotte !`).catch(() => {})
   }
 }
+
+// ── VIDÉO FINALE DE CLÔTURE — après remboursement 100% réel ──
+// Palier 4 = marqueur réutilisant l'infrastructure PalierProof (vidéo +
+// documents), mais purement transparence : aucun argent à débloquer,
+// donc pas de vote requis. Non-bloquant pour l'entrepreneur.
+export async function requestClosureVideo(projectId: string, tx: any) {
+  const existing = await tx.palierProof.findUnique({ where: { projectId_palier: { projectId, palier: 4 } } })
+  if (existing) return // déjà demandée
+  await tx.palierProof.create({ data: { projectId, palier: 4, status: 'PENDING' } })
+  const project = await tx.project.findUnique({ where: { id: projectId }, select: { entrepreneurId: true, title: true } })
+  if (!project) return
+  await tx.notification.create({
+    data: {
+      userId: project.entrepreneurId,
+      title: '🎬 Projet remboursé — vidéo de clôture',
+      body: `Félicitations, "${project.title}" est intégralement remboursé ! Postez une courte vidéo de clôture (1min45 max) pour vos investisseurs — transparence, pas d'argent en jeu.`,
+      type: 'CLOSURE_VIDEO_REQUESTED',
+      data: JSON.stringify({ projectId })
+    }
+  })
+}

@@ -4,6 +4,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import path from 'path'
 import { sendNotificationEmail } from './services/emailService'
+import { executeProjectFailure } from './services/projectFailure'
 import { config } from './config'
 import authRoutes from './routes/auth'
 import projectRoutes from './routes/projects'
@@ -166,37 +167,23 @@ const checkCollectionTimeout = async () => {
     })
     let count = 0
     for (const schedule of overdueSchedules) {
-      // Pénaliser l'entrepreneur et déclencher l'échec — réutilise la logique
-      // existante de /repayment/project-failed via un appel interne équivalent
-      await prisma.user.update({
-        where: { id: schedule.project.entrepreneurId },
-        data: { reputationScore: { decrement: 50 } }
-      })
-      // Le déclenchement effectif de l'échec (remboursements) se fait via
-      // la route dédiée pour bénéficier de la même logique de calcul —
-      // ici on notifie et marque le projet, la route applique le reste.
-      await prisma.notification.create({
-        data: {
-          userId: schedule.project.entrepreneurId,
-          title: '💀 Échec automatique — 30 jours de recouvrement écoulés',
-          body: `Le projet "${schedule.project.title}" est déclaré en échec après 30 jours sans résolution. Score de réputation -50 pts.`,
-          type: 'PROJECT_FAILED_AUTO',
-          data: JSON.stringify({ scheduleId: schedule.id, projectId: schedule.projectId })
-        }
-      })
+      // Déclenchement RÉEL et automatique de l'échec — même logique complète
+      // que la route admin (fonds paliers non-débloqués + assurance − frais opérateur)
+      const result = await executeProjectFailure(schedule.projectId, 'Recouvrement non résolu sous 30 jours', 'AUTO_COLLECTION')
+      if (!result.success) continue
       const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
       await prisma.notification.createMany({
         data: admins.map(a => ({
           userId: a.id,
-          title: '💀 Échec automatique déclenché',
-          body: `"${schedule.project.title}" — 30 jours de recouvrement écoulés sans résolution. Traiter le remboursement assurance.`,
+          title: '💀 Échec automatique exécuté',
+          body: `"${schedule.project.title}" — 30 jours de recouvrement écoulés. Remboursement automatique effectué (${((result.undisbursedTotal||0)+(result.guaranteeFund||0)).toLocaleString()} FCFA distribués).`,
           type: 'PROJECT_FAILED_AUTO',
           data: JSON.stringify({ scheduleId: schedule.id, projectId: schedule.projectId })
         }))
       })
       count++
     }
-    if (count > 0) console.log('[CRON] Recouvrement expiré —', count, 'projet(s) — action admin requise pour finaliser')
+    if (count > 0) console.log('[CRON] Recouvrement expiré —', count, 'projet(s) — échec automatique exécuté')
     await prisma.$disconnect()
   } catch (e) { console.error('[CRON] Erreur check recouvrement:', e) }
 }

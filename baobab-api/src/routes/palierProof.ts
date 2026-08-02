@@ -47,7 +47,7 @@ router.post('/:projectId/:palier', authenticate, upload.fields([
   try {
     const { projectId, palier } = req.params
     const palierNum = parseInt(palier)
-    if (![2, 3].includes(palierNum)) { res.status(400).json({ success: false, message: 'Palier invalide (2 ou 3 uniquement)' }); return }
+    if (![2, 3, 4].includes(palierNum)) { res.status(400).json({ success: false, message: 'Palier invalide (2, 3 ou 4 — clôture)' }); return }
     const project = await prisma.project.findUnique({ where: { id: projectId } })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
     if (project.entrepreneurId !== req.userId) { res.status(403).json({ success: false, message: 'Non autorisé' }); return }
@@ -72,6 +72,27 @@ router.post('/:projectId/:palier', authenticate, upload.fields([
     // Renvoi après rejet : on efface les anciens votes pour repartir sur un examen propre
     if (existing.status === 'REJECTED') {
       await prisma.palierProofVote.deleteMany({ where: { proofId: existing.id } })
+    }
+    if (palierNum === 4) {
+      // Vidéo de clôture — pure transparence, rien à débloquer, pas de vote.
+      await prisma.palierProof.update({
+        where: { id: existing.id },
+        data: { videoUrl, documents: JSON.stringify(documents), status: 'APPROVED' }
+      })
+      const investorIdsClosure = [...new Set((await prisma.investment.findMany({ where: { projectId }, select: { userId: true } })).map(i => i.userId))]
+      if (investorIdsClosure.length > 0) {
+        await prisma.notification.createMany({
+          data: investorIdsClosure.map(userId => ({
+            userId,
+            title: '🎬 Vidéo de clôture disponible',
+            body: `L'entrepreneur a posté une vidéo de clôture pour le projet remboursé. Consultez-la dans vos investissements.`,
+            type: 'CLOSURE_VIDEO_POSTED',
+            data: JSON.stringify({ projectId })
+          }))
+        })
+      }
+      successResponse(res, { videoUrl, documents }, 'Vidéo de clôture publiée — merci !')
+      return
     }
     // 15 jours — délai avant bascule automatique en recouvrement si ni le
     // quorum d'investisseurs ni l'admin n'ont tranché (voir cron checkStuckPaliers)

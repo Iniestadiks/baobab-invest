@@ -4,6 +4,9 @@ import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authenticate, requireRole } from '../middleware/auth'
 import { sendNotificationEmail } from '../services/emailService'
 import { getFees, getProjectFees } from '../config/fees'
+import { executeProjectFailure } from '../services/projectFailure'
+import { requestClosureVideo } from '../services/paliers'
+import { executeProjectFailure } from '../services/projectFailure'
 import { checkAndUnlockPalier } from '../services/paliers'
 import { updateBuilderGamification } from '../services/builderGamification'
 
@@ -302,6 +305,7 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
           })
         }
         await tx.project.update({ where: { id: schedule.projectId }, data: { status: 'COMPLETED' } })
+        await requestClosureVideo(schedule.projectId, tx)
         await tx.notification.create({
           data: {
             userId: schedule.project.entrepreneurId,
@@ -551,6 +555,7 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
           data: { reputationScore: { increment: 20 } }
         })
         await tx.project.update({ where: { id: schedule.projectId }, data: { status: 'COMPLETED' } })
+        await requestClosureVideo(schedule.projectId, tx)
         await tx.notification.create({
           data: {
             userId: req.userId!,
@@ -566,156 +571,13 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
     successResponse(res, { monthsPaid: paymentsToProcess.length, totalPaid: totalAmount }, (isEarlyFull ? 'Remboursement complet effectue' : paymentsToProcess.length + ' mensualites payees en avance'))
   } catch (e) { console.error(e); errorResponse(res) }
 })
-
-// Admin — déclarer un projet FAILED et distribuer le fonds de garantie
-router.post('/project-failed/:projectId', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+// Admin — déclarer un projet FAILED et distribuer le remboursement
+// (fonds paliers jamais débloqués + compensation assurance, frais opérateur déduits)
+router.post('/project-failed/:projectId', authenticate, requireRole(['ADMIN']), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { reason } = req.body
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.projectId },
-      include: {
-        investments: {
-          include: {
-            user: { select: { id: true, firstName: true } }
-          }
-        },
-        entrepreneur: { select: { id: true, firstName: true } },
-        // Récupérer les échéanciers pour calculer ce qui a déjà été versé
-        repaymentSchedules: {
-          include: {
-            payments: {
-              where: { status: 'COMPLETED' }
-            }
-          }
-        }
-      }
-    })
-    if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
-
-    const fees = await getFees()
-    const maxCoverageRate = 80  // BAOBAB rembourse jusqu'à 80% du capital assuré
-
-    // Seuls les investisseurs ayant payé l'assurance (guaranteeContribution > 0)
-    const insuredInvs = project.investments.filter((i: any) => (i.guaranteeContribution || 0) > 0)
-    const totalInsured = insuredInvs.reduce((s: number, i: any) => s + i.amount, 0)
-
-    // Fonds disponible = guaranteeBalance réel du wallet admin
-    const adminUser = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
-    const adminWallet = adminUser ? await prisma.wallet.findUnique({ where: { userId: adminUser.id } }) : null
-    const availableGuarantee = adminWallet?.guaranteeBalance || 0
-
-    // Montant distribué = min(80% du capital assuré, fonds disponible)
-    const maxRemboursable = Math.round(totalInsured * maxCoverageRate / 100)
-    const guaranteeFund = Math.min(maxRemboursable, availableGuarantee)
-
-    await prisma.$transaction(async (tx) => {
-      // Passer le projet en FAILED
-      await tx.project.update({ where: { id: project.id }, data: { status: 'FAILED' } })
-
-      // Distribuer aux investisseurs ASSURÉS uniquement
-      // Calcul basé sur la PERTE RÉELLE NETTE de chaque investisseur
-      let totalDistributed = 0
-
-      // Total déjà versé via remboursements entrepreneur (tous investisseurs confondus)
-      const totalPaidBySchedules = (project as any).repaymentSchedules?.reduce(
-        (sum: number, sch: any) => sum + sch.payments.reduce(
-          (s: number, p: any) => s + (p.amount || 0), 0
-        ), 0) || 0
-      const totalProjectInvested = project.investments.reduce((s, i) => s + i.amount, 0) || 1
-
-      for (const inv of insuredInvs) {
-        // Part proportionnelle des remboursements déjà reçus par cet investisseur
-        const shareOfTotal = inv.amount / totalProjectInvested
-        const alreadyReceived = Math.round(totalPaidBySchedules * shareOfTotal)
-
-        // Perte réelle nette = mise - remboursements déjà reçus
-        const perteReelle = Math.max(0, inv.amount - alreadyReceived)
-
-        // Plafond 80% de la mise initiale
-        const plafond80 = Math.round(inv.amount * maxCoverageRate / 100)
-
-        // Prorata du fonds disponible pour cet investisseur
-        const proportion = totalInsured > 0 ? inv.amount / totalInsured : 0
-        const fondsProrata = Math.round(availableGuarantee * proportion)
-
-        // Remboursement = MIN(perte réelle, plafond 80%, prorata fonds dispo)
-        const guaranteeShare = Math.min(perteReelle, plafond80, fondsProrata)
-
-        if (guaranteeShare <= 0) continue
-        totalDistributed += guaranteeShare
-
-        await tx.wallet.update({
-          where: { userId: inv.userId },
-          data: {
-            balance:     { increment: guaranteeShare },
-            gainBalance: { increment: guaranteeShare },
-            totalEarned: { increment: guaranteeShare },
-          }
-        })
-
-        const couvertureMsg = guaranteeShare < perteReelle
-          ? `Fonds insuffisant : ${guaranteeShare.toLocaleString()} FCFA verses sur ${perteReelle.toLocaleString()} FCFA de perte reelle.`
-          : `Votre perte de ${perteReelle.toLocaleString()} FCFA est integralement couverte.`
-
-        await tx.notification.create({
-          data: {
-            userId: inv.userId,
-            title: 'Remboursement assurance capital',
-            body: `Le projet "${project.title}" a echoue. ${couvertureMsg} Motif: ${reason || 'Non precise'}`,
-            type: 'PROJECT_FAILED',
-            data: JSON.stringify({
-              projectId: project.id,
-              guaranteeShare,
-              perteReelle,
-              alreadyReceived,
-              plafond80,
-              fondsProrata,
-              covered: maxCoverageRate
-            })
-          }
-        })
-      }
-
-      // Notifier les non-assurés — perte sèche
-      const uninsuredInvs = project.investments.filter((i: any) => !(i.guaranteeContribution > 0))
-      for (const inv of uninsuredInvs) {
-        await tx.notification.create({
-          data: {
-            userId: inv.userId,
-            title: '❌ Projet en échec — capital non protégé',
-            body: 'Le projet "' + project.title + '" a echoue. Sans assurance capital, votre mise de ' + inv.amount.toLocaleString() + ' FCFA n\'est pas couverte.',
-            type: 'PROJECT_FAILED',
-            data: JSON.stringify({ projectId: project.id, guaranteeShare: 0 })
-          }
-        })
-      }
-
-      // Débiter le fonds de garantie du wallet admin
-      if (adminUser && totalDistributed > 0) {
-        await tx.wallet.update({
-          where: { userId: adminUser.id },
-          data: { guaranteeBalance: { decrement: totalDistributed } }
-        })
-      }
-
-      // Pénaliser l'entrepreneur -50 pts
-      await tx.user.update({
-        where: { id: project.entrepreneurId },
-        data: { reputationScore: { decrement: 50 } }
-      })
-
-      // Notifier l'entrepreneur
-      await tx.notification.create({
-        data: {
-          userId: project.entrepreneurId,
-          title: 'Projet declare en echec',
-          body: 'Votre projet "' + project.title + '" a ete declare en echec. Motif: ' + (reason || 'Non precise') + '. -50 points de reputation.',
-          type: 'PROJECT_FAILED',
-          data: JSON.stringify({ projectId: project.id })
-        }
-      })
-    })
-
-    successResponse(res, { guaranteeFund, investorsCount: project.investments.length }, 'Projet declare FAILED — ' + guaranteeFund.toLocaleString() + ' FCFA distribues depuis le fonds de garantie')
+    const result = await executeProjectFailure(req.params.projectId, reason, 'ADMIN')
+    if (!result.success) { res.status(400).json(result); return }
+    successResponse(res, result, 'Projet déclaré FAILED — ' + (result.undisbursedTotal + result.guaranteeFund).toLocaleString() + ' FCFA distribués au total')
   } catch (e) { console.error(e); errorResponse(res) }
 })
