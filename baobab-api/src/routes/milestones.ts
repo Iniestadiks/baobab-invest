@@ -238,37 +238,108 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req: AuthRequest,
     const paydunyaPayout = Math.round(milestone.amount * payoutRate / 100)
     const netSupplier = milestone.amount - paydunyaPayout
 
+    // 1. Marquer le jalon approuvé + créer le paiement en PENDING — aucun
+    // argent n'a encore réellement quitté la plateforme à ce stade.
+    let paymentId: string | null = null
     await prisma.$transaction(async (tx) => {
       await tx.milestone.update({
         where: { id: req.params.id },
         data: { status: 'APPROVED', adminNote: adminNote || 'Approuve', paidAt: new Date() }
       })
       if (supplierId) {
-        await tx.milestonePayment.create({
-          data: { milestoneId: milestone.id, supplierId, amount: netSupplier, status: 'COMPLETED', paidAt: new Date() }
+        const payment = await tx.milestonePayment.create({
+          data: { milestoneId: milestone.id, supplierId, amount: netSupplier, status: 'PENDING' }
+        })
+        paymentId = payment.id
+      }
+    })
+
+    // 2. Appeler réellement PayDunya Payout — avant ce correctif, le paiement
+    // était marqué COMPLETED sans jamais contacter le prestataire. Le
+    // fournisseur pouvait ne rien recevoir alors que la plateforme
+    // considérait l'argent comme sorti.
+    let payoutSucceeded = false
+    if (supplierId && supplier && paymentId) {
+      try {
+        const { getProvider } = await import('../services/payments/registry')
+        const provider = await getProvider('paydunya')
+        if (provider?.initPayout) {
+          const payoutRes = await provider.initPayout({
+            amount: netSupplier,
+            phoneNumber: supplier.mobileMoneyNumber,
+            operator: supplier.mobileMoneyProvider,
+            description: `KORAPACT — jalon ${milestone.title}`
+          })
+          payoutSucceeded = !!payoutRes?.success
+        }
+      } catch (payoutErr) {
+        console.error('[MILESTONE PAYOUT ERROR]', payoutErr)
+      }
+    }
+
+    if (supplierId && paymentId) {
+      if (payoutSucceeded) {
+        await prisma.$transaction(async (tx) => {
+          await tx.milestonePayment.update({
+            where: { id: paymentId! },
+            data: { status: 'COMPLETED', paidAt: new Date() }
+          })
+          await tx.supplier.update({ where: { id: supplierId }, data: { totalPayments: { increment: netSupplier } } })
+          // BAOBAB absorbe PayDunya Payout : debiter wallet admin — seulement
+          // maintenant que le virement a réellement réussi.
+          const adminU = await tx.user.findFirst({ where: { role: 'ADMIN' } })
+          if (adminU && paydunyaPayout > 0) {
+            await tx.wallet.update({
+              where: { userId: adminU.id },
+              data: { balance: { decrement: paydunyaPayout }, commissionBalance: { decrement: paydunyaPayout } }
+            })
+            await tx.platformRevenue.create({
+              data: { type: 'PAYDUNYA_FEE', amount: -paydunyaPayout, projectId: milestone.projectId,
+                description: 'PayDunya Payout ' + payoutRate + '% jalon ' + milestone.title }
+            })
+          }
+          await tx.notification.create({
+            data: {
+              userId: milestone.project.entrepreneurId,
+              title: 'Jalon approuve !',
+              body: 'Le jalon ' + milestone.title + ' a ete approuve. Paiement ' + netSupplier.toLocaleString() + ' FCFA envoye au fournisseur.',
+              type: 'MILESTONE_APPROVED',
+            }
+          })
+        })
+      } else {
+        // Payout échoué ou non confirmé — le jalon reste approuvé mais le
+        // paiement reste PENDING, avec alerte admin pour suivi manuel plutôt
+        // que de prétendre faussement que le fournisseur a été payé.
+        const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+        await prisma.notification.createMany({
+          data: admins.map(a => ({
+            userId: a.id,
+            title: 'Paiement fournisseur a traiter manuellement',
+            body: `Le virement PayDunya vers ${supplier?.companyName || 'le fournisseur'} (${netSupplier.toLocaleString()} FCFA) a échoué ou n'a pas pu être confirmé — jalon "${milestone.title}". Traitement manuel requis.`,
+            type: 'SYSTEM_ALERT',
+            data: JSON.stringify({ milestoneId: milestone.id, paymentId })
+          }))
+        })
+        await prisma.notification.create({
+          data: {
+            userId: milestone.project.entrepreneurId,
+            title: 'Jalon approuve',
+            body: 'Le jalon ' + milestone.title + ' a ete approuve. Le paiement au fournisseur est en cours de traitement.',
+            type: 'MILESTONE_APPROVED',
+          }
         })
       }
-      // BAOBAB absorbe PayDunya Payout : debiter wallet admin
-      const adminU = await tx.user.findFirst({ where: { role: 'ADMIN' } })
-      if (adminU && paydunyaPayout > 0) {
-        await tx.wallet.update({
-          where: { userId: adminU.id },
-          data: { balance: { decrement: paydunyaPayout }, commissionBalance: { decrement: paydunyaPayout } }
-        })
-        await tx.platformRevenue.create({
-          data: { type: 'PAYDUNYA_FEE', amount: -paydunyaPayout, projectId: milestone.projectId,
-            description: 'PayDunya Payout ' + payoutRate + '% jalon ' + milestone.title }
-        })
-      }
-      await tx.notification.create({
+    } else {
+      await prisma.notification.create({
         data: {
           userId: milestone.project.entrepreneurId,
           title: 'Jalon approuve !',
-          body: 'Le jalon ' + milestone.title + ' a ete approuve.' + (supplierId ? ' Paiement ' + netSupplier.toLocaleString() + ' FCFA envoye au fournisseur.' : ''),
+          body: 'Le jalon ' + milestone.title + ' a ete approuve.',
           type: 'MILESTONE_APPROVED',
         }
       })
-    })
+    }
 
     // Notifier les investisseurs
     const investments = await prisma.investment.findMany({
@@ -280,12 +351,12 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req: AuthRequest,
       data: uniqueInvestors.map(userId => ({
         userId,
         title: '🚀 Avancement projet',
-        body: `${milestone.project.title} : le jalon "${milestone.title}" est validé et payé !`,
+        body: `${milestone.project.title} : le jalon "${milestone.title}" est validé !`,
         type: 'MILESTONE_UPDATE',
       }))
     })
 
-    successResponse(res, null, 'Jalon approuvé — paiement fournisseur déclenché')
+    successResponse(res, null, payoutSucceeded || !supplierId ? 'Jalon approuvé — paiement fournisseur envoyé' : 'Jalon approuvé — paiement fournisseur en cours de traitement')
   } catch (e) {
     console.error(e)
     errorResponse(res)
