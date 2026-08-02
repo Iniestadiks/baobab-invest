@@ -972,8 +972,8 @@ function ReimburseTab({ allProjects, flash, authPost, authGet, loadData }: any) 
             // taux figé). Cohérent avec ce que /reimburse exécute réellement.
             const netAmount = p.netAmount || Math.round((p.goalAmount || 0) * 0.90);
             const payinRepayment = p.feePayinRepaymentRate ?? (fees.payin_repayment || 4);
-            const collectionRate = p.feeCollectionRate ?? (fees.commission_baobab_collection || 6);
-            const returnRate = p.expectedReturn || 24;
+            const collectionRate = p.feeCollectionRate ?? (fees.commission_baobab_collection || 5);
+            const returnRate = p.expectedReturn || 22;
             // Retour calculé sur netAmount (besoin net entrepreneur)
             const grossReturn = Math.round(netAmount * (1 + returnRate / 100));
             const payinOnReturn = Math.round(grossReturn * payinRepayment / 100);
