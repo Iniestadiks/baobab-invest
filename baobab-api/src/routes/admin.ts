@@ -521,13 +521,13 @@ router.get('/stats', authenticate, requireAdmin, async (req: AuthRequest, res: R
     configRates.forEach(c => { rateMap[c.key] = c.value })
 
     successResponse(res, {
-      baobabRate: rateMap.commission_baobab_collection || 6,
+      baobabRate: rateMap.commission_baobab_collection || 5,
       payinRate: rateMap.payin_recovery || 4,
       payinRepayRate: rateMap.payin_repayment || 4,
       mentorRate: rateMap.commission_mentor || 2,
       guarRate: rateMap.commission_guarantee || 2,
-      payinOperatorReal: 3.5,
-      payoutOperatorReal: 2.0,
+      payinOperatorReal: rateMap.payin_operator_real || 3.5,
+      payoutOperatorReal: rateMap.payout_operator_real || 2.0,
       totalUsers, activeInvestors, pendingKyc, builders,
       totalProjects, pendingReviewProjects, projectsByStatus,
       activeProjects: projectsByStatus.find(p => p.status === 'ACTIVE')?._count || 0,
@@ -731,7 +731,7 @@ router.get('/stats/charts', authenticate, requireAdmin, async (req: AuthRequest,
     const fees = await prisma.platformConfig.findMany()
     const feeMap: Record<string, number> = {}
     fees.forEach(f => { feeMap[f.key] = parseFloat(String(f.value)) })
-    const fraisTaux = (feeMap.commission_baobab_collection || 6) + (feeMap.commission_mentor || 2) + (feeMap.commission_guarantee || 2)
+    const fraisTaux = (feeMap.commission_baobab_collection || 5) + (feeMap.commission_mentor || 2) + (feeMap.commission_guarantee || 2)
 
     investments.forEach(inv => {
       const key = new Date(inv.createdAt).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
