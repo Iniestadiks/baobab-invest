@@ -481,15 +481,21 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
     const baobabRate = fees.payin_repayment || 4  // Payin mensualités — 0% commission retour
     const totalInvested = schedule.project.investments.reduce((s, i) => s + i.amount, 0)
     const isEarlyFull = months === 0 || paymentsToProcess.length === schedule.payments.length
+    // Payin prélevé sur le montant brut, investisseurs reçoivent le NET —
+    // même modèle équilibré que la mensualité normale (/pay). Avant ce correctif,
+    // les investisseurs recevaient 100% du brut ET l'admin recevait le payin en
+    // plus, créant de l'argent à chaque remboursement anticipé.
+    const baobabFee = Math.round(totalAmount * baobabRate / 100)
+    const netToDistribute = totalAmount - baobabFee
 
     await prisma.$transaction(async (tx) => {
       // Débiter wallet entrepreneur
       await tx.wallet.update({ where: { userId: req.userId! }, data: { balance: { decrement: totalAmount } } })
 
-      // Distribuer à chaque investisseur proportionnellement
+      // Distribuer à chaque investisseur proportionnellement — sur le NET, pas le brut
       for (const inv of schedule.project.investments) {
         const proportion = totalInvested > 0 ? inv.amount / totalInvested : 0
-        const investorShare = Math.round(totalAmount * proportion)
+        const investorShare = Math.round(netToDistribute * proportion)
         if (investorShare <= 0) continue
         await tx.wallet.update({
           where: { userId: inv.userId },
@@ -515,8 +521,7 @@ router.post('/pay-advance/:scheduleId', authenticate, requireRole(['ENTREPRENEUR
         })
       }
 
-      // Commission BAOBAB
-      const baobabFee = Math.round(totalAmount * baobabRate / 100)
+      // Commission BAOBAB — prélevée du brut, pas ajoutée en plus
       const adminAdv = await prisma.user.findFirst({ where: { role: 'ADMIN' } })
       if (adminAdv) {
         await prisma.wallet.update({

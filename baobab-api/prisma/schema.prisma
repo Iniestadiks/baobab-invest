@@ -298,6 +298,13 @@ model Project {
   disbursedP2         Float         @default(0)
   disbursedP3         Float         @default(0)
   currentPalier       Int           @default(0)
+  // Clôture anticipée / prolongation de campagne — demandées par l'entrepreneur,
+  // validées par l'admin (voir routes/projects.ts request-early-close/extension)
+  earlyCloseRequested Boolean       @default(false)
+  earlyCloseNote      String?
+  extensionRequested  Boolean       @default(false)
+  extensionDays       Int?
+  extensionNote       String?
   // Taux figés à la création du projet — jamais recalculés en direct après
   feeCollectionRate     Float?
   feePayinRecoveryRate  Float?

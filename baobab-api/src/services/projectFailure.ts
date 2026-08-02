@@ -20,7 +20,7 @@ export async function executeProjectFailure(projectId: string, reason: string | 
     include: {
       investments: { include: { user: { select: { id: true, firstName: true } } } },
       entrepreneur: { select: { id: true, firstName: true } },
-      repaymentSchedules: { include: { payments: { where: { status: 'COMPLETED' } } } },
+      repaymentSchedules: { include: { payments: { where: { status: 'PAID' } } } },
     }
   })
   if (!project) return { success: false, message: 'Projet introuvable' }

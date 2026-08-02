@@ -151,7 +151,7 @@ router.post('/:id/simulate', async (req: Request, res: Response): Promise<void> 
     const sharePercent = amount / project.goalAmount
     const hasMentor = !!project.mentorId
     const fees = await getProjectFees(project)
-    const withInsurance = req.body.withInsurance !== false
+    const withInsurance = req.body.withInsurance === true  // false par défaut — cohérent avec /investments (choix explicite)
     const returnRate = Math.max(project.expectedReturn || 0, fees.return_min)
     const platformFee    = Math.round(amount * fees.commission_baobab_collection / 100)
     const payinFee       = Math.round(amount * fees.payin_recovery / 100)
