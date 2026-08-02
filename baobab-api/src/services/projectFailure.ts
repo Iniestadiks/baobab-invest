@@ -50,12 +50,25 @@ export async function executeProjectFailure(projectId: string, reason: string | 
   let totalGuaranteeDistributed = 0
   let totalUndisbursedDistributed = 0
 
-  await prisma.$transaction(async (tx: any) => {
-    await tx.project.update({ where: { id: project.id }, data: { status: 'FAILED' } })
+  try {
+    await prisma.$transaction(async (tx: any) => {
+      // Réservation atomique et conditionnelle — AVANT tout crédit d'argent.
+      // Le contrôle "déjà en échec" ci-dessus se basait sur une lecture
+      // périmée faite avant la transaction : deux déclenchements concurrents
+      // (admin + cron automatique de recouvrement, par exemple) pouvaient
+      // tous deux passer cette vérification et indemniser les investisseurs
+      // deux fois, en pénalisant l'entrepreneur deux fois également.
+      const reserved = await tx.project.updateMany({
+        where: { id: project.id, status: { not: 'FAILED' } },
+        data: { status: 'FAILED' }
+      })
+      if (reserved.count === 0) {
+        throw new Error('ALREADY_FAILED')
+      }
 
-    for (const inv of project.investments) {
-      const shareOfTotal = inv.amount / totalRaised
-      const alreadyReceived = Math.round(totalPaidBySchedules * shareOfTotal)
+      for (const inv of project.investments) {
+        const shareOfTotal = inv.amount / totalRaised
+        const alreadyReceived = Math.round(totalPaidBySchedules * shareOfTotal)
       const undisbursedShare = Math.round(undisbursedTotal * shareOfTotal)
 
       const isInsured = (inv.guaranteeContribution || 0) > 0
@@ -109,7 +122,13 @@ export async function executeProjectFailure(projectId: string, reason: string | 
         data: JSON.stringify({ projectId: project.id })
       }
     })
-  })
+    })
+  } catch (e: any) {
+    if (e?.message === 'ALREADY_FAILED') {
+      return { success: false, message: 'Projet déjà en échec (traité par un déclenchement concurrent)' }
+    }
+    throw e
+  }
 
   return {
     success: true,
