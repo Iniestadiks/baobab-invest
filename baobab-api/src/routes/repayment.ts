@@ -262,6 +262,15 @@ router.post('/pay/:scheduleId', authenticate, requireRole(['ENTREPRENEUR']), asy
           data: { returnedAmount: { increment: investorShare } }
         })
       }
+      // Reliquat d'arrondi (netToDistribute - somme des parts arrondies
+      // indépendamment) — attribué explicitement au plus gros investisseur
+      // plutôt que de disparaître ou d'être fabriqué silencieusement.
+      const totalDistributed = Object.values(investorMap).reduce((s, d) => s + d.totalShare, 0)
+      const residual = netToDistribute - totalDistributed
+      if (residual !== 0 && Object.keys(investorMap).length > 0) {
+        const biggestUserId = Object.entries(investorMap).sort((a, b) => b[1].totalShare - a[1].totalShare)[0][0]
+        investorMap[biggestUserId].totalShare += residual
+      }
       // Crediter chaque investisseur une seule fois
       for (const [userId, data] of Object.entries(investorMap)) {
         await tx.wallet.update({

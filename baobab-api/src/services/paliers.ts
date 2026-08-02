@@ -197,7 +197,9 @@ export async function checkAndUnlockPalier(scheduleId: string, tx: any) {
   }
   // ── PALIER 3 : 35% après moisP3 mensualités payées (ou remboursement total) ──
   if (currentPalier === 2 && (schedule.paidMonths >= moisP3 || isFullyRepaid)) {
-    const p3Amount = Math.round(netAmount * 0.35)
+    // Reliquat exact plutôt que 35% arrondi indépendamment — garantit que
+    // P1+P2+P3 = netAmount pile, sans jamais perdre ni créer 1 FCFA par arrondi.
+    const p3Amount = netAmount - (project.disbursedP1 || 0) - (project.disbursedP2 || 0)
     const canUnlock = await checkProofAndMaybeUnlock(3, p3Amount, '35%')
     if (!canUnlock) return
     // Réservation atomique et conditionnelle — AVANT tout crédit d'argent.
