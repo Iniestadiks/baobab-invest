@@ -332,9 +332,26 @@ router.post('/admin/allocate', authenticate, requireAdmin, async (req: AuthReque
     // Calculer le sharePercent pour le Fonds Solidaire
     const totalRaised = project.raisedAmount + amount
     const sharePercent = amount / (project.goalAmount || totalRaised)
-    const expectedReturn = Math.round(amount * (1 + (project.expectedReturn || 24) / 100))
+    const expectedReturn = Math.round(amount * (1 + (project.expectedReturn || 22) / 100))
 
     await prisma.$transaction(async (tx) => {
+      // Réservation atomique et conditionnelle du Fonds Solidaire — AVANT tout
+      // crédit. "available" était calculé via deux agrégations séparées avant
+      // la transaction, sans condition au moment de l'écriture : deux
+      // allocations admin simultanées pouvaient chacune passer la vérification
+      // (lecture périmée partagée) et ensemble dépasser le disponible réel.
+      // Prisma ne permet pas de comparer deux colonnes (totalAllocated vs
+      // totalReceived) dans un where standard — SQL brut paramétré nécessaire
+      // pour la vraie condition atomique.
+      const reservedRows = await tx.$executeRaw`
+        UPDATE solidary_fund
+        SET "totalAllocated" = "totalAllocated" + ${amount}, "totalProjects" = "totalProjects" + 1
+        WHERE id = ${FUND_ID} AND "totalAllocated" + ${amount} <= "totalReceived"
+      `
+      if (reservedRows === 0) {
+        throw new Error('INSUFFICIENT_FUND: fonds solidaire insuffisant au moment de l\'allocation')
+      }
+
       // 1. Traçabilité allocation fonds
       await tx.fundAllocation.create({ data: { projectId, amount, adminId: req.userId!, note: `${justification}${note ? ' | ' + note : ''}` } })
 
@@ -381,11 +398,6 @@ router.post('/admin/allocate', authenticate, requireAdmin, async (req: AuthReque
           body: `Votre projet "${project.title}" a reçu ${amount.toLocaleString()} FCFA du Fonds Solidaire BAOBAB. Justification : ${justification}`,
           type: 'FUND_ALLOCATION', data: JSON.stringify({ projectId, amount, justification }) }
       })
-
-      // 8. Mettre à jour solidaryFund
-      try {
-        await tx.solidaryFund.update({ where: { id: FUND_ID }, data: { totalAllocated: { increment: amount }, totalProjects: { increment: 1 } } })
-      } catch {}
     })
     // Bonus points aux bâtisseurs dont les fonds ont été utilisés
     const contributors = await prisma.fundContribution.findMany({
@@ -400,7 +412,12 @@ router.post('/admin/allocate', authenticate, requireAdmin, async (req: AuthReque
     }
     await updateTopDonor()
     successResponse(res, { projectId, amount, justification }, `✅ ${amount.toLocaleString()} FCFA alloués à "${project.title}"`)
-  } catch (e) { console.error(e); errorResponse(res) }
+  } catch (e: any) {
+    if (e?.message?.startsWith('INSUFFICIENT_FUND')) {
+      errorResponse(res, "Fonds solidaire insuffisant au moment de l'allocation — probablement une autre allocation concurrente. Réessayez.", 409); return
+    }
+    console.error(e); errorResponse(res)
+  }
 })
 
 // ─── ADMIN — LISTE CONTRIBUTIONS (avec filtres) ──────────────────────────────
