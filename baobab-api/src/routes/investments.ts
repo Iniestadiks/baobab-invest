@@ -80,7 +80,7 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
     }
     const project = await prisma.project.findUnique({ where: { id: projectId } })
     if (!project) { res.status(404).json({ success: false, message: 'Projet introuvable' }); return }
-    if (!['ACTIVE', 'FUNDED'].includes(project.status)) {
+    if (project.status !== 'ACTIVE') {
       res.status(400).json({ success: false, message: "Ce projet n'accepte plus d'investissements" }); return
     }
     const wallet = await prisma.wallet.findUnique({ where: { userId: req.userId } })
@@ -130,6 +130,20 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
     const expectedReturn = Math.round(netDistributed * sharePercent)
 
     await prisma.$transaction(async (tx) => {
+      // 0. Réservation atomique et conditionnelle de la place dans la cagnotte —
+      // AVANT tout débit. Si deux investissements concurrents arrivent en même
+      // temps, seul celui qui passe encore sous goalAmount au moment de l'écriture
+      // réussit ; l'autre voit updateMany affecter 0 ligne et la transaction entière
+      // est annulée (rollback automatique Prisma sur exception).
+      const newRaised = project.raisedAmount + amount
+      const newStatus = newRaised >= project.goalAmount ? 'FUNDED' : project.status
+      const reserved = await tx.project.updateMany({
+        where: { id: projectId, status: 'ACTIVE', raisedAmount: { lte: project.goalAmount - amount } },
+        data: { raisedAmount: { increment: amount }, investorCount: { increment: 1 }, status: newStatus }
+      })
+      if (reserved.count === 0) {
+        throw new Error('OVERFUND: objectif déjà atteint ou montant restant insuffisant pour cet investissement')
+      }
       // 1. Débiter wallet investisseur
       // amount → escrow (investissement)
       // guaranteeFee → guaranteeBalance admin (assurance, si prise)
@@ -169,13 +183,6 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       // 2. Créer l'investissement
       await tx.investment.create({
         data: { userId: req.userId!, projectId, amount, status: 'PENDING', expectedReturn, guaranteeContribution: guaranteeFee, sharePercent }
-      })
-      // 3. Mettre à jour le projet
-      const newRaised = project.raisedAmount + amount
-      const newStatus = newRaised >= project.goalAmount ? 'FUNDED' : project.status
-      await tx.project.update({
-        where: { id: projectId },
-        data: { raisedAmount: { increment: amount }, investorCount: { increment: 1 }, status: newStatus }
       })
       // 4. Créditer wallet admin : BAOBAB commission% + Payin%
       const adminUser = await tx.user.findFirst({ where: { role: 'ADMIN' } })
@@ -228,7 +235,13 @@ router.post('/:projectId', authenticate, async (req: AuthRequest, res: Response)
       fees: { platform: platformFee, payin: payinFee, mentor: mentorFee, guarantee: guaranteeFee },
       sharePercent: (sharePercent * 100).toFixed(4) + '%'
     }, `Investissement de ${amount.toLocaleString()} FCFA effectué !`)
-  } catch (e) { console.error(e); errorResponse(res) }
+  } catch (e: any) {
+    if (e?.message?.startsWith('OVERFUND')) {
+      res.status(409).json({ success: false, message: "Ce montant dépasse ce qu'il reste à lever sur ce projet — quelqu'un vient probablement d'investir en même temps que vous. Réessayez avec un montant plus faible." })
+      return
+    }
+    console.error(e); errorResponse(res)
+  }
 })
 
 // Plans d'épargne
